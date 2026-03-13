@@ -266,6 +266,12 @@ ServiceFabricBackup/
 *.ldf
 *.ndf
 
+# Local settings and secrets
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Staging.json
+secrets.json
+
 # Business Intelligence projects
 *.rdl.data
 *.bim.layout

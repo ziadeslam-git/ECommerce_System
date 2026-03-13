@@ -1,0 +1,56 @@
+@model ECommerce_System.ViewModels.Identity.ProfileVM
+@{
+    ViewData["Title"] = "Personal Information";
+    Layout = "_ProfileLayout";
+}
+
+<div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-800 p-8">
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-2">
+        <h1 class="text-lg font-bold text-slate-800 dark:text-white">Personal Information</h1>
+        <span class="text-xs font-medium text-slate-400">Manage your profile details</span>
+    </div>
+
+    <!-- Profile Form -->
+    <form asp-action="Index" method="post" class="space-y-6">
+        <div asp-validation-summary="ModelOnly" class="text-rose-500 text-sm font-semibold mb-4"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Full Name -->
+            <div class="space-y-2">
+                <label asp-for="FullName" class="text-[13px] font-semibold text-slate-700 dark:text-slate-300 ml-1"></label>
+                <input asp-for="FullName" class="w-full h-11 px-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                <span asp-validation-for="FullName" class="text-rose-500 text-xs mt-1 block"></span>
+            </div>
+
+            <!-- Email -->
+            <div class="space-y-2">
+                <label asp-for="Email" class="text-[13px] font-semibold text-slate-700 dark:text-slate-300 ml-1"></label>
+                <input asp-for="Email" disabled class="w-full h-11 px-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-sm cursor-not-allowed outline-none" />
+            </div>
+
+            <!-- Phone -->
+            <div class="space-y-2">
+                <label asp-for="PhoneNumber" class="text-[13px] font-semibold text-slate-700 dark:text-slate-300 ml-1"></label>
+                <div class="flex">
+                    <div class="relative">
+                        <select class="h-11 pl-4 pr-8 rounded-l-lg border-y border-l border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:ring-0 focus:border-slate-200 dark:focus:border-slate-700 appearance-none">
+                            <option>+1</option>
+                            <option>+44</option>
+                            <option>+20</option>
+                        </select>
+                    </div>
+                    <input asp-for="PhoneNumber" class="w-full h-11 px-4 rounded-r-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" placeholder="1234567890" />
+                </div>
+                <span asp-validation-for="PhoneNumber" class="text-rose-500 text-xs mt-1 block"></span>
+            </div>
+        </div>
+
+        <!-- Form Footer Buttons -->
+        <div class="pt-8 flex justify-end items-center gap-4 border-t border-slate-100 dark:border-slate-800 mt-6">
+            <button type="submit" class="px-8 py-2.5 bg-primary text-white text-sm font-bold rounded-lg shadow-sm shadow-primary/30 hover:bg-primary/90 transition-all">
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>

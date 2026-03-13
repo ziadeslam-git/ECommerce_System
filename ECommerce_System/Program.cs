@@ -64,8 +64,38 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IDBInitializer, DBInitializer>();
 
 // ──────────────────────────────────────────────────────────────────
+// 6. Email Sender — Gmail SMTP
+// ──────────────────────────────────────────────────────────────────
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddTransient<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender, EmailSender>();
+
+// ──────────────────────────────────────────────────────────────────
+// 7. External Authentication (Google & Facebook)
+// ──────────────────────────────────────────────────────────────────
+builder.Services.AddAuthentication()
+    .AddGoogle(options =>
+    {
+        options.ClientId = builder.Configuration["Authentication:Google:ClientId"]!;
+        options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
+    })
+    .AddFacebook(options =>
+    {
+        options.AppId = builder.Configuration["Authentication:Facebook:AppId"]!;
+        options.AppSecret = builder.Configuration["Authentication:Facebook:AppSecret"]!;
+        
+        // Facebook automatically requests "email" but if the app hasn't been verified 
+        // to request this scope, it throws "Invalid scopes: email".
+        // We override this behavior by explicitly clearing the default scopes and 
+        // asking only for "public_profile".
+        options.Scope.Clear();
+        options.Scope.Add("public_profile");
+    });
+
+// ──────────────────────────────────────────────────────────────────
 // 6. MVC with Views
 // ──────────────────────────────────────────────────────────────────
+builder.Services.AddMemoryCache();
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
@@ -96,13 +126,18 @@ using (var scope = app.Services.CreateScope())
 }
 
 // ─── Area + Default Routing ─────────────────────────────────────
+app.MapAreaControllerRoute(
+    name: "AdminArea",
+    areaName: "Admin",
+    pattern: "Admin/{controller=Dashboard}/{action=Index}/{id?}");
+
 app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{area=Customer}/{controller=Home}/{action=Index}/{id?}");
 
 app.MapRazorPages();
 

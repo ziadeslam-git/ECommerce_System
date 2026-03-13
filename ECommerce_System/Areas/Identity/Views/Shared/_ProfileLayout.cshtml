@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Smart Store Profile</title>
+    <!-- Tailwind + Fonts -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: { "primary": "#6467f2", "background-light": "#f6f6f8", "background-dark": "#101122" },
+                    fontFamily: { "display": ["Inter", "sans-serif"] },
+                },
+            },
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .active-tab {
+            background-color: rgba(100, 103, 242, 0.05);
+            color: #6467f2;
+            border-left: 3px solid #6467f2;
+        }
+    </style>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-800 dark:text-slate-100 min-h-screen">
+    <div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+        <div class="layout-container flex h-full grow flex-col">
+            
+            <!-- Top Navigation Bar -->
+            <header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 md:px-10 py-3 sticky top-0 z-50">
+                <div class="flex items-center gap-4">
+                    <a asp-action="Index" asp-controller="Home" asp-area="Customer" class="flex items-center gap-2">
+                        <div class="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
+                            <span class="material-symbols-outlined">shopping_bag</span>
+                        </div>
+                        <h2 class="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] hidden sm:block">Smart Store</h2>
+                    </a>
+                </div>
+                <div class="flex flex-1 justify-end gap-4 md:gap-8">
+                    <nav class="hidden md:flex items-center gap-6">
+                        <a asp-action="Index" asp-controller="Home" asp-area="Customer" class="text-slate-600 dark:text-slate-300 text-sm font-medium hover:text-primary transition-colors">Home</a>
+                        <a href="#" class="text-slate-600 dark:text-slate-300 text-sm font-medium hover:text-primary transition-colors">Orders</a>
+                        <a asp-action="Index" asp-controller="Profile" asp-area="Identity" class="text-primary text-sm font-bold border-b-2 border-primary py-1">Profile</a>
+                    </nav>
+                    <div class="flex items-center gap-2">
+                        <button class="flex size-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-colors">
+                            <span class="material-symbols-outlined">shopping_cart</span>
+                        </button>
+                        @if (User.Identity!.IsAuthenticated)
+                        {
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="flex size-10 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 transition-colors" title="Admin Dashboard">
+                                    <span class="material-symbols-outlined">shield_person</span>
+                                </a>
+                            }
+                            <a asp-area="Identity" asp-controller="Profile" asp-action="Index" class="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors" title="My Profile">
+                                <span class="material-symbols-outlined">person</span>
+                            </a>
+                            <form asp-area="Identity" asp-controller="Account" asp-action="Logout" method="post" class="inline m-0 p-0">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="flex size-10 items-center justify-center rounded-lg bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-900/50 transition-colors" title="Logout">
+                                    <span class="material-symbols-outlined">logout</span>
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <a asp-area="Identity" asp-controller="Account" asp-action="Login" class="flex items-center justify-center rounded-lg px-4 h-10 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm font-bold text-slate-700 dark:text-slate-300" title="Login">
+                                Login
+                            </a>
+                        }
+                    </div>
+                </div>
+            </header>
+            
+            <main class="flex flex-1 justify-center py-8 px-4 md:px-10 lg:px-20">
+                <div class="layout-content-container flex flex-col md:flex-row max-w-[1200px] flex-1 gap-8">
+                    
+                    <!-- Left Panel: Navigation Sidebar -->
+                    <aside class="w-full md:w-64 lg:w-[280px] shrink-0">
+                        <div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-800 overflow-hidden flex flex-col h-full min-h-[500px]">
+                            
+                            <!-- User Profile Header -->
+                            <div class="p-6 flex flex-col items-center text-center border-b border-slate-100 dark:border-slate-800">
+                                <div class="w-[72px] h-[72px] rounded-full bg-primary/10 flex items-center justify-center mb-4 ring-4 ring-slate-50 dark:ring-slate-800 overflow-hidden">
+                                    <span class="material-symbols-outlined text-4xl text-primary">person</span>
+                                </div>
+                                <h2 class="text-base font-bold text-slate-900 dark:text-white">@User.Identity?.Name</h2>
+                            </div>
+                            
+                            <!-- Navigation Tabs -->
+                            <nav class="flex-grow py-4 flex flex-col" id="sidebar-nav">
+                                @{
+                                    var currentAction = ViewContext.RouteData.Values["Action"]?.ToString();
+                                }
+                                <a asp-action="Index" asp-controller="Profile" asp-area="Identity" 
+                                   class="@(currentAction == "Index" ? "active-tab" : "") flex items-center gap-3 px-6 py-3 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
+                                    <span class="material-symbols-outlined text-[20px] @(currentAction == "Index" ? "text-primary" : "text-slate-500")">person</span>
+                                    <span>Personal Info</span>
+                                </a>
+                                <a asp-action="ChangePassword" asp-controller="Profile" asp-area="Identity" 
+                                   class="@(currentAction == "ChangePassword" ? "active-tab" : "") flex items-center gap-3 px-6 py-3 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
+                                    <span class="material-symbols-outlined text-[20px] @(currentAction == "ChangePassword" ? "text-primary" : "text-slate-500")">lock</span>
+                                    <span>Change Password</span>
+                                </a>
+                                <a asp-action="Addresses" asp-controller="Profile" asp-area="Identity" 
+                                   class="@(currentAction == "Addresses" || currentAction == "AddAddress" || currentAction == "EditAddress" ? "active-tab" : "") flex items-center gap-3 px-6 py-3 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
+                                    <span class="material-symbols-outlined text-[20px] @(currentAction == "Addresses" || currentAction == "AddAddress" || currentAction == "EditAddress" ? "text-primary" : "text-slate-500")">location_on</span>
+                                    <span>My Addresses</span>
+                                </a>
+                                
+                                <div class="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
+                                    <form asp-action="Logout" asp-controller="Account" asp-area="Identity" method="post" class="m-0 p-0">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="flex items-center gap-3 px-6 py-4 text-sm font-medium text-slate-400 hover:text-red-500 transition-colors w-full text-left">
+                                            <span class="material-symbols-outlined text-[20px]">logout</span>
+                                            <span>Sign Out</span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </nav>
+                        </div>
+                    </aside>
+                    
+                    <!-- Right Panel: Main Content -->
+                    <section class="flex-1 flex flex-col gap-6">
+                        @if (TempData["success"] != null)
+                        {
+                            <div class="bg-emerald-100 border border-emerald-400 text-emerald-700 px-4 py-3 rounded relative" role="alert">
+                                <span class="block sm:inline">@TempData["success"]</span>
+                            </div>
+                        }
+                        @if (TempData["error"] != null)
+                        {
+                            <div class="bg-rose-100 border border-rose-400 text-rose-700 px-4 py-3 rounded relative" role="alert">
+                                <span class="block sm:inline">@TempData["error"]</span>
+                            </div>
+                        }
+
+                        @RenderBody()
+                    </section>
+                </div>
+            </main>
+            
+            <footer class="mt-auto py-8 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-center">
+                <p class="text-slate-500 text-xs">© 2026 Smart Store. All rights reserved.</p>
+            </footer>
+        </div>
+    </div>
+    
+    <partial name="_ValidationScriptsPartial" />
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

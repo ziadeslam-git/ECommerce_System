@@ -1,0 +1,242 @@
+@{
+    ViewData["Title"] = "Express Your Vibe";
+    Layout = "_CustomerLayout";
+}
+
+<!-- Hero Section -->
+<section class="px-6 md:px-20 py-8">
+    <div class="mx-auto max-w-7xl">
+        <div class="relative overflow-hidden rounded-3xl bg-primary/10 p-8 md:p-16 flex flex-col md:flex-row items-center gap-12">
+            <div class="z-10 flex-1 space-y-6">
+                <span class="inline-block px-4 py-1 rounded-full bg-white text-primary text-xs font-black uppercase tracking-widest shadow-sm">Collection 2024</span>
+                <h2 class="text-5xl md:text-7xl font-black leading-tight tracking-tighter italic text-slate-900 dark:text-white">Wear Your <span class="text-primary">Mood.</span></h2>
+                <p class="text-lg text-slate-600 dark:text-slate-400 max-w-md font-medium leading-relaxed">Exclusive high-quality tees and curated gift boxes for the bold and the bright. Express yourself without saying a word.</p>
+                <div class="flex flex-wrap gap-4 pt-4">
+                    <button class="px-8 py-4 bg-primary text-white rounded-xl font-bold text-lg hover:scale-105 transition-transform shadow-xl shadow-primary/40">Shop T-Shirts</button>
+                    <button class="px-8 py-4 bg-white dark:bg-slate-800 border-2 border-primary text-primary rounded-xl font-bold text-lg hover:bg-primary/5 transition-colors">Gift Guide</button>
+                </div>
+            </div>
+            <div class="flex-1 w-full max-w-md">
+                <div class="aspect-square rounded-3xl bg-gradient-to-br from-primary to-pink-400 rotate-3 overflow-hidden shadow-2xl relative">
+                    <img class="w-full h-full object-cover -rotate-3 scale-110" data-alt="Cool young person wearing a graphic oversized lavender t-shirt" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZJH33Dd2knG8yZHyPKYVSF48OYBtT6jGI65kqAaIwT4u-W2_K1a8WrhmkAhoJsgsVQoBnG8DDrnBESPhWKhWI-b3nTWZc4BDiNFPSnodP2-3I5hWlZvSsNrPfxNG-bFtEnBJ2EZfVy_CSC-qGLPgq-_pmgK3qpedicPeAZE2CblHrcp8kG61mzz-nfdkDv7ZWMM4IvR5g5rMNN6FYTw6uKt-SpwFvkBD2UfAeiFAadVMMeQSvLPM2rggE_uVBkmTeMRG6rgxUd6Id"/>
+                    <div class="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur rounded-2xl p-4 shadow-lg flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-slate-500 uppercase">Featured Design</p>
+                            <p class="font-black text-slate-900">Electric Soul Tee</p>
+                        </div>
+                        <span class="text-primary font-black">$32.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Build Your Own Box Section -->
+<section class="px-6 md:px-20 py-12">
+    <div class="mx-auto max-w-7xl">
+        <div class="bg-slate-900 text-white rounded-[2.5rem] p-8 md:p-12 overflow-hidden relative">
+            <div class="absolute top-0 right-0 w-1/3 h-full bg-primary/20 blur-[100px] rounded-full"></div>
+            <div class="relative z-10 grid md:grid-cols-2 gap-12 items-center">
+                <div class="space-y-6">
+                    <div class="flex items-center gap-2 text-yellow-400">
+                        <span class="material-symbols-outlined fill-1">featured_seasonal_and_gifts</span>
+                        <span class="text-sm font-black uppercase tracking-widest">New Feature</span>
+                    </div>
+                    <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight">The Ultimate Gift Box 🎁</h2>
+                    <p class="text-slate-400 text-lg leading-relaxed">Mix and match your favorite tees, custom stickers, and sweet treats to build a personalized gift box for yourself or a friend!</p>
+                    <div class="flex flex-col gap-4 py-4">
+                        <div class="flex items-center gap-4">
+                            <div class="size-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20">1</div>
+                            <p class="font-bold">Pick a Premium Tee</p>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="size-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20">2</div>
+                            <p class="font-bold">Add 3 Accessory Packs</p>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="size-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20">3</div>
+                            <p class="font-bold">Write a Custom Card</p>
+                        </div>
+                    </div>
+                    <button class="w-full md:w-auto px-10 py-5 bg-primary rounded-2xl font-black text-xl hover:bg-primary/90 transition-all flex items-center justify-center gap-3">
+                        Start Building <span class="material-symbols-outlined">arrow_forward</span>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="aspect-square bg-slate-800 rounded-2xl p-4 flex flex-col justify-center items-center gap-4 border border-white/5 group hover:border-primary/50 transition-colors">
+                        <img class="size-24 object-contain" data-alt="White t-shirt isolated" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDK8jPy0-A1_OhR-RQqEPHfvO1jZhHrKmmxR7LCarj1zXn8srDpjDm2cuDkfx5nQo-Nu6Oa7cDGDZLXHL_irh65d9zGz3KXAgfsYmbBfgoBedz1zfc8ss19BfbrMjcXw7o9UqEDcAfRRm4DxALLzv3f-OQuTlzfZ6smzClEv0HEymKj5eqGQEOVyKI8gnmHKH7IjAiyz7CMeLIpwY6IyetB8dlQUcSh-zsQuzfl6x_95TV8EoaY66knDByfSzAanw4TskDfrwtwicD7"/>
+                        <span class="text-xs font-bold uppercase opacity-60">Step 1: Tees</span>
+                    </div>
+                    <div class="aspect-square bg-slate-800 rounded-2xl p-4 flex flex-col justify-center items-center gap-4 border border-white/5 group hover:border-primary/50 transition-colors">
+                        <img class="size-24 object-contain" data-alt="Colorful sticker pack" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKHpcz_ISBPhL8YHERK_W6U_1-CggfMBgtCtaXlyGrngzJU4ob4FexUWbJlVQfRokcZir9uRIy5dNiuki4k0APJoN4kpiUZrlEFIS80o2f8jf6GRWuXJuCwRnpOPgucNCwMbLqZncj97Rl9WILsUYlvyqq6bF3PvTkNMApAAGhN5jypilaVp0-knkUmaBIm4hknYP0OaL2MsjN0nZ3qDwaASD50tECN-TKxvVNvtLI4T-c7LuBq3zR6cIxsKukiJAMjaElIS-LagZ_"/>
+                        <span class="text-xs font-bold uppercase opacity-60">Step 2: Stickers</span>
+                    </div>
+                    <div class="aspect-square bg-slate-800 rounded-2xl p-4 flex flex-col justify-center items-center gap-4 border border-white/5 group hover:border-primary/50 transition-colors">
+                        <img class="size-24 object-contain" data-alt="Small box of candies" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAz-1DIcZuB1bFZJ1we4StRuKgnEpgTWJyJhk-2-A8nCAChaIZgLVHW6AtmNgMwe7KWdxrhDJOUsZYBZMF2s8AvG_J7se5eDwbh9eJjn4kHLf_ofzclWX08gXChvQtuX3-Eb_uRTO1SWii2GJ3S-9u1IjNSRlP1r4IMjhwOa642JFuK8JcUzlq7eSqyXxEdYBffwv9YoWRPQ3PSlM6XdEMjTUQ_gkyK3lITghMJgkAOnYmfQ_DwNvEVZLrLMnNh2ebEglzasWf2jPfF"/>
+                        <span class="text-xs font-bold uppercase opacity-60">Step 3: Treats</span>
+                    </div>
+                    <div class="aspect-square bg-primary/20 rounded-2xl p-4 flex flex-col justify-center items-center gap-4 border border-primary/30 animate-pulse">
+                        <span class="material-symbols-outlined text-4xl text-primary">redeem</span>
+                        <span class="text-xs font-bold uppercase text-primary">Preview Box</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Product Grid -->
+<section class="px-6 md:px-20 py-12">
+    <div class="mx-auto max-w-7xl">
+        <div class="flex items-center justify-between mb-10">
+            <h2 class="text-3xl font-black italic tracking-tighter text-slate-900 dark:text-white">Fresh Drops 🔥</h2>
+            <a class="text-primary font-bold hover:underline flex items-center gap-1" href="#">View All <span class="material-symbols-outlined">chevron_right</span></a>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <!-- Product 1 -->
+            <div class="group cursor-pointer">
+                <div class="relative aspect-[3/4] rounded-3xl overflow-hidden bg-slate-100 dark:bg-slate-800 mb-4 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-xl">
+                    <img class="w-full h-full object-cover" data-alt="Minimalist white t-shirt with smile logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyJA84hertKHDbarnWGxFIr0nZGTPU95ir9KZWADSYqNaskXiJSsxbNI15fgIU1Rn6sOj9RTMOydy6AmC1_R87XamZhbrkbze0zKyN7JLttUGfcaoyB1nNm94B-clWQJjnJyfKkMg8OgtgwOHkDtp6809fECyrMRGwhNBsUlfPhiVsHznytvwNgAn-_uKil1vlroulJta9FJ3LAlEB2KtZLX1YngceaoNou_B5nxkdE8bmfVTPaxLXuMoQjR0fZW-2I93PBWVhi2tH"/>
+                    <button class="absolute bottom-4 right-4 bg-white p-3 rounded-full text-slate-900 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="material-symbols-outlined">add_shopping_cart</span>
+                    </button>
+                    <div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">Best Seller</div>
+                </div>
+                <div class="space-y-2 px-2">
+                    <h3 class="font-bold text-lg text-slate-900 dark:text-white">Neon Smile Tee</h3>
+                    <div class="flex items-center gap-3">
+                        <div class="flex gap-1.5">
+                            <div class="size-3 rounded-full bg-slate-100 border border-slate-300"></div>
+                            <div class="size-3 rounded-full bg-pink-400"></div>
+                            <div class="size-3 rounded-full bg-sky-400"></div>
+                        </div>
+                        <span class="text-primary font-black">$28.00</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Product 2 -->
+            <div class="group cursor-pointer">
+                <div class="relative aspect-[3/4] rounded-3xl overflow-hidden bg-slate-100 dark:bg-slate-800 mb-4 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-xl">
+                    <img class="w-full h-full object-cover" data-alt="Vintage washed grey t-shirt" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDARjkvME5Q9eBRP-JBk2FDztuWqcpKIJHzwLNI9m6TTzwss0l3ttWauOBe-f3UPmGXTDo48HnuVP31uzdfEw8UxsSAi74ECRXfB4IJLWUeyoywZZGk0G5WnrsSiHVMChWOKnT_EE0TpCMjNEqEQTRfiVHG-06hWrMMQDzScx21FKvmsqbUPxpXoGEjyDzVbkdku3XhpC_H7q_1jTdicPHXtvbCybb9jlFsA99LD0n9-6lUikPi_OuqOgiaOb-SaGQTwGkwqR9OdbPQ"/>
+                    <button class="absolute bottom-4 right-4 bg-white p-3 rounded-full text-slate-900 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="material-symbols-outlined">add_shopping_cart</span>
+                    </button>
+                </div>
+                <div class="space-y-2 px-2">
+                    <h3 class="font-bold text-lg text-slate-900 dark:text-white">Washed Dream Tee</h3>
+                    <div class="flex items-center gap-3">
+                        <div class="flex gap-1.5">
+                            <div class="size-3 rounded-full bg-slate-500"></div>
+                            <div class="size-3 rounded-full bg-primary"></div>
+                        </div>
+                        <span class="text-primary font-black">$34.00</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Product 3 -->
+            <div class="group cursor-pointer">
+                <div class="relative aspect-[3/4] rounded-3xl overflow-hidden bg-slate-100 dark:bg-slate-800 mb-4 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-xl">
+                    <img class="w-full h-full object-cover" data-alt="Bright yellow graphic t-shirt" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsogpXtTrLXXjO1Os8QA4-L81andyii1FGr2_XQx6FqIAVkfAHPuvUC_fECuDd_PXs8geLyLeeEcpHftP5gh4fi6VY3h23gOY5gwI3Gnu-vPXfWcwByDD4MQJ3CCBBAxUo0ekHLikPneCkbMwzgya0wY7X-GYfTLDrZOCn7Sl02q8EPy3Ef-k2owOnPxEYPsQ_H0VgXkUCknFVK21jxSjUm23uoaNWyU2glyVPWnmY4-ZOoHhaceENaAZa-0CbXbl-1LHHxlbP1OA0"/>
+                    <button class="absolute bottom-4 right-4 bg-white p-3 rounded-full text-slate-900 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="material-symbols-outlined">add_shopping_cart</span>
+                    </button>
+                    <div class="absolute top-4 left-4 bg-pink-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">Limited</div>
+                </div>
+                <div class="space-y-2 px-2">
+                    <h3 class="font-bold text-lg text-slate-900 dark:text-white">Sunshine Club Tee</h3>
+                    <div class="flex items-center gap-3">
+                        <div class="flex gap-1.5">
+                            <div class="size-3 rounded-full bg-yellow-400"></div>
+                            <div class="size-3 rounded-full bg-orange-500"></div>
+                        </div>
+                        <span class="text-primary font-black">$29.00</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Product 4 -->
+            <div class="group cursor-pointer">
+                <div class="relative aspect-[3/4] rounded-3xl overflow-hidden bg-slate-100 dark:bg-slate-800 mb-4 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-xl">
+                    <img class="w-full h-full object-cover" data-alt="Oversized white hoodie" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZ_mawQsfdKBkJJJs_5-el8K5csPZNQdLmbS_s1mEf3GuW4tI73MS6eANOEDCkzHo-eHLugVaLTeRhC5Nbyf_uE7YLA9Y6iQoPqIi_8I7-nZiJOA5gG7yf1Z6-X_01HBlTT-cvUuCFI1RS_IXTYYZMdJR4YiNJEkS7g84N6NoRhuQRcUncCKgfcsasdZbseKkpnwSv_Ot6DOzaITkBPJ1GxRHE7RnOdsBGcg5apjDb8TaYnrmhA98kKnvjspQlXosCw6FnSedLjdBy"/>
+                    <button class="absolute bottom-4 right-4 bg-white p-3 rounded-full text-slate-900 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="material-symbols-outlined">add_shopping_cart</span>
+                    </button>
+                </div>
+                <div class="space-y-2 px-2">
+                    <h3 class="font-bold text-lg text-slate-900 dark:text-white">Cozy Cloud Hoodie</h3>
+                    <div class="flex items-center gap-3">
+                        <div class="flex gap-1.5">
+                            <div class="size-3 rounded-full bg-white border"></div>
+                            <div class="size-3 rounded-full bg-slate-900"></div>
+                            <div class="size-3 rounded-full bg-slate-400"></div>
+                        </div>
+                        <span class="text-primary font-black">$45.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Social Proof / IG Feed -->
+<section class="px-6 md:px-20 py-16 bg-white dark:bg-slate-900/50">
+    <div class="mx-auto max-w-7xl">
+        <div class="text-center space-y-4 mb-12">
+            <h2 class="text-4xl font-black italic text-slate-900 dark:text-white">Happy Customers ✨</h2>
+            @* <p class="text-slate-500 font-medium">Tag us <span class="text-primary font-bold">@GiftPopStyle</span> for a chance to be featured!</p> *@
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div class="aspect-square rounded-2xl overflow-hidden relative group">
+                <img class="w-full h-full object-cover" data-alt="Customer posing with colorful outfit" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAhH3eWgJMeiwggAv7L-OGhXVrNFZNFz6_WAmZTdcnGabR168RWCkFJC8xfXhRryvBS6q7a-kxJkL9iB3ytgiM1903EApVI-JJrRpSMgpfH60B-8ajx22MlC8QIeVNKeiThOvigF3Sx8VulnjNPsj9Dg_AAOL-edMuJnHrtBMTqOKycT0NziUozTgHK_H-NSoZi0DrAvmH56AM6ZfXTlsVHjE-km5TLTnfG004-lJN9UFLtLHxVV3b70vW8VITMszljiy9E1iYmgTH1"/>
+                <div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span class="material-symbols-outlined text-white text-3xl">favorite</span>
+                </div>
+            </div>
+            <div class="aspect-square rounded-2xl overflow-hidden relative group">
+                <img class="w-full h-full object-cover" data-alt="Customer smiling in a giftpop hoodie" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDFPvQsw1smRqSM_Dw7jihWNGeoRyvbCS8glZdlHmq8XhV9o5b1edGSBW2vZ7MRTiAtQmyqkSGUnlfV3s89IhoUl2ssdHGR4MowyHswGJwCe7n_agm4vr50fpu1z4FjL5Uo_861jWuzwN0kcpDVnDov1Uc8ipTX_xwlnt6XhuqAto9M5Bq65T6ABo1yr_na4-d6UDuHU7G0_ziMGcbxS3ZGy5BsNgFeVPfiQ08iQ5uein4KKBrfyvLf1iK2H9SemlG6fF3KheMteuen"/>
+                <div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span class="material-symbols-outlined text-white text-3xl">favorite</span>
+                </div>
+            </div>
+            <div class="aspect-square rounded-2xl overflow-hidden relative group">
+                <img class="w-full h-full object-cover" data-alt="Young person wearing graphic tee and cap" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD552hn_hYwVXvX4x3B-TLG-5hWp1ox-0J1ovP1nLHT-hfgU3xB2A5_X-F0IHV-_h6EYyD6gjV9sMaEdOG3nbde-R66_OyW7YYtCqU9oqeXqbTNSUPzGYqzuw15BZPqNDrUGJQByuFWq44rCk6Yn2JRyfmtw3mddkb6kn-cG9_QMkYqgFRsKJT_kgJeZc_Q9zPMDE_Ov4_8J1awJTgFipE_-569J8DaQVQbEuA0JPVrA615UaK2HSYSZSJ2i8r0BlWd4J_qZBAfFtu2"/>
+                <div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span class="material-symbols-outlined text-white text-3xl">favorite</span>
+                </div>
+            </div>
+            <div class="aspect-square rounded-2xl overflow-hidden relative group">
+                <img class="w-full h-full object-cover" data-alt="Customer wearing oversized tee at a park" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEA2rHGprsG0lX_KTh8FtalvDuItWt62RXdoG2eLqMj3qJ6qeS_z6OkfhLaw8kV_R1_BqrBesmFZZndq7O4dtPtyTeyVksZAvxiku2SsFynUz9YbjwxNrTqjMUgZU-5oH7fKv6-UN4z_J_khtptHN0yWFERkFgHilCTWOoptir9ecBczvA42uSHwfW-f9ahff-eEQxV0hVyAnh7tIOkKqYAIA1QXPF39SmiTHW5Dv-7OpqeWVUURMeLXdJhB2ZXju85JYZqcl5Z8_k"/>
+                <div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span class="material-symbols-outlined text-white text-3xl">favorite</span>
+                </div>
+            </div>
+            <div class="aspect-square rounded-2xl overflow-hidden relative group">
+                <img class="w-full h-full object-cover" data-alt="Customer rocking aesthetic giftbox accessories" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwS8aKMW6s42aTVrsFEpdjW-PVUzL4j1z5-xnzYKXLCPbJFPrjKgjox-MMu_pglVJfYHF_nWxmnfvfquZmAebpEF-QlZcGN1Fh8VMe4JmBUrrltRaxBMZyOzLqp5rGBjpwDI6Glh9qeUsBnT1Mu5RKcP9RjArVjxjdFf7FGicE9K0rjUVqKowdaLBwym6mwdnNtEL5GOAUzOrHVflsRmo6CQ-cH86wlqjIRJUIT_oNUPj_a6x5vOP2-irY6V6mLUtpa35rPje27VIE"/>
+                <div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span class="material-symbols-outlined text-white text-3xl">favorite</span>
+                </div>
+            </div>
+            <div class="aspect-square rounded-2xl overflow-hidden relative group">
+                <img class="w-full h-full object-cover" data-alt="Portrait of customer in giftpop merch" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBl0-4SwiEzeaYX3rZF8dHkBlXiWbjZWsyRwBUj5O7jd16LELOBfku3mpsiN2aAogwmchejQK1995YqKFprMTYqcqzo474jVz0fuf6Hm183DD79yke850phPRLsvLXpb8dGcKOmZUp03ZjpMCH6t1ZVJeKN_hDAjkoQDPkWILwgF55fXcSihL1l-055n1PfWBMMqZeaL2sAzAf5Y26yUoX8KWBG8U9SxPnYYOyswblVgnsQsgcZ-XdQMmX_MjjJGlyTMKFoi-K9wYJ8"/>
+                <div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span class="material-symbols-outlined text-white text-3xl">favorite</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Newsletter / Community Section -->
+<section class="px-6 md:px-20 py-16">
+    <div class="mx-auto max-w-4xl bg-primary rounded-[2rem] p-8 md:p-12 text-center text-white space-y-6 shadow-xl shadow-primary/20">
+        <h2 class="text-3xl md:text-4xl font-black tracking-tight">Join the Vibe Tribe ⚡️</h2>
+        <p class="text-white/80 font-medium text-lg">Get 15% off your first order and stay updated with our newest drops.</p>
+        <div class="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto pt-4">
+            <input class="flex-grow rounded-xl bg-white/20 border border-white/30 text-white placeholder:text-white/60 focus:ring-white focus:border-white py-4 px-6 outline-none" placeholder="Your email here..." type="email"/>
+            <button class="bg-white text-primary font-black px-8 py-4 rounded-xl hover:bg-slate-100 transition-colors uppercase tracking-widest text-sm shadow-md">Subscribe</button>
+        </div>
+    </div>
+</section>

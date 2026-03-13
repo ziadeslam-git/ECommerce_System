@@ -1,0 +1,69 @@
+@model ECommerce_System.Areas.Identity.Controllers.ExternalLoginConfirmationVM
+@{
+    ViewData["Title"] = "Complete Registration";
+    Layout = "_IdentityLayout";
+}
+
+<div class="bg-slate-50 min-h-[calc(100vh-80px)] flex items-center justify-center p-6">
+    <div class="w-full max-w-[560px] bg-white rounded-xl shadow-sm border border-slate-100 p-10 flex flex-col items-center">
+        <!-- Google/FB Icon Section -->
+        <div class="w-12 h-12 rounded-full flex items-center justify-center bg-white border border-slate-100 shadow-sm mb-6">
+            <span class="material-symbols-outlined text-primary text-3xl">how_to_reg</span>
+        </div>
+        
+        <h1 class="text-slate-800 text-[22px] font-bold leading-tight text-center mb-2">Almost there!</h1>
+        <p class="text-slate-500 text-sm font-normal text-center mb-8">We just need to confirm a few details to create your account</p>
+        
+        <!-- User Info Card -->
+        <div class="w-full bg-slate-50 rounded-lg border border-slate-200 p-4 mb-8">
+            <div class="flex items-center gap-4 mb-3">
+                <div class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <span class="material-symbols-outlined">person</span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-slate-800 font-semibold text-sm">@Model.FullName</span>
+                    <span class="text-slate-500 text-xs">@Model.Email</span>
+                </div>
+            </div>
+            <p class="text-slate-400 italic text-[12px]">This info was retrieved from your external account.</p>
+        </div>
+        
+        <!-- Form Section -->
+        <form asp-action="Confirmation" asp-route-returnurl="@ViewData["ReturnUrl"]" method="post" class="w-full space-y-6">
+            <input type="hidden" asp-for="Email" />
+            <input type="hidden" asp-for="FullName" />
+
+            <div asp-validation-summary="ModelOnly" class="text-rose-500 text-sm font-semibold mb-4"></div>
+
+            <div class="w-full">
+                <label asp-for="PhoneNumber" class="block text-slate-800 text-sm font-medium mb-1.5">Phone Number <span class="text-slate-400 font-normal">(Optional)</span></label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <span class="material-symbols-outlined text-slate-500 text-sm">phone</span>
+                    </div>
+                    <input asp-for="PhoneNumber" class="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-lg text-slate-800 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-slate-400" placeholder="(555) 000-0000" />
+                </div>
+            </div>
+            
+            <div class="flex items-start gap-3">
+                <div class="flex items-center h-5">
+                    <input type="checkbox" id="terms" required class="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary/20" />
+                </div>
+                <label for="terms" class="text-sm text-slate-500 leading-tight">
+                    I agree to the <a href="#" class="text-primary hover:underline font-medium">Terms of Service</a> and <a href="#" class="text-primary hover:underline font-medium">Privacy Policy</a>.
+                </label>
+            </div>
+            
+            <button type="submit" class="w-full h-11 bg-primary text-white font-semibold rounded-lg hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center">
+                Complete Registration
+            </button>
+        </form>
+        
+        <div class="mt-8">
+            <a asp-action="Login" asp-controller="Account" class="text-slate-400 text-sm hover:text-slate-600 transition-colors flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">switch_account</span>
+                Not you? Sign in with a different account
+            </a>
+        </div>
+    </div>
+</div>

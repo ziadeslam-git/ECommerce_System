@@ -5,7 +5,7 @@ namespace ECommerce_System.Repositories.IRepositories;
 public interface IRepository<T> where T : class
 {
     /// <summary>Returns all entities, optionally including related data.</summary>
-    Task<IEnumerable<T>> GetAllAsync(string? includeProperties = null);
+    Task<IEnumerable<T>> GetAllAsync(string? includeProperties = null, bool tracked = true);
 
     /// <summary>Returns a single entity by primary key.</summary>
     Task<T?> GetByIdAsync(int id);
@@ -14,7 +14,7 @@ public interface IRepository<T> where T : class
     Task<T?> FindAsync(Expression<Func<T, bool>> predicate, string? includeProperties = null);
 
     /// <summary>Returns all entities matching the predicate.</summary>
-    Task<IEnumerable<T>> FindAllAsync(Expression<Func<T, bool>> predicate, string? includeProperties = null);
+    Task<IEnumerable<T>> FindAllAsync(Expression<Func<T, bool>> predicate, string? includeProperties = null, bool tracked = true);
 
     /// <summary>Adds a new entity to the context (does not save).</summary>
     Task AddAsync(T entity);

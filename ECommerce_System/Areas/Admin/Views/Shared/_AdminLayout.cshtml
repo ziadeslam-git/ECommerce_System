@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>@ViewData["Title"] - Smart Store Admin</title>
+    
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#6467f2",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101122",
+                        "sidebar-dark": "#0F172A",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined { font-size: 20px; }
+        .active-nav {
+            background-color: rgba(100, 103, 242, 0.1);
+            color: white;
+            border-left-width: 4px;
+            border-left-color: #6467f2;
+            border-top-right-radius: 0.5rem;
+            border-bottom-right-radius: 0.5rem;
+        }
+    </style>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-800 dark:text-slate-100">
+    <div class="flex min-h-screen">
+        
+        <!-- Persistent Left Sidebar -->
+        <aside class="w-[240px] bg-sidebar-dark flex flex-col fixed inset-y-0 left-0 z-50">
+            <!-- Top: Logo Area -->
+            <div class="p-6 flex items-center gap-3">
+                <div class="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
+                    <span class="material-symbols-outlined">shopping_bag</span>
+                </div>
+                <h1 class="text-white text-base font-bold">Smart Store</h1>
+            </div>
+            
+            <!-- User Profile Area -->
+            <div class="px-6 mb-6">
+                <div class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10">
+                    <div class="size-10 rounded-full bg-cover bg-center border-2 border-primary/50" data-alt="Admin user profile avatar" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD8Plyb79qdCQn6PXQlvvnJWXcWlaDSvvf8cLw0LdmSnOC8e0fLiwwvkM5EBVZxaTiKhvnMu01qJmX-zOI1m5orcEUejN4jFSqZ4pxIWv5TqM9uN66W70CyTwk_bs31_8pX2fDyrKD1fvE8ApcX_KIqPGLKAjnWcdteIfzceRwJA7O9rgj62ERi-Axxg0VS28CaQl-LvSj_q29uhC6vOHWsJOjCrtMeFTBqe_X_4-YEYOokYH9WISfcLr2rmjLuYQJNhXJJrhrcgP8S')"></div>
+                    <div class="flex flex-col overflow-hidden">
+                        <span class="text-white text-sm font-medium truncate">@User.Identity?.Name</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/20 text-primary w-fit">Super Admin</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <nav class="flex-1 px-3 space-y-1">
+                @{
+                    var controller = ViewContext.RouteData.Values["Controller"]?.ToString();
+                }
+                <!-- Dashboard Active State -->
+                <a asp-controller="Dashboard" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Dashboard" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
+                    <span class="material-symbols-outlined @(controller == "Dashboard" ? "text-white" : "text-slate-400 group-hover:text-white")">dashboard</span>
+                    <span class="text-sm font-medium">Dashboard</span>
+                </a>
+                <a asp-controller="Product" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Product" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
+                    <span class="material-symbols-outlined @(controller == "Product" ? "text-white" : "text-slate-400 group-hover:text-white")">inventory_2</span>
+                    <span class="text-sm font-medium">Products</span>
+                </a>
+                <a asp-controller="Category" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Category" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
+                    <span class="material-symbols-outlined @(controller == "Category" ? "text-white" : "text-slate-400 group-hover:text-white")">category</span>
+                    <span class="text-sm font-medium">Categories</span>
+                </a>
+                <a asp-controller="Order" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Order" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
+                    <span class="material-symbols-outlined @(controller == "Order" ? "text-white" : "text-slate-400 group-hover:text-white")">receipt_long</span>
+                    <span class="text-sm font-medium">Orders</span>
+                </a>
+                <a asp-controller="Customer" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Customer" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
+                    <span class="material-symbols-outlined @(controller == "Customer" ? "text-white" : "text-slate-400 group-hover:text-white")">group</span>
+                    <span class="text-sm font-medium">Customers</span>
+                </a>
+                <a asp-controller="Discount" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Discount" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
+                    <span class="material-symbols-outlined @(controller == "Discount" ? "text-white" : "text-slate-400 group-hover:text-white")">sell</span>
+                    <span class="text-sm font-medium">Discounts</span>
+                </a>
+                <a asp-controller="Review" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Review" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
+                    <span class="material-symbols-outlined @(controller == "Review" ? "text-white" : "text-slate-400 group-hover:text-white")">star</span>
+                    <span class="text-sm font-medium">Reviews</span>
+                </a>
+                <a asp-controller="Settings" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Settings" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
+                    <span class="material-symbols-outlined @(controller == "Settings" ? "text-white" : "text-slate-400 group-hover:text-white")">settings</span>
+                    <span class="text-sm font-medium">Settings</span>
+                </a>
+            </nav>
+            
+            <!-- Bottom: Logout -->
+            <div class="p-6 border-t border-white/5">
+                <form asp-area="Identity" asp-controller="Account" asp-action="Logout" method="post" id="logoutForm-admin"></form>
+                <button type="button" onclick="document.getElementById('logoutForm-admin').submit();" class="flex items-center gap-3 text-slate-500 hover:text-white transition-colors w-full text-left">
+                    <span class="material-symbols-outlined">logout</span>
+                    <span class="text-sm font-medium">Logout</span>
+                </button>
+            </div>
+        </aside>
+        
+        <!-- Main Wrapper -->
+        <div class="flex-1 ml-[240px]">
+            
+            <!-- Top Header -->
+            <header class="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 sticky top-0 z-40">
+                <h2 class="text-slate-800 dark:text-slate-100 text-xl font-bold">@ViewData["Title"]</h2>
+                <div class="flex items-center gap-6">
+                    <div class="relative w-64 hidden md:block">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                        <input class="w-full pl-10 pr-4 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 text-slate-900 dark:text-white" placeholder="Search orders, items..." type="text"/>
+                    </div>
+                    <button class="relative p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                        <span class="material-symbols-outlined">notifications</span>
+                        <span class="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+                    </button>
+                    <div class="size-8 rounded-full bg-cover bg-center border border-slate-200" data-alt="Header user avatar circle" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDEJIOBqf7ACuvbC3rBhOM-Bzdg2tssdeZb4ivDAbZVTfPF6RpilSm_ghcCzBBMID9Ln-Q1N6PUCP-kp18_4GARwtXiO7STkVarITLMN7j4qTyUJEy5W1xdKfJRTIcqLSmI6veC3dmut0mVJjiosEfA1G8LKsfdJZ1OYzkeZLs-icmYC_IiWug2pm5u92BqNhTLGcQcvzFqUA0n1BuLkHy_qV3yqUjak5rFZ2TfySfWgd_HyTYnwNuLwjbjthhe0oF388eS52ejyat9')"></div>
+                </div>
+            </header>
+            
+            <!-- Main Content Area -->
+            <main class="p-4 md:p-8 space-y-8">
+                @if (TempData["success"] != null)
+                {
+                    <div class="bg-emerald-100 border border-emerald-400 text-emerald-700 px-4 py-3 rounded relative" role="alert">
+                        <span class="block sm:inline">@TempData["success"]</span>
+                    </div>
+                }
+                @if (TempData["error"] != null)
+                {
+                    <div class="bg-rose-100 border border-rose-400 text-rose-700 px-4 py-3 rounded relative" role="alert">
+                        <span class="block sm:inline">@TempData["error"]</span>
+                    </div>
+                }
+
+                @RenderBody()
+            </main>
+            
+        </div>
+    </div>
+
+    <partial name="_ValidationScriptsPartial" />
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

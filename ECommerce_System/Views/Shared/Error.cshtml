@@ -1,1 +1,87 @@
-﻿
+﻿@{
+    ViewData["Title"] = "404 - Page Not Found";
+    Layout = null; // Independent Layout since it's a full page template
+}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Smart Store</title>
+    <!-- Tailwind + Fonts -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: { "primary": "#6467f2", "background-light": "#f6f6f8", "background-dark": "#101122" },
+                    fontFamily: { "display": ["Inter"] },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+    <!-- Top Navigation Bar -->
+    <header class="w-full border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <a href="/" class="flex items-center gap-2 group cursor-pointer">
+                    <div class="p-2 bg-primary rounded-lg text-white">
+                        <span class="material-symbols-outlined block">shopping_bag</span>
+                    </div>
+                    <span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Smart Store</span>
+                </a>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Content: 404 Hero -->
+    <main class="flex-grow flex items-center justify-center px-4 py-20">
+        <div class="max-w-2xl w-full text-center">
+            <!-- Playful Illustration Container -->
+            <div class="relative mb-12 flex justify-center">
+                <div class="absolute inset-0 bg-primary/10 blur-3xl rounded-full scale-75"></div>
+                <div class="relative">
+                    <!-- Icon Representation of 404 -->
+                    <div class="flex items-center justify-center gap-4 text-primary opacity-90">
+                        <span class="text-8xl font-black tracking-tighter sm:text-9xl">4</span>
+                        <div class="relative">
+                            <span class="material-symbols-outlined text-8xl sm:text-9xl animate-pulse">sentiment_dissatisfied</span>
+                        </div>
+                        <span class="text-8xl font-black tracking-tighter sm:text-9xl">4</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Error Messaging -->
+            <div class="space-y-4 mb-10">
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">Oops! Something went wrong.</h1>
+                <p class="text-lg text-slate-600 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+                    The page you're looking for might have moved to a different planet or is temporarily unavailable.
+                </p>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="/" class="w-full sm:w-auto px-8 py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition-all shadow-lg shadow-primary/25 flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-xl">home</span>
+                    Go Home
+                </a>
+            </div>
+            
+        </div>
+    </main>
+    
+    <!-- Abstract Background Elements -->
+    <div class="fixed top-0 left-0 -z-10 w-full h-full overflow-hidden pointer-events-none">
+        <div class="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px]"></div>
+        <div class="absolute bottom-[-10%] left-[-10%] w-[30%] h-[30%] rounded-full bg-primary/10 blur-[100px]"></div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,235 @@
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "_AdminLayout";
+}
+
+<!-- Section 1: Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <!-- Revenue Card -->
+    <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col">
+        <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400">
+                <span class="material-symbols-outlined">payments</span>
+            </div>
+            <!-- Example Growth badge -->
+            <span class="px-2 py-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-[11px] font-bold rounded-full">+12.5%</span>
+        </div>
+        <p class="text-slate-800 dark:text-slate-100 text-2xl font-bold">@(((decimal)ViewBag.TotalRevenue).ToString("C"))</p>
+        <p class="text-slate-500 dark:text-slate-400 text-sm">Total Revenue</p>
+    </div>
+    
+    <!-- Orders Card -->
+    <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col">
+        <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg text-amber-600 dark:text-amber-400">
+                <span class="material-symbols-outlined">shopping_cart</span>
+            </div>
+            <!-- Dynamic Growth Badge could be added here -->
+            <span class="px-2 py-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-[11px] font-bold rounded-full">+8.2%</span>
+        </div>
+        <p class="text-slate-800 dark:text-slate-100 text-2xl font-bold">@ViewBag.TotalOrders</p>
+        <p class="text-slate-500 dark:text-slate-400 text-sm">Total Orders</p>
+    </div>
+    
+    <!-- Products Card -->
+    <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col">
+        <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg text-purple-600 dark:text-purple-400">
+                <span class="material-symbols-outlined">package</span>
+            </div>
+        </div>
+        <p class="text-slate-800 dark:text-slate-100 text-2xl font-bold">@ViewBag.TotalProducts</p>
+        <p class="text-slate-500 dark:text-slate-400 text-sm">Total Products</p>
+    </div>
+    
+    <!-- Customers Card -->
+    <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col">
+        <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-lg text-teal-600 dark:text-teal-400">
+                <span class="material-symbols-outlined">groups</span>
+            </div>
+        </div>
+        <p class="text-slate-800 dark:text-slate-100 text-2xl font-bold">@ViewBag.TotalCustomers</p>
+        <p class="text-slate-500 dark:text-slate-400 text-sm">Active Customers</p>
+    </div>
+</div>
+
+<!-- Section 2: Split View -->
+<div class="grid grid-cols-1 lg:grid-cols-10 gap-8">
+    
+    <!-- Left: Recent Orders Table (60%) -->
+    <div class="lg:col-span-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col max-h-[460px]">
+        <div class="p-6 flex justify-between items-center border-b border-slate-100 dark:border-slate-800">
+            <h3 class="text-slate-800 dark:text-slate-100 font-bold">Recent Orders</h3>
+            <a asp-controller="Order" asp-action="Index" class="text-primary text-sm font-medium hover:underline flex items-center gap-1">
+                View all <span class="material-symbols-outlined !text-sm">arrow_forward</span>
+            </a>
+        </div>
+        
+        <div class="overflow-y-auto flex-1">
+            <table class="w-full text-left border-collapse">
+                <thead class="sticky top-0 bg-slate-50 dark:bg-slate-800/80 backdrop-blur-sm z-10">
+                    <tr>
+                        <th class="px-6 py-4 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Order ID</th>
+                        <th class="px-6 py-4 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Customer</th>
+                        <th class="px-6 py-4 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-4 text-[13px] font-semibold text-slate-500 uppercase tracking-wider text-right">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    @if (ViewBag.RecentOrders != null && ((IEnumerable<ECommerce_System.Models.Order>)ViewBag.RecentOrders).Any())
+                    {
+                        var isEven = false;
+                        foreach (var order in (IEnumerable<ECommerce_System.Models.Order>)ViewBag.RecentOrders)
+                        {
+                            var rowClass = isEven ? "bg-[#F8FAFC] dark:bg-slate-800/20 hover:bg-slate-100/50" : "hover:bg-slate-50/50 dark:hover:bg-slate-800/20";
+                            isEven = !isEven;
+
+                            string statusBg, statusText, statusDarkBg, statusDarkText;
+                            switch (order.Status)
+                            {
+                                case ECommerce_System.Utilities.SD.Status_Delivered:
+                                    statusBg = "bg-green-100"; statusText = "text-green-700"; statusDarkBg = "dark:bg-green-900/40"; statusDarkText = "dark:text-green-400"; break;
+                                case ECommerce_System.Utilities.SD.Status_Processing:
+                                    statusBg = "bg-amber-100"; statusText = "text-amber-700"; statusDarkBg = "dark:bg-amber-900/40"; statusDarkText = "dark:text-amber-400"; break;
+                                case ECommerce_System.Utilities.SD.Status_Cancelled:
+                                    statusBg = "bg-red-100"; statusText = "text-red-700"; statusDarkBg = "dark:bg-red-900/40"; statusDarkText = "dark:text-red-400"; break;
+                                default:
+                                    statusBg = "bg-slate-100"; statusText = "text-slate-700"; statusDarkBg = "dark:bg-slate-800"; statusDarkText = "dark:text-slate-400"; break;
+                            }
+
+                            <tr class="@rowClass transition-colors">
+                                <td class="px-6 py-4 text-sm font-medium text-slate-800 dark:text-slate-100">#ORD-@order.Id</td>
+                                <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">@(order.User?.FullName ?? order.Address?.FullName ?? "Unknown")</td>
+                                <td class="px-6 py-4 text-sm font-semibold text-slate-800 dark:text-slate-100">@order.TotalAmount.ToString("C")</td>
+                                <td class="px-6 py-4 text-right">
+                                    <span class="px-2.5 py-1 text-[11px] font-bold rounded-full @statusBg @statusText @statusDarkBg @statusDarkText">@order.Status</span>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="4" class="px-6 py-8 text-center text-sm text-slate-500">No recent orders found.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Right: Top Products (40%) -->
+    <div class="lg:col-span-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 max-h-[460px] overflow-y-auto">
+        <h3 class="text-slate-800 dark:text-slate-100 font-bold mb-6">Top Products</h3>
+        <div class="space-y-5">
+            <!-- Static Product placeholders for now until we query Top Selling in ProductService/Dashboard -->
+            <div class="flex items-center gap-4">
+                <div class="size-10 rounded-lg bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAdCTqbWiGUEHpmGCEfR0MwWhhFBIV8S-5qv7L7i9mr79TIqkC9_QRewGpUDSLiOViJGi9exHw86kGytjMe102mKacPQCS7AnldnQS52jkJfitdM2EYcR9GSWRTzUxjBPwjH3j0ltM3m7_LfBDk55W0HEHM_bYahZYEcwvEVG-GKkaQKyDm56xqYciZZYOS1KI56Iu5I_HGSSMf5shkjQ8qd9FmEBHo-fXsBWF1D5EO7QAJZJUrCsXq1jduC6MX4027HMIwQB9PpDe4')"></div>
+                <div class="flex-1">
+                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Urban Classic Tee</p>
+                    <p class="text-[12px] text-slate-400">T-Shirts</p>
+                </div>
+                <p class="text-sm font-bold text-primary">234 sold</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="size-10 rounded-lg bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDnvmmyY1adeSSB5zrXpPcCRkbhWipHzt47Cphq4H0Q3sSRrAMeGGg3bcy5SGXh469KuHtNjMWMMT-RgCpz5oSsCi7Sp0KhGeFMdebIG5WJGQZExX_UE0_qqv6Jexo1Q5TXZMx-c_0iVielKMDNokYtqjStdixeTqbmMSCWgIlv46tB0BKX6d6a155Kn7j02_aFsrP1Y891vR12OtY1FOzYER1KTJ-UvHbSQTyQ1Q_K9l9wmS1VXANME2G1Pep87k5LnSnr_vmV8_ow')"></div>
+                <div class="flex-1">
+                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Ceramic Minimalist Mug</p>
+                    <p class="text-[12px] text-slate-400">Gifts</p>
+                </div>
+                <p class="text-sm font-bold text-primary">189 sold</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="size-10 rounded-lg bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCzabOr85-TpuHp-eWNaZGmASmGitfCiPRZtXdCXSLEzHKLoD9FDbAbummzCAwVCsd9VLwYxR4Fs4eoYM2nRWsx7hZKq8efjOzgVaW8CC7gGAeyM-KaidahhyoWcOQfwQwcX4FJouA0mtbw3384ueK_wP6r9eBf74sw7GDQuO6cn2ZrCMz3PHLfgemwte8lK8h58ZHTaX7G493ZpawTHkXd4BtirpESbaIHFqv5eaPf9D6i6_fApKXSPpWHw4niZtvzmKQZGOuhHgsL')"></div>
+                <div class="flex-1">
+                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Cotton Soft Hoodie</p>
+                    <p class="text-[12px] text-slate-400">Apparel</p>
+                </div>
+                <p class="text-sm font-bold text-primary">156 sold</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="size-10 rounded-lg bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD1TRvKch54KiUAaCramZmLNZDNtmLqKxHBCU3uOJJu_IJrQRWCnzU2zPrZFYRgMn57veVC9UXsX3NaPIh3ytzyHXon1Y8KokWsCay83taEx-v72XgUFwfHXLtAL6ZIff-Ed6kgrd8pTa6UzQt2sEwpC-_-cKFlx2FFqFVvPaIfNDoXXUE7cNUNWOJGkqXFpO23DIgjeLzOZ-NwyaRarzOyyZxFAX-oPJxufEaJUvBCAFBoZaMwnM0qk7hldj_OwXAfo0gjbg9RLtLz')"></div>
+                <div class="flex-1">
+                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Modern Oak Frame</p>
+                    <p class="text-[12px] text-slate-400">Gifts</p>
+                </div>
+                <p class="text-sm font-bold text-primary">121 sold</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="size-10 rounded-lg bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD7ZPyaeSWzjehelUZLfZmPUHlJ67YEm0C_6kTzRHYYz--Nz3_hft5OsusypVE3DOj6TCjPyfxqfFUNFeUIUJbVLhIutF2cbewNG9MhIETE978qzWW6ynYnapms8qlSN3EVmX0CI92xMAHX6_EWarGx6uI310Vq61NEzLvtCua_xVx0HgcPDl2qXRrlKXvwsjGdvVHxNf2Fl6NAYPf8E8Gx7zRv5hw8wt14PPecn6vP643Orx1_h7ouPQWhf3JM9HIi5DEZfK70NjkR')"></div>
+                <div class="flex-1">
+                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Eco-Cotton Tote</p>
+                    <p class="text-[12px] text-slate-400">Accessories</p>
+                </div>
+                <p class="text-sm font-bold text-primary">98 sold</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section 3: Monthly Revenue Bar Chart (Full Width) -->
+<div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm p-8">
+    <h3 class="text-slate-800 dark:text-slate-100 font-bold mb-8">Monthly Revenue</h3>
+    <div class="h-64 flex flex-col justify-end">
+        <div class="flex-1 flex items-end justify-between gap-4 px-2 relative">
+            <!-- Chart Gridlines -->
+            <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                <div class="border-t border-slate-100 dark:border-slate-800 w-full"></div>
+                <div class="border-t border-slate-100 dark:border-slate-800 w-full"></div>
+                <div class="border-t border-slate-100 dark:border-slate-800 w-full"></div>
+                <div class="border-t border-slate-100 dark:border-slate-800 w-full"></div>
+            </div>
+            
+            <!-- Bars -->
+            <div class="relative flex-1 group h-full flex flex-col justify-end items-center">
+                <div class="w-full max-w-[40px] bg-primary/40 group-hover:bg-primary rounded-t-lg transition-all duration-300" style="height: 45%;"></div>
+                <span class="mt-4 text-[11px] text-slate-400 font-medium">Jan</span>
+            </div>
+            <div class="relative flex-1 group h-full flex flex-col justify-end items-center">
+                <div class="w-full max-w-[40px] bg-primary/40 group-hover:bg-primary rounded-t-lg transition-all duration-300" style="height: 55%;"></div>
+                <span class="mt-4 text-[11px] text-slate-400 font-medium">Feb</span>
+            </div>
+            <div class="relative flex-1 group h-full flex flex-col justify-end items-center">
+                <div class="w-full max-w-[40px] bg-primary/40 group-hover:bg-primary rounded-t-lg transition-all duration-300" style="height: 75%;"></div>
+                <span class="mt-4 text-[11px] text-slate-400 font-medium">Mar</span>
+            </div>
+            <div class="relative flex-1 group h-full flex flex-col justify-end items-center">
+                <div class="w-full max-w-[40px] bg-primary/40 group-hover:bg-primary rounded-t-lg transition-all duration-300" style="height: 60%;"></div>
+                <span class="mt-4 text-[11px] text-slate-400 font-medium">Apr</span>
+            </div>
+            <div class="relative flex-1 group h-full flex flex-col justify-end items-center">
+                <div class="w-full max-w-[40px] bg-primary/40 group-hover:bg-primary rounded-t-lg transition-all duration-300" style="height: 85%;"></div>
+                <span class="mt-4 text-[11px] text-slate-400 font-medium">May</span>
+            </div>
+            <div class="relative flex-1 group h-full flex flex-col justify-end items-center">
+                <div class="w-full max-w-[40px] bg-primary rounded-t-lg transition-all duration-300" style="height: 100%;"></div>
+                <span class="mt-4 text-[11px] text-slate-800 dark:text-slate-100 font-bold">Jun</span>
+            </div>
+            <div class="relative flex-1 group h-full flex flex-col justify-end items-center">
+                <div class="w-full max-w-[40px] bg-primary/40 group-hover:bg-primary rounded-t-lg transition-all duration-300" style="height: 70%;"></div>
+                <span class="mt-4 text-[11px] text-slate-400 font-medium">Jul</span>
+            </div>
+            <div class="relative flex-1 group h-full flex flex-col justify-end items-center">
+                <div class="w-full max-w-[40px] bg-primary/40 group-hover:bg-primary rounded-t-lg transition-all duration-300" style="height: 65%;"></div>
+                <span class="mt-4 text-[11px] text-slate-400 font-medium">Aug</span>
+            </div>
+            <div class="relative flex-1 group h-full flex flex-col justify-end items-center">
+                <div class="w-full max-w-[40px] bg-primary/40 group-hover:bg-primary rounded-t-lg transition-all duration-300" style="height: 78%;"></div>
+                <span class="mt-4 text-[11px] text-slate-400 font-medium">Sep</span>
+            </div>
+            <div class="relative flex-1 group h-full flex flex-col justify-end items-center">
+                <div class="w-full max-w-[40px] bg-primary/40 group-hover:bg-primary rounded-t-lg transition-all duration-300" style="height: 82%;"></div>
+                <span class="mt-4 text-[11px] text-slate-400 font-medium">Oct</span>
+            </div>
+            <div class="relative flex-1 group h-full flex flex-col justify-end items-center">
+                <div class="w-full max-w-[40px] bg-primary/40 group-hover:bg-primary rounded-t-lg transition-all duration-300" style="height: 90%;"></div>
+                <span class="mt-4 text-[11px] text-slate-400 font-medium">Nov</span>
+            </div>
+            <div class="relative flex-1 group h-full flex flex-col justify-end items-center">
+                <div class="w-full max-w-[40px] bg-primary/40 group-hover:bg-primary rounded-t-lg transition-all duration-300" style="height: 95%;"></div>
+                <span class="mt-4 text-[11px] text-slate-400 font-medium">Dec</span>
+            </div>
+        </div>
+    </div>
+</div>

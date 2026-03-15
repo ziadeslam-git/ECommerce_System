@@ -1,0 +1,129 @@
+@model CategoryFormVM
+
+@{
+    ViewData["Title"] = "New Category";
+    bool isEdit = Model.Id != 0;
+}
+
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div>
+        <nav class="flex text-sm text-slate-500 mb-2 items-center gap-2">
+            <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index"
+               class="hover:text-primary transition-colors">Dashboard</a>
+            <span class="material-symbols-outlined text-sm">chevron_right</span>
+            <a asp-area="Admin" asp-controller="Category" asp-action="Index"
+               class="hover:text-primary transition-colors">Categories</a>
+            <span class="material-symbols-outlined text-sm">chevron_right</span>
+            <span class="font-medium text-slate-900">New Category</span>
+        </nav>
+        <h1 class="text-3xl font-black tracking-tight">New Category</h1>
+        <p class="text-slate-500 mt-1">Add a new category to your product catalog.</p>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <form asp-area="Admin" asp-controller="Category" asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="space-y-5">
+
+                <!-- Name -->
+                <div>
+                    <label asp-for="Name"
+                           class="block text-sm font-semibold text-slate-700 mb-1.5"></label>
+                    <input asp-for="Name" id="nameInput"
+                           class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm
+                                  focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all
+                                  placeholder:text-slate-400"
+                           placeholder="e.g. T-Shirts" autocomplete="off" />
+                    <span asp-validation-for="Name" class="text-red-500 text-xs mt-1 block"></span>
+                </div>
+
+                <!-- Slug -->
+                <div>
+                    <label asp-for="Slug"
+                           class="block text-sm font-semibold text-slate-700 mb-1.5"></label>
+                    <div class="relative">
+                        <input asp-for="Slug" id="slugInput"
+                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm
+                                      focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all
+                                      placeholder:text-slate-400 font-mono"
+                               placeholder="auto-generated" autocomplete="off" />
+                        <button type="button" onclick="regenerateSlug()"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                                title="Regenerate slug from name">
+                            <span class="material-symbols-outlined text-base">refresh</span>
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">URL-friendly identifier — auto-generated from name. Lowercase letters, numbers and hyphens only.</p>
+                    <span asp-validation-for="Slug" class="text-red-500 text-xs mt-1 block"></span>
+                </div>
+
+                <!-- Parent Category -->
+                <div>
+                    <label asp-for="ParentCategoryId"
+                           class="block text-sm font-semibold text-slate-700 mb-1.5"></label>
+                    <select asp-for="ParentCategoryId"
+                            asp-items="Model.ParentCategories"
+                            class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm
+                                   focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all">
+                        <option value="">— None (Top-level category) —</option>
+                    </select>
+                    <p class="text-xs text-slate-400 mt-1">Leave empty to create a top-level category.</p>
+                    <span asp-validation-for="ParentCategoryId" class="text-red-500 text-xs mt-1 block"></span>
+                </div>
+
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
+                <a asp-area="Admin" asp-controller="Category" asp-action="Index"
+                   class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold
+                          hover:bg-slate-50 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary hover:bg-primary/90
+                               text-white text-sm font-bold shadow-lg shadow-primary/20 transition-all active:scale-95">
+                    <span class="material-symbols-outlined text-base">add</span>
+                    Create Category
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function generateSlug(name) {
+            return name.trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-');
+        }
+
+        function regenerateSlug() {
+            const name = document.getElementById('nameInput').value;
+            document.getElementById('slugInput').value = generateSlug(name);
+        }
+
+        // Auto-generate slug as user types the name (only if slug is still empty)
+        document.getElementById('nameInput').addEventListener('input', function () {
+            const slugInput = document.getElementById('slugInput');
+            if (!slugInput.dataset.userEdited) {
+                slugInput.value = generateSlug(this.value);
+            }
+        });
+
+        // Mark slug as user-edited if they type in it directly
+        document.getElementById('slugInput').addEventListener('input', function () {
+            this.dataset.userEdited = 'true';
+        });
+    </script>
+}

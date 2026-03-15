@@ -1,0 +1,96 @@
+@model CategoryVM
+
+@{
+    ViewData["Title"] = "Category Details";
+}
+
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div>
+        <nav class="flex text-sm text-slate-500 mb-2 items-center gap-2">
+            <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index"
+               class="hover:text-primary transition-colors">Dashboard</a>
+            <span class="material-symbols-outlined text-sm">chevron_right</span>
+            <a asp-area="Admin" asp-controller="Category" asp-action="Index"
+               class="hover:text-primary transition-colors">Categories</a>
+            <span class="material-symbols-outlined text-sm">chevron_right</span>
+            <span class="font-medium text-slate-900">@Model.Name</span>
+        </nav>
+        <div class="flex items-center gap-3">
+            <div class="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <span class="material-symbols-outlined text-primary">folder_open</span>
+            </div>
+            <div>
+                <h1 class="text-3xl font-black tracking-tight">@Model.Name</h1>
+                @if (Model.ParentCategoryName is not null)
+                {
+                    <p class="text-sm text-slate-500">Sub-category of <span class="font-semibold text-slate-700">@Model.ParentCategoryName</span></p>
+                }
+                else
+                {
+                    <p class="text-sm text-slate-500">Top-level category</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Details Card -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
+            <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Category Information</h2>
+        </div>
+        <div class="divide-y divide-slate-100">
+            <div class="flex items-center px-6 py-4 gap-4">
+                <span class="text-sm font-semibold text-slate-500 w-40">ID</span>
+                <span class="text-sm text-slate-900 font-mono">#@Model.Id</span>
+            </div>
+            <div class="flex items-center px-6 py-4 gap-4">
+                <span class="text-sm font-semibold text-slate-500 w-40">Name</span>
+                <span class="text-sm font-bold text-slate-900">@Model.Name</span>
+            </div>
+            <div class="flex items-center px-6 py-4 gap-4">
+                <span class="text-sm font-semibold text-slate-500 w-40">Slug</span>
+                <code class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">@Model.Slug</code>
+            </div>
+            <div class="flex items-center px-6 py-4 gap-4">
+                <span class="text-sm font-semibold text-slate-500 w-40">Parent</span>
+                <span class="text-sm text-slate-900">
+                    @(Model.ParentCategoryName ?? "— (Top-level)")
+                </span>
+            </div>
+            <div class="flex items-center px-6 py-4 gap-4">
+                <span class="text-sm font-semibold text-slate-500 w-40">Sub-categories</span>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold
+                    @(Model.SubCategoriesCount > 0 ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-400")">
+                    @Model.SubCategoriesCount
+                </span>
+            </div>
+            <div class="flex items-center px-6 py-4 gap-4">
+                <span class="text-sm font-semibold text-slate-500 w-40">Products</span>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold
+                    @(Model.ProductsCount > 0 ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-400")">
+                    @Model.ProductsCount
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center gap-3">
+        <a asp-area="Admin" asp-controller="Category" asp-action="Index"
+           class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold
+                  hover:bg-slate-50 transition-colors flex items-center gap-2">
+            <span class="material-symbols-outlined text-base">arrow_back</span>
+            Back to List
+        </a>
+        <a asp-area="Admin" asp-controller="Category" asp-action="Edit"
+           asp-route-id="@Model.Id"
+           class="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary hover:bg-primary/90
+                  text-white text-sm font-bold shadow-lg shadow-primary/20 transition-all active:scale-95">
+            <span class="material-symbols-outlined text-base">edit</span>
+            Edit Category
+        </a>
+    </div>
+
+</div>

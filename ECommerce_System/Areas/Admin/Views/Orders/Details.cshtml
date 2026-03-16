@@ -1,0 +1,300 @@
+@model ECommerce_System.ViewModels.Admin.OrderDetailsVM
+@using ECommerce_System.Utilities
+
+@{
+    ViewData["Title"] = $"Order #{Model.Id}";
+    Layout = "_AdminLayout";
+
+    string StatusBadge(string status) => status switch
+    {
+        SD.Status_Pending    => "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+        SD.Status_Confirmed  => "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+        SD.Status_Processing => "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+        SD.Status_Shipped    => "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
+        SD.Status_Delivered  => "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+        SD.Status_Cancelled  => "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+        _                    => "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
+    };
+
+    string PaymentBadge(string status) => status switch
+    {
+        SD.Payment_Paid     => "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+        SD.Payment_Refunded => "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+        SD.Payment_Failed   => "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+        SD.Payment_Pending  => "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+        _                   => "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
+    };
+
+    // Determine pipeline progress (0-based index for highlight)
+    var statuses = new[] { SD.Status_Pending, SD.Status_Confirmed, SD.Status_Processing, SD.Status_Shipped, SD.Status_Delivered };
+    var currentStep = Array.IndexOf(statuses, Model.Status);
+}
+
+@* ── Alerts ── *@
+@if (TempData["Success"] != null)
+{
+    <div class="mb-6 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 px-4 py-3 rounded-xl text-sm font-medium">
+        <span class="material-symbols-outlined text-lg">check_circle</span> @TempData["Success"]
+    </div>
+}
+@if (TempData["Warning"] != null)
+{
+    <div class="mb-6 flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 px-4 py-3 rounded-xl text-sm font-medium">
+        <span class="material-symbols-outlined text-lg">warning</span> @TempData["Warning"]
+    </div>
+}
+
+@* ── Breadcrumb + Header ── *@
+<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
+    <div>
+        <nav class="flex items-center gap-2 text-sm text-slate-400 mb-2">
+            <a asp-action="Index" class="hover:text-primary transition-colors">Orders</a>
+            <span class="material-symbols-outlined text-xs">chevron_right</span>
+            <span class="text-slate-700 dark:text-slate-300 font-medium">#ORD-@Model.Id</span>
+        </nav>
+        <div class="flex items-center gap-3 flex-wrap">
+            <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Order #@Model.Id</h2>
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase @StatusBadge(Model.Status)">@Model.Status</span>
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase @PaymentBadge(Model.PaymentStatus)">@Model.PaymentStatus</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Placed on @Model.CreatedAt.ToString("MMMM dd, yyyy HH:mm")</p>
+    </div>
+
+    <div class="flex items-center gap-3 flex-shrink-0">
+        <a asp-action="UpdateStatus" asp-route-id="@Model.Id"
+           class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm">
+            <span class="material-symbols-outlined text-sm">edit_note</span>
+            Update Status
+        </a>
+
+        @if (Model.Shipment is null)
+        {
+            <a asp-controller="Shipments" asp-action="Create" asp-route-orderId="@Model.Id"
+               class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:opacity-90 shadow-md shadow-primary/20 transition-all">
+                <span class="material-symbols-outlined text-sm">local_shipping</span>
+                Add Shipment
+            </a>
+        }
+        else
+        {
+            <a asp-controller="Shipments" asp-action="Edit" asp-route-id="@Model.Shipment.Id"
+               class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:opacity-90 shadow-md shadow-primary/20 transition-all">
+                <span class="material-symbols-outlined text-sm">local_shipping</span>
+                Edit Shipment
+            </a>
+        }
+    </div>
+</div>
+
+@* ── Order Status Pipeline ── *@
+@if (Model.Status != SD.Status_Cancelled)
+{
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 mb-6">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Order Progress</h3>
+        <div class="relative flex items-center justify-between px-4">
+            <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
+            @{
+                var pipelineWidth = currentStep >= 0 ? $"{(currentStep * 25)}%" : "0%";
+            }
+            <div class="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary rounded-full transition-all" style="width: @pipelineWidth"></div>
+
+            @for (int i = 0; i < statuses.Length; i++)
+            {
+                var icon = i switch { 0 => "shopping_bag", 1 => "check_circle", 2 => "inventory", 3 => "local_shipping", _ => "package" };
+                var isActive = i <= currentStep;
+                var isCurrent = i == currentStep;
+                var circleClass = isActive
+                    ? "bg-primary text-white shadow-lg shadow-primary/30"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-400";
+                var ringClass = isCurrent ? "ring-4 ring-primary/20" : "";
+
+                <div class="relative z-10 flex flex-col items-center gap-2">
+                    <div class="size-10 rounded-full @circleClass @ringClass flex items-center justify-center transition-all">
+                        <span class="material-symbols-outlined text-[18px]">@icon</span>
+                    </div>
+                    <span class="text-[11px] font-bold @(isActive ? "text-slate-900 dark:text-slate-100" : "text-slate-400") whitespace-nowrap">@statuses[i]</span>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@* ── Main Split Grid ── *@
+<div class="grid grid-cols-1 lg:grid-cols-10 gap-6">
+
+    @* ─── Left (60%) – Order Items ─────────────────────────── *@
+    <div class="lg:col-span-6 space-y-6">
+
+        @* Order Items Table *@
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <h3 class="font-bold text-slate-900 dark:text-slate-100">Order Items</h3>
+                <span class="text-xs text-slate-400">@Model.Items.Count @(Model.Items.Count == 1 ? "item" : "items")</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 dark:bg-slate-800/50">
+                        <tr>
+                            <th class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Product</th>
+                            <th class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Variant</th>
+                            <th class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Unit Price</th>
+                            <th class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Qty</th>
+                            <th class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                                <td class="px-6 py-4 font-semibold text-slate-900 dark:text-slate-100">@item.ProductName</td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded text-xs font-medium">@item.Size</span>
+                                        <span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded text-xs font-medium">@item.Color</span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-slate-600 dark:text-slate-300">@item.UnitPrice.ToString("C")</td>
+                                <td class="px-6 py-4 text-slate-600 dark:text-slate-300">@item.Quantity</td>
+                                <td class="px-6 py-4 font-bold text-slate-900 dark:text-slate-100 text-right">@item.Subtotal.ToString("C")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Totals *@
+            <div class="px-6 py-5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800">
+                <div class="flex justify-end">
+                    <div class="w-64 space-y-2">
+                        <div class="flex justify-between text-sm text-slate-500">
+                            <span>Subtotal</span>
+                            <span class="text-slate-800 dark:text-slate-200">@Model.Subtotal.ToString("C")</span>
+                        </div>
+                        @if (Model.DiscountAmount > 0)
+                        {
+                            <div class="flex justify-between text-sm text-slate-500">
+                                <span>Discount @(Model.CouponCode != null ? $"({Model.CouponCode})" : "")</span>
+                                <span class="text-emerald-600 dark:text-emerald-400">-@Model.DiscountAmount.ToString("C")</span>
+                            </div>
+                        }
+                        <div class="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between font-bold text-base text-slate-900 dark:text-slate-100">
+                            <span>Total</span>
+                            <span class="text-primary">@Model.TotalAmount.ToString("C")</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Shipment Details Card (if exists) *@
+        @if (Model.Shipment is not null)
+        {
+            var ship = Model.Shipment;
+            string ShipBadge(string s) => s switch
+            {
+                SD.Shipment_Shipped        => "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
+                SD.Shipment_OutForDelivery => "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
+                SD.Shipment_Delivered      => "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+                _                          => "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+            };
+
+            <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+                <div class="flex items-center justify-between mb-5">
+                    <h3 class="font-bold text-slate-900 dark:text-slate-100">Shipment Info</h3>
+                    <div class="flex items-center gap-3">
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase @ShipBadge(ship.Status)">@ship.Status</span>
+                        <a asp-controller="Shipments" asp-action="Edit" asp-route-id="@ship.Id"
+                           class="text-primary text-xs font-bold hover:underline flex items-center gap-1">
+                            <span class="material-symbols-outlined text-xs">edit</span> Edit
+                        </a>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase tracking-wider mb-1">Carrier</p>
+                        <p class="font-medium text-slate-700 dark:text-slate-200">@(ship.Carrier ?? "—")</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase tracking-wider mb-1">Tracking Number</p>
+                        <p class="font-medium font-mono text-slate-700 dark:text-slate-200">@(ship.TrackingNumber ?? "—")</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase tracking-wider mb-1">Estimated Delivery</p>
+                        <p class="font-medium text-slate-700 dark:text-slate-200">@(ship.EstimatedDelivery?.ToString("MMM dd, yyyy") ?? "—")</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase tracking-wider mb-1">Shipped At</p>
+                        <p class="font-medium text-slate-700 dark:text-slate-200">@(ship.ShippedAt?.ToString("MMM dd, yyyy HH:mm") ?? "—")</p>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @* ─── Right (40%) – Customer + Address ─────────────────── *@
+    <div class="lg:col-span-4 space-y-6">
+
+        @* Customer Card *@
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+            <h3 class="font-bold text-slate-900 dark:text-slate-100 mb-5">Customer</h3>
+            <div class="flex items-center gap-4">
+                <div class="size-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-lg flex-shrink-0">
+                    @string.Concat(Model.CustomerName.Split(' ').Take(2).Select(p => p.FirstOrDefault().ToString())).ToUpper()
+                </div>
+                <div class="min-w-0">
+                    <p class="font-bold text-slate-900 dark:text-slate-100 truncate">@Model.CustomerName</p>
+                    <p class="text-sm text-slate-400 truncate">@Model.CustomerEmail</p>
+                </div>
+            </div>
+        </div>
+
+        @* Shipping Address Card *@
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+            <h3 class="font-bold text-slate-900 dark:text-slate-100 mb-4">Shipping Address</h3>
+            <div class="bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                <div class="flex items-start gap-3">
+                    <span class="material-symbols-outlined text-slate-400 text-lg flex-shrink-0 mt-0.5">location_on</span>
+                    <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                        @Model.AddressLine
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        @* Order Summary Card *@
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+            <h3 class="font-bold text-slate-900 dark:text-slate-100 mb-4">Quick Actions</h3>
+            <div class="space-y-2">
+                <a asp-action="UpdateStatus" asp-route-id="@Model.Id"
+                   class="w-full flex items-center justify-center gap-2 py-2.5 bg-primary/10 hover:bg-primary hover:text-white text-primary rounded-lg text-sm font-semibold transition-all">
+                    <span class="material-symbols-outlined text-sm">swap_horiz</span>
+                    Change Order Status
+                </a>
+
+                @if (Model.Shipment is null)
+                {
+                    <a asp-controller="Shipments" asp-action="Create" asp-route-orderId="@Model.Id"
+                       class="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold transition-all">
+                        <span class="material-symbols-outlined text-sm">add_box</span>
+                        Create Shipment
+                    </a>
+                }
+                else
+                {
+                    <a asp-controller="Shipments" asp-action="Edit" asp-route-id="@Model.Shipment.Id"
+                       class="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold transition-all">
+                        <span class="material-symbols-outlined text-sm">local_shipping</span>
+                        Update Shipment
+                    </a>
+                }
+
+                <a asp-action="Index"
+                   class="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-lg text-sm font-semibold transition-all">
+                    <span class="material-symbols-outlined text-sm">arrow_back</span>
+                    Back to Orders
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

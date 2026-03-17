@@ -1,0 +1,97 @@
+@model ECommerce_System.ViewModels.Admin.UpdateOrderStatusVM
+@using ECommerce_System.Utilities
+
+@{
+    ViewData["Title"] = $"Update Status — Order #{Model.OrderId}";
+    Layout = "_AdminLayout";
+}
+
+@* ── Breadcrumb ── *@
+<div class="mb-8">
+    <nav class="flex items-center gap-2 text-sm text-slate-400 mb-2">
+        <a asp-action="Index" class="hover:text-primary transition-colors">Orders</a>
+        <span class="material-symbols-outlined text-xs">chevron_right</span>
+        <a asp-action="Details" asp-route-id="@Model.OrderId" class="hover:text-primary transition-colors">#ORD-@Model.OrderId</a>
+        <span class="material-symbols-outlined text-xs">chevron_right</span>
+        <span class="text-slate-700 dark:text-slate-300 font-medium">Update Status</span>
+    </nav>
+    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Update Order Status</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Change the order and payment status for #ORD-@Model.OrderId</p>
+</div>
+
+<div class="max-w-xl">
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+
+        @* Current Status Banner *@
+        <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 grid grid-cols-2 gap-4">
+            <div>
+                <p class="text-xs text-slate-400 uppercase tracking-wider mb-1">Current Order Status</p>
+                <span class="font-semibold text-slate-800 dark:text-slate-200">@Model.CurrentStatus</span>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400 uppercase tracking-wider mb-1">Current Payment Status</p>
+                <span class="font-semibold text-slate-800 dark:text-slate-200">@Model.CurrentPaymentStatus</span>
+            </div>
+        </div>
+
+        <form asp-action="UpdateStatus" asp-controller="Orders" method="post" class="p-6 space-y-6">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="OrderId" />
+            <input type="hidden" asp-for="CurrentStatus" />
+            <input type="hidden" asp-for="CurrentPaymentStatus" />
+
+            @* Order Status *@
+            <div>
+                <label asp-for="NewStatus" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    New Order Status
+                </label>
+                <select asp-for="NewStatus"
+                        class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                    @foreach (var s in ECommerce_System.ViewModels.Admin.UpdateOrderStatusVM.OrderStatuses)
+                    {
+                        <option value="@s" selected="@(s == Model.CurrentStatus)">@s</option>
+                    }
+                </select>
+                <span asp-validation-for="NewStatus" class="text-xs text-red-500 mt-1 block"></span>
+
+                @* Business rule hint *@
+                <p class="text-xs text-slate-400 mt-2 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-xs">info</span>
+                    Cancelling an order will automatically restore stock (BR-008, BR-009).
+                </p>
+            </div>
+
+            @* Payment Status *@
+            <div>
+                <label asp-for="NewPaymentStatus" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    New Payment Status
+                </label>
+                <select asp-for="NewPaymentStatus"
+                        class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                    @foreach (var p in ECommerce_System.ViewModels.Admin.UpdateOrderStatusVM.PaymentStatuses)
+                    {
+                        <option value="@p" selected="@(p == Model.CurrentPaymentStatus)">@p</option>
+                    }
+                </select>
+                <span asp-validation-for="NewPaymentStatus" class="text-xs text-red-500 mt-1 block"></span>
+            </div>
+
+            @* Actions *@
+            <div class="flex items-center gap-3 pt-2">
+                <button type="submit"
+                        class="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-bold hover:opacity-90 shadow-md shadow-primary/20 transition-all">
+                    <span class="material-symbols-outlined text-sm">save</span>
+                    Save Changes
+                </button>
+                <a asp-action="Details" asp-route-id="@Model.OrderId"
+                   class="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+}

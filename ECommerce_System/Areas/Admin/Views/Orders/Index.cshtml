@@ -1,0 +1,151 @@
+@model IEnumerable<ECommerce_System.ViewModels.Admin.OrderIndexVM>
+@using ECommerce_System.Utilities
+
+@{
+    ViewData["Title"] = "Orders";
+    Layout = "_AdminLayout";
+
+    var currentStatus = ViewBag.CurrentStatus as string;
+
+    string StatusBadge(string status) => status switch
+    {
+        SD.Status_Pending    => "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+        SD.Status_Confirmed  => "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+        SD.Status_Processing => "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+        SD.Status_Shipped    => "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
+        SD.Status_Delivered  => "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+        SD.Status_Cancelled  => "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+        _                    => "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
+    };
+
+    string PaymentBadge(string status) => status switch
+    {
+        SD.Payment_Paid     => "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+        SD.Payment_Refunded => "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+        SD.Payment_Failed   => "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+        SD.Payment_Pending  => "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+        _                   => "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
+    };
+}
+
+@* ── TempData alerts ── *@
+@if (TempData["Success"] != null)
+{
+    <div class="mb-6 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 px-4 py-3 rounded-xl text-sm font-medium">
+        <span class="material-symbols-outlined text-lg">check_circle</span>
+        @TempData["Success"]
+    </div>
+}
+
+@* ── Page Header ── *@
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div>
+        <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Orders</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage all customer orders and shipments.</p>
+    </div>
+</div>
+
+@* ── Status Filter Tabs ── *@
+<div class="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 mb-6 overflow-x-auto shadow-sm">
+    <a asp-action="Index" asp-route-status=""
+       class="px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap
+              @(string.IsNullOrEmpty(currentStatus) ? "bg-primary text-white shadow-md shadow-primary/20" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800")">
+        All Orders
+    </a>
+    @foreach (var s in (IReadOnlyList<string>)ViewBag.AllStatuses)
+    {
+        <a asp-action="Index" asp-route-status="@s"
+           class="px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap
+                  @(currentStatus == s ? "bg-primary text-white shadow-md shadow-primary/20" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800")">
+            @s
+        </a>
+    }
+</div>
+
+@* ── Orders Table ── *@
+<div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm border-collapse">
+            <thead>
+                <tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Order ID</th>
+                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Customer</th>
+                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Items</th>
+                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Total</th>
+                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Payment</th>
+                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Status</th>
+                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Date</th>
+                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px] text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="8" class="px-6 py-16 text-center">
+                            <div class="flex flex-col items-center gap-3">
+                                <span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-700">receipt_long</span>
+                                <p class="text-slate-400 dark:text-slate-500 font-medium">No orders found.</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var order in Model)
+                    {
+                        // Initials for avatar
+                        var initials = string.Concat(order.CustomerName.Split(' ').Take(2).Select(p => p.FirstOrDefault().ToString())).ToUpper();
+
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer">
+                            <td class="px-6 py-4">
+                                <span class="font-mono font-semibold text-primary">#ORD-@order.Id</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="size-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[11px] font-bold flex-shrink-0">
+                                        @initials
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="font-medium text-slate-900 dark:text-slate-100 truncate">@order.CustomerName</p>
+                                        <p class="text-xs text-slate-400 truncate">@order.CustomerEmail</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-slate-500 dark:text-slate-400">@order.ItemCount @(order.ItemCount == 1 ? "item" : "items")</td>
+                            <td class="px-6 py-4 font-semibold text-slate-900 dark:text-slate-100">@order.TotalAmount.ToString("C")</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase @PaymentBadge(order.PaymentStatus)">
+                                    @order.PaymentStatus
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase @StatusBadge(order.Status)">
+                                    @order.Status
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
+                                @order.CreatedAt.ToString("MMM dd, yyyy")
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <a asp-action="Details" asp-route-id="@order.Id"
+                                   class="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white text-slate-600 dark:text-slate-400 rounded-lg text-xs font-semibold transition-all">
+                                    <span class="material-symbols-outlined text-sm">visibility</span>
+                                    View
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @* Footer count *@
+    <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+        <p class="text-xs text-slate-500 dark:text-slate-400">
+            Showing <span class="font-semibold text-slate-700 dark:text-slate-300">@Model.Count()</span> orders
+            @if (!string.IsNullOrEmpty(currentStatus)) { <text> with status <span class="font-semibold text-primary">@currentStatus</span></text> }
+        </p>
+    </div>
+</div>

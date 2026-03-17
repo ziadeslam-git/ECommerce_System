@@ -89,8 +89,8 @@
                     <span class="material-symbols-outlined @(controller == "Category" ? "text-white" : "text-slate-400 group-hover:text-white")">category</span>
                     <span class="text-sm font-medium">Categories</span>
                 </a>
-                <a asp-controller="Order" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Order" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
-                    <span class="material-symbols-outlined @(controller == "Order" ? "text-white" : "text-slate-400 group-hover:text-white")">receipt_long</span>
+                <a asp-controller="Orders" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Orders" || controller == "Shipments" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
+                    <span class="material-symbols-outlined @(controller == "Orders" || controller == "Shipments" ? "text-white" : "text-slate-400 group-hover:text-white")">receipt_long</span>
                     <span class="text-sm font-medium">Orders</span>
                 </a>
                 <a asp-controller="Customer" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Customer" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">

@@ -1,0 +1,148 @@
+@model ECommerce_System.ViewModels.Admin.CreateOrderVM
+@using ECommerce_System.Utilities
+
+@{
+    ViewData["Title"] = "Create Order";
+    Layout = "_AdminLayout";
+
+    var users     = ViewBag.Users     as List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? [];
+    var addresses = ViewBag.Addresses as List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? [];
+
+    var orderStatuses   = ViewBag.OrderStatuses   as IReadOnlyList<string> ?? [];
+    var paymentStatuses = ViewBag.PaymentStatuses as IReadOnlyList<string> ?? [];
+}
+
+@* ── Breadcrumb ── *@
+<div class="mb-8">
+    <nav class="flex items-center gap-2 text-sm text-slate-400 mb-2">
+        <a asp-action="Index" class="hover:text-primary transition-colors">Orders</a>
+        <span class="material-symbols-outlined text-xs">chevron_right</span>
+        <span class="text-slate-700 dark:text-slate-300 font-medium">Create Order</span>
+    </nav>
+    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Create Order</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Manually create a new order for a customer.</p>
+</div>
+
+<div class="max-w-2xl">
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+
+        @* Header *@
+        <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
+            <div class="size-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <span class="material-symbols-outlined text-lg">add_shopping_cart</span>
+            </div>
+            <div>
+                <p class="text-sm font-bold text-slate-800 dark:text-slate-200">New Order</p>
+                <p class="text-xs text-slate-400">Fill in the order details below</p>
+            </div>
+        </div>
+
+        <form asp-action="Create" asp-controller="Orders" method="post" class="p-6 space-y-6">
+            @Html.AntiForgeryToken()
+
+            @* Validation Summary *@
+            <div asp-validation-summary="ModelOnly" class="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 hidden [&:not(:empty)]:block"></div>
+
+            @* ── Customer ── *@
+            <div>
+                <label asp-for="UserId" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Customer</label>
+                <select asp-for="UserId" asp-items="users"
+                        class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                    <option value="">— Select customer —</option>
+                </select>
+                <span asp-validation-for="UserId" class="text-xs text-red-500 mt-1 block"></span>
+            </div>
+
+            @* ── Shipping Address ── *@
+            <div>
+                <label asp-for="AddressId" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Shipping Address</label>
+                <select asp-for="AddressId" asp-items="addresses"
+                        class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                    <option value="">— Select address —</option>
+                </select>
+                <span asp-validation-for="AddressId" class="text-xs text-red-500 mt-1 block"></span>
+            </div>
+
+            @* ── Statuses ── *@
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label asp-for="Status" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Order Status</label>
+                    <select asp-for="Status"
+                            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                        @foreach (var s in orderStatuses)
+                        {
+                            <option value="@s">@s</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Status" class="text-xs text-red-500 mt-1 block"></span>
+                </div>
+                <div>
+                    <label asp-for="PaymentStatus" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Payment Status</label>
+                    <select asp-for="PaymentStatus"
+                            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                        @foreach (var p in paymentStatuses)
+                        {
+                            <option value="@p">@p</option>
+                        }
+                    </select>
+                    <span asp-validation-for="PaymentStatus" class="text-xs text-red-500 mt-1 block"></span>
+                </div>
+            </div>
+
+            @* ── Financials ── *@
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label asp-for="Subtotal" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Subtotal</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">EGP</span>
+                        <input asp-for="Subtotal" type="number" step="0.01" min="0" placeholder="0.00"
+                               class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 pl-12 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+                    </div>
+                    <span asp-validation-for="Subtotal" class="text-xs text-red-500 mt-1 block"></span>
+                </div>
+                <div>
+                    <label asp-for="DiscountAmount" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Discount</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">EGP</span>
+                        <input asp-for="DiscountAmount" type="number" step="0.01" min="0" placeholder="0.00"
+                               class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 pl-12 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+                    </div>
+                    <span asp-validation-for="DiscountAmount" class="text-xs text-red-500 mt-1 block"></span>
+                </div>
+            </div>
+
+            @* ── Coupon ── *@
+            <div>
+                <label asp-for="CouponCode" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    Coupon Code <span class="font-normal text-slate-400">(optional)</span>
+                </label>
+                <input asp-for="CouponCode" placeholder="e.g. SAVE20"
+                       class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 text-sm font-mono focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+                <span asp-validation-for="CouponCode" class="text-xs text-red-500 mt-1 block"></span>
+            </div>
+
+            @* ── Info ── *@
+            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg px-4 py-3 flex items-start gap-3 text-xs text-blue-700 dark:text-blue-400">
+                <span class="material-symbols-outlined text-sm flex-shrink-0 mt-0.5">info</span>
+                <span>Total = Subtotal − Discount. You can add shipment details after saving the order from the Details page.</span>
+            </div>
+
+            @* ── Actions ── *@
+            <div class="flex items-center gap-3 pt-2">
+                <button type="submit"
+                        class="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-bold hover:opacity-90 shadow-md shadow-primary/20 transition-all">
+                    <span class="material-symbols-outlined text-sm">save</span>
+                    Create Order
+                </button>
+                <a asp-action="Index"
+                   class="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+}

@@ -26,6 +26,15 @@
         SD.Payment_Pending  => "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
         _                   => "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
     };
+
+    string ShipBadge(string? s) => s switch
+    {
+        SD.Shipment_Shipped        => "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
+        SD.Shipment_OutForDelivery => "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
+        SD.Shipment_Delivered      => "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+        SD.Shipment_Pending        => "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+        _                          => "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+    };
 }
 
 @* ── TempData alerts ── *@
@@ -36,6 +45,13 @@
         @TempData["Success"]
     </div>
 }
+@if (TempData["Warning"] != null)
+{
+    <div class="mb-6 flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 px-4 py-3 rounded-xl text-sm font-medium">
+        <span class="material-symbols-outlined text-lg">warning</span>
+        @TempData["Warning"]
+    </div>
+}
 
 @* ── Page Header ── *@
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -43,6 +59,11 @@
         <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Orders</h2>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage all customer orders and shipments.</p>
     </div>
+    <a asp-action="Create"
+       class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:opacity-90 shadow-md shadow-primary/20 transition-all">
+        <span class="material-symbols-outlined text-sm">add_shopping_cart</span>
+        Create Order
+    </a>
 </div>
 
 @* ── Status Filter Tabs ── *@
@@ -68,24 +89,28 @@
         <table class="w-full text-left text-sm border-collapse">
             <thead>
                 <tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Order ID</th>
-                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Customer</th>
-                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Items</th>
-                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Total</th>
-                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Payment</th>
-                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Status</th>
-                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Date</th>
-                    <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px] text-right">Actions</th>
+                    <th class="px-4 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Order ID</th>
+                    <th class="px-4 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Customer</th>
+                    <th class="px-4 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Items</th>
+                    <th class="px-4 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Total</th>
+                    <th class="px-4 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Payment</th>
+                    <th class="px-4 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Status</th>
+                    <th class="px-4 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Shipment</th>
+                    <th class="px-4 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px]">Date</th>
+                    <th class="px-4 py-4 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px] text-right">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                 @if (!Model.Any())
                 {
                     <tr>
-                        <td colspan="8" class="px-6 py-16 text-center">
+                        <td colspan="9" class="px-6 py-16 text-center">
                             <div class="flex flex-col items-center gap-3">
                                 <span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-700">receipt_long</span>
                                 <p class="text-slate-400 dark:text-slate-500 font-medium">No orders found.</p>
+                                <a asp-action="Create" class="inline-flex items-center gap-1 text-sm text-primary font-semibold hover:underline">
+                                    <span class="material-symbols-outlined text-sm">add</span> Create first order
+                                </a>
                             </div>
                         </td>
                     </tr>
@@ -94,14 +119,13 @@
                 {
                     @foreach (var order in Model)
                     {
-                        // Initials for avatar
                         var initials = string.Concat(order.CustomerName.Split(' ').Take(2).Select(p => p.FirstOrDefault().ToString())).ToUpper();
 
-                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer">
-                            <td class="px-6 py-4">
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                            <td class="px-4 py-4">
                                 <span class="font-mono font-semibold text-primary">#ORD-@order.Id</span>
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-4 py-4">
                                 <div class="flex items-center gap-3">
                                     <div class="size-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[11px] font-bold flex-shrink-0">
                                         @initials
@@ -112,27 +136,70 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 text-slate-500 dark:text-slate-400">@order.ItemCount @(order.ItemCount == 1 ? "item" : "items")</td>
-                            <td class="px-6 py-4 font-semibold text-slate-900 dark:text-slate-100">@order.TotalAmount.ToString("C")</td>
-                            <td class="px-6 py-4">
+                            <td class="px-4 py-4 text-slate-500 dark:text-slate-400">@order.ItemCount @(order.ItemCount == 1 ? "item" : "items")</td>
+                            <td class="px-4 py-4 font-semibold text-slate-900 dark:text-slate-100">@order.TotalAmount.ToString("C")</td>
+                            <td class="px-4 py-4">
                                 <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase @PaymentBadge(order.PaymentStatus)">
                                     @order.PaymentStatus
                                 </span>
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-4 py-4">
                                 <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase @StatusBadge(order.Status)">
                                     @order.Status
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
+
+                            @* ── Shipment Status cell ── *@
+                            <td class="px-4 py-4">
+                                @if (order.ShipmentId is not null)
+                                {
+                                    <a asp-controller="Shipments" asp-action="Edit" asp-route-id="@order.ShipmentId"
+                                       title="Edit Shipment"
+                                       class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase @ShipBadge(order.ShipmentStatus) hover:opacity-80 transition-opacity cursor-pointer">
+                                        <span class="material-symbols-outlined text-[11px]">local_shipping</span>
+                                        @order.ShipmentStatus
+                                    </a>
+                                }
+                                else
+                                {
+                                    <a asp-controller="Shipments" asp-action="Create" asp-route-orderId="@order.Id"
+                                       title="Add Shipment"
+                                       class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-primary transition-colors">
+                                        <span class="material-symbols-outlined text-sm">add_circle_outline</span>
+                                        Add
+                                    </a>
+                                }
+                            </td>
+
+                            <td class="px-4 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
                                 @order.CreatedAt.ToString("MMM dd, yyyy")
                             </td>
-                            <td class="px-6 py-4 text-right">
-                                <a asp-action="Details" asp-route-id="@order.Id"
-                                   class="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white text-slate-600 dark:text-slate-400 rounded-lg text-xs font-semibold transition-all">
-                                    <span class="material-symbols-outlined text-sm">visibility</span>
-                                    View
-                                </a>
+
+                            @* ── Actions ── *@
+                            <td class="px-4 py-4 text-right">
+                                <div class="inline-flex items-center gap-1.5">
+                                    @* View *@
+                                    <a asp-action="Details" asp-route-id="@order.Id"
+                                       title="View Details"
+                                       class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-lg text-xs font-semibold transition-all">
+                                        <span class="material-symbols-outlined text-sm">visibility</span>
+                                    </a>
+
+                                    @* Update Status *@
+                                    <a asp-action="UpdateStatus" asp-route-id="@order.Id"
+                                       title="Update Status"
+                                       class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-semibold transition-all">
+                                        <span class="material-symbols-outlined text-sm">swap_horiz</span>
+                                    </a>
+
+                                    @* Delete *@
+                                    <button type="button"
+                                            title="Delete Order"
+                                            onclick="confirmDelete(@order.Id, '#ORD-@order.Id')"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg text-xs font-semibold transition-all">
+                                        <span class="material-symbols-outlined text-sm">delete</span>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     }
@@ -145,7 +212,62 @@
     <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
         <p class="text-xs text-slate-500 dark:text-slate-400">
             Showing <span class="font-semibold text-slate-700 dark:text-slate-300">@Model.Count()</span> orders
-            @if (!string.IsNullOrEmpty(currentStatus)) { <text> with status <span class="font-semibold text-primary">@currentStatus</span></text> }
+            @if (!string.IsNullOrEmpty(currentStatus)) { <text>with status <span class="font-semibold text-primary">@currentStatus</span></text> }
         </p>
     </div>
 </div>
+
+@* ── Delete Confirmation Modal ── *@
+<div id="deleteModal"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-sm p-6 animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div class="flex flex-col items-center text-center gap-4">
+            <div class="size-14 rounded-2xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <span class="material-symbols-outlined text-3xl text-red-500">delete_forever</span>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">Delete Order?</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    Are you sure you want to delete <span id="modalOrderLabel" class="font-bold text-slate-700 dark:text-slate-300"></span>?
+                    <br>This action cannot be undone. Stock will be restored automatically.
+                </p>
+            </div>
+            <form id="deleteForm" method="post" class="w-full">
+                @Html.AntiForgeryToken()
+                <div class="flex gap-3 w-full">
+                    <button type="button" onclick="closeDeleteModal()"
+                            class="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold shadow-md shadow-red-500/20 transition-all">
+                        Delete Order
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function confirmDelete(orderId, orderLabel) {
+            document.getElementById('modalOrderLabel').textContent = orderLabel;
+            document.getElementById('deleteForm').action = '/Admin/Orders/Delete/' + orderId;
+            const modal = document.getElementById('deleteModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeDeleteModal() {
+            const modal = document.getElementById('deleteModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Close on backdrop click
+        document.getElementById('deleteModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDeleteModal();
+        });
+    </script>
+}

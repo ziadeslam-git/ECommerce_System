@@ -31,11 +31,15 @@
 	  <Folder Include="Areas\ChatApp\Controllers\" />
 	  <Folder Include="Areas\ChatApp\Views\" />
 	  <Folder Include="Models\" />
+	  <Folder Include="Areas\Admin\Controllers\" />
+	  <Folder Include="Areas\Admin\Views\" />
 	  <Folder Include="Data\EntityConfigurations\" />
+	  <Folder Include="ViewModels\" />
 	  <Folder Include="Repositories\" />
 	  <Folder Include="Utilities\" />
 	  <Folder Include="Validations\" />
 	  <Folder Include="Utilities\DBInitializer\" />
 	  <Folder Include="Repositories\IRepositories\" />
+	  <Folder Include="Areas\Admin\" />
 	</ItemGroup>
 </Project>

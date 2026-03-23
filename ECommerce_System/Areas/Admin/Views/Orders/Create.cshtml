@@ -2,14 +2,14 @@
 @using ECommerce_System.Utilities
 
 @{
-    ViewData["Title"] = "Create Order";
+    ViewData["Title"] = "Create POS Order";
     Layout = "_AdminLayout";
-
-    var users     = ViewBag.Users     as List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? [];
-    var addresses = ViewBag.Addresses as List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? [];
 
     var orderStatuses   = ViewBag.OrderStatuses   as IReadOnlyList<string> ?? [];
     var paymentStatuses = ViewBag.PaymentStatuses as IReadOnlyList<string> ?? [];
+    
+    // JSON needed for dynamic product selection
+    var productsJson = ViewBag.ProductsListJson as string ?? "[]";
 }
 
 @* ── Breadcrumb ── *@
@@ -20,129 +20,418 @@
         <span class="text-slate-700 dark:text-slate-300 font-medium">Create Order</span>
     </nav>
     <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Create Order</h2>
-    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Manually create a new order for a customer.</p>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Quickly create an order for a walk-in or phone customer.</p>
 </div>
 
-<div class="max-w-2xl">
-    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+<form asp-action="Create" asp-controller="Orders" id="createOrderForm" method="post" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    @Html.AntiForgeryToken()
 
-        @* Header *@
-        <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
-            <div class="size-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                <span class="material-symbols-outlined text-lg">add_shopping_cart</span>
-            </div>
-            <div>
-                <p class="text-sm font-bold text-slate-800 dark:text-slate-200">New Order</p>
-                <p class="text-xs text-slate-400">Fill in the order details below</p>
+    @* ─── Left Column (Customer & Order Settings) ─── *@
+    <div class="lg:col-span-4 space-y-6">
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+            <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Customer Info</h3>
+            
+            <div asp-validation-summary="ModelOnly" class="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 mb-4 hidden [&:not(:empty)]:block"></div>
+
+            <div class="space-y-4">
+                <div>
+                    <label asp-for="CustomerName" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
+                    <input asp-for="CustomerName" placeholder="e.g. Ahmed Ali" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30" />
+                    <span asp-validation-for="CustomerName" class="text-xs text-red-500 mt-1 block"></span>
+                </div>
+                <div>
+                    <label asp-for="CustomerPhone" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
+                    <input asp-for="CustomerPhone" placeholder="010..." class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30" />
+                    <span asp-validation-for="CustomerPhone" class="text-xs text-red-500 mt-1 block"></span>
+                </div>
+                <div>
+                    <label asp-for="ShippingAddress" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Shipping Address</label>
+                    <textarea asp-for="ShippingAddress" rows="2" placeholder="Full address details..." class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30"></textarea>
+                    <span asp-validation-for="ShippingAddress" class="text-xs text-red-500 mt-1 block"></span>
+                </div>
             </div>
         </div>
 
-        <form asp-action="Create" asp-controller="Orders" method="post" class="p-6 space-y-6">
-            @Html.AntiForgeryToken()
-
-            @* Validation Summary *@
-            <div asp-validation-summary="ModelOnly" class="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 hidden [&:not(:empty)]:block"></div>
-
-            @* ── Customer ── *@
-            <div>
-                <label asp-for="UserId" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Customer</label>
-                <select asp-for="UserId" asp-items="users"
-                        class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
-                    <option value="">— Select customer —</option>
-                </select>
-                <span asp-validation-for="UserId" class="text-xs text-red-500 mt-1 block"></span>
-            </div>
-
-            @* ── Shipping Address ── *@
-            <div>
-                <label asp-for="AddressId" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Shipping Address</label>
-                <select asp-for="AddressId" asp-items="addresses"
-                        class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
-                    <option value="">— Select address —</option>
-                </select>
-                <span asp-validation-for="AddressId" class="text-xs text-red-500 mt-1 block"></span>
-            </div>
-
-            @* ── Statuses ── *@
-            <div class="grid grid-cols-2 gap-4">
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+            <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Order Tracking</h3>
+            <div class="space-y-4">
                 <div>
-                    <label asp-for="Status" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Order Status</label>
-                    <select asp-for="Status"
-                            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
-                        @foreach (var s in orderStatuses)
-                        {
-                            <option value="@s">@s</option>
-                        }
+                    <label asp-for="Status" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Order Status</label>
+                    <select asp-for="Status" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30">
+                        @foreach (var s in orderStatuses) { <option value="@s">@s</option> }
                     </select>
-                    <span asp-validation-for="Status" class="text-xs text-red-500 mt-1 block"></span>
                 </div>
                 <div>
-                    <label asp-for="PaymentStatus" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Payment Status</label>
-                    <select asp-for="PaymentStatus"
-                            class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
-                        @foreach (var p in paymentStatuses)
-                        {
-                            <option value="@p">@p</option>
-                        }
+                    <label asp-for="PaymentStatus" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Payment Status</label>
+                    <select asp-for="PaymentStatus" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30">
+                        @foreach (var p in paymentStatuses) { <option value="@p">@p</option> }
                     </select>
-                    <span asp-validation-for="PaymentStatus" class="text-xs text-red-500 mt-1 block"></span>
                 </div>
             </div>
-
-            @* ── Financials ── *@
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label asp-for="Subtotal" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Subtotal</label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">EGP</span>
-                        <input asp-for="Subtotal" type="number" step="0.01" min="0" placeholder="0.00"
-                               class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 pl-12 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
-                    </div>
-                    <span asp-validation-for="Subtotal" class="text-xs text-red-500 mt-1 block"></span>
-                </div>
-                <div>
-                    <label asp-for="DiscountAmount" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Discount</label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">EGP</span>
-                        <input asp-for="DiscountAmount" type="number" step="0.01" min="0" placeholder="0.00"
-                               class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 pl-12 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
-                    </div>
-                    <span asp-validation-for="DiscountAmount" class="text-xs text-red-500 mt-1 block"></span>
-                </div>
-            </div>
-
-            @* ── Coupon ── *@
-            <div>
-                <label asp-for="CouponCode" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                    Coupon Code <span class="font-normal text-slate-400">(optional)</span>
-                </label>
-                <input asp-for="CouponCode" placeholder="e.g. SAVE20"
-                       class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 text-sm font-mono focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
-                <span asp-validation-for="CouponCode" class="text-xs text-red-500 mt-1 block"></span>
-            </div>
-
-            @* ── Info ── *@
-            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg px-4 py-3 flex items-start gap-3 text-xs text-blue-700 dark:text-blue-400">
-                <span class="material-symbols-outlined text-sm flex-shrink-0 mt-0.5">info</span>
-                <span>Total = Subtotal − Discount. You can add shipment details after saving the order from the Details page.</span>
-            </div>
-
-            @* ── Actions ── *@
-            <div class="flex items-center gap-3 pt-2">
-                <button type="submit"
-                        class="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-bold hover:opacity-90 shadow-md shadow-primary/20 transition-all">
-                    <span class="material-symbols-outlined text-sm">save</span>
-                    Create Order
-                </button>
-                <a asp-action="Index"
-                   class="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
-                    Cancel
-                </a>
-            </div>
-        </form>
+        </div>
     </div>
-</div>
+
+    @* ─── Right Column (Products & Totals) ─── *@
+    <div class="lg:col-span-8 space-y-6">
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-full">
+            
+            @* Add Product Bar *@
+            <div class="p-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Search & Add Product</label>
+                <div class="flex gap-2">
+                    <div class="relative flex-1" id="productDropdownContainer">
+                        <div class="relative">
+                            <input type="text" id="productSearchInput" placeholder="Type to search products..." 
+                                   class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-primary/30" autocomplete="off" />
+                            <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">arrow_drop_down</span>
+                        </div>
+                        
+                        <ul id="customProductDropdown" class="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl hidden divide-y divide-slate-100 dark:divide-slate-700">
+                            <!-- Items injected via JS -->
+                        </ul>
+                    </div>
+                    <button type="button" id="btnAddProduct"
+                            class="px-5 py-2.5 bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg text-sm font-bold hover:opacity-90 transition-all flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">add</span> Add
+                    </button>
+                </div>
+                <p id="productSearchError" class="text-red-500 text-xs mt-1 hidden">Please select a valid product from the list.</p>
+            </div>
+
+            @* Items Table *@
+            <div class="flex-1 overflow-x-auto p-0">
+                <table class="w-full text-left text-sm" id="itemsTable">
+                    <thead class="bg-slate-50 dark:bg-slate-800/50">
+                        <tr>
+                            <th class="px-4 py-3 text-xs font-semibold text-slate-500">Product</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-slate-500 w-24">Price</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-slate-500 w-28">Quantity</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-slate-500 w-24 text-right">Total</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-slate-500 w-12 text-center"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800" id="itemsBody">
+                        <tr id="emptyRow">
+                            <td colspan="5" class="px-6 py-12 text-center text-slate-400">
+                                <span class="material-symbols-outlined text-3xl mb-2 opacity-50">shopping_basket</span>
+                                <p>No products added yet.</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            @* Footer Totals & Coupon *@
+            <div class="bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    
+                    @* Coupon *@
+                    <div>
+                        <label asp-for="CouponCode" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Have a Coupon?</label>
+                        <div class="flex gap-2 relative">
+                            <input asp-for="CouponCode" id="CouponCode" placeholder="Enter coupon code here..." class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-primary/30 uppercase" />
+                            <button type="button" id="btnApplyCoupon" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg text-sm font-semibold transition-all">Apply</button>
+                        </div>
+                        <p id="couponMessage" class="text-xs mt-2 hidden"></p>
+                    </div>
+
+                    @* Summary Table *@
+                    <div class="space-y-3">
+                        <div class="flex justify-between text-sm font-medium text-slate-600 dark:text-slate-400">
+                            <span>Subtotal</span>
+                            <span id="displaySubtotal">EGP 0.00</span>
+                        </div>
+                        <div class="flex justify-between text-sm font-medium text-emerald-600 dark:text-emerald-400 pb-3 border-b border-slate-200 dark:border-slate-700">
+                            <span>Discount</span>
+                            <span id="displayDiscount">- EGP 0.00</span>
+                        </div>
+                        <div class="flex justify-between font-bold text-lg text-slate-900 dark:text-slate-100 pt-1">
+                            <span>Total</span>
+                            <span id="displayTotal" class="text-primary">EGP 0.00</span>
+                        </div>
+
+                        <input type="hidden" id="hiddenSubtotal" asp-for="Subtotal" value="0" />
+                        <input type="hidden" id="hiddenDiscount" asp-for="DiscountAmount" value="0" />
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <a asp-action="Index" class="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">Cancel</a>
+                    <button type="button" id="btnSubmitForm" class="px-6 py-2.5 bg-primary text-white rounded-lg text-sm font-bold shadow-md shadow-primary/20 hover:bg-primary-dark transition-all flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">check_circle</span> Create Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
 
 @section Scripts {
     @await Html.PartialAsync("_ValidationScriptsPartial")
+
+    <script>
+        // 1. Load Products from server
+        const products = @Html.Raw(productsJson);
+        const searchInput = document.getElementById('productSearchInput');
+        const customDropdown = document.getElementById('customProductDropdown');
+        const container = document.getElementById('productDropdownContainer');
+        const itemsBody = document.getElementById('itemsBody');
+        const emptyRow = document.getElementById('emptyRow');
+        let orderItems = []; 
+        let currentSubtotal = 0;
+        let currentDiscount = 0;
+        let selectedProduct = null;
+
+        // Custom Dropdown Logic
+        function renderDropdown(filterText = '') {
+            customDropdown.innerHTML = '';
+            let filtered = products;
+            
+            if (filterText.trim() !== '') {
+                const lowerFilter = filterText.toLowerCase();
+                filtered = products.filter(p => p.name.toLowerCase().includes(lowerFilter));
+            }
+
+            if (filtered.length === 0) {
+                const li = document.createElement('li');
+                li.className = "px-4 py-3 text-sm text-slate-400 italic text-center";
+                li.innerText = "No products found.";
+                customDropdown.appendChild(li);
+            } else {
+                filtered.forEach(p => {
+                    const li = document.createElement('li');
+                    li.className = "px-4 py-3 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors flex justify-between items-center";
+                    li.innerHTML = `
+                        <span class="font-medium">${p.name}</span>
+                        <div class="text-right">
+                            <span class="block font-mono font-bold text-xs text-primary">EGP ${p.price.toFixed(2)}</span>
+                            <span class="block text-[10px] text-slate-400">Stock: ${p.stock}</span>
+                        </div>
+                    `;
+                    
+                    li.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        selectedProduct = p;
+                        searchInput.value = p.name;
+                        closeDropdown();
+                    });
+                    
+                    customDropdown.appendChild(li);
+                });
+            }
+        }
+
+        function openDropdown() {
+            customDropdown.classList.remove('hidden');
+            renderDropdown(searchInput.value);
+        }
+
+        function closeDropdown() {
+            customDropdown.classList.add('hidden');
+        }
+
+        searchInput.addEventListener('focus', openDropdown);
+        searchInput.addEventListener('click', openDropdown);
+        
+        searchInput.addEventListener('input', (e) => {
+            selectedProduct = null; // reset selection if typing
+            openDropdown();
+            renderDropdown(e.target.value);
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                closeDropdown();
+            }
+        });
+
+        // Add Product Button
+        document.getElementById('btnAddProduct').addEventListener('click', function() {
+            if (!selectedProduct) {
+                document.getElementById('productSearchError').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('productSearchError').classList.add('hidden');
+
+            const id = selectedProduct.id;
+            const price = parseFloat(selectedProduct.price);
+            const maxStock = parseInt(selectedProduct.stock);
+            const name = selectedProduct.name;
+
+            // Check if already in list
+            let existing = orderItems.find(i => i.id === id);
+            if (existing) {
+                if (existing.qty < maxStock) {
+                    existing.qty++;
+                    updateRowUI(id);
+                } else {
+                    alert('Cannot add more than available stock (' + maxStock + ')');
+                }
+            } else {
+                orderItems.push({ id: id, name: name, price: price, maxStock: maxStock, qty: 1, guid: generateGuid() });
+                renderNewRow(orderItems[orderItems.length - 1]);
+            }
+            
+            // Reset search input
+            searchInput.value = '';
+            selectedProduct = null;
+            calculateTotals();
+        });
+
+        // Generate GUID for MVC model binding
+        function generateGuid() { return Math.random().toString(36).substring(2, 15); }
+
+        function renderNewRow(item) {
+            emptyRow.style.display = 'none';
+            const tr = document.createElement('tr');
+            tr.id = 'row-' + item.id;
+            tr.className = 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group';
+
+            tr.innerHTML = `
+                <td class="px-4 py-3">
+                    <p class="font-medium text-slate-900 dark:text-slate-100">${item.name}</p>
+                    <input type="hidden" name="Items.Index" value="${item.guid}" />
+                    <input type="hidden" name="Items[${item.guid}].ProductVariantId" value="${item.id}" />
+                </td>
+                <td class="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs">EGP ${item.price.toFixed(2)}</td>
+                <td class="px-4 py-3">
+                    <input type="number" name="Items[${item.guid}].Quantity" value="${item.qty}" min="1" max="${item.maxStock}"
+                           class="qty-input w-20 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-sm font-medium text-center focus:ring-1 focus:ring-primary/50" 
+                           data-id="${item.id}" />
+                </td>
+                <td class="px-4 py-3 text-right font-bold text-slate-900 dark:text-slate-100 font-mono text-sm" id="subtotal-${item.id}">
+                    EGP ${(item.price * item.qty).toFixed(2)}
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <button type="button" class="btn-remove text-red-500 hover:text-red-700 transition-colors opacity-50 group-hover:opacity-100" data-id="${item.id}">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                    </button>
+                </td>
+            `;
+
+            itemsBody.appendChild(tr);
+
+            // Bind events for this row
+            tr.querySelector('.qty-input').addEventListener('input', function(e) {
+                const newQty = parseInt(e.target.value) || 1;
+                const id = parseInt(e.target.dataset.id);
+                const obj = orderItems.find(i => i.id === id);
+                if (obj) {
+                    if (newQty > obj.maxStock) {
+                        e.target.value = obj.maxStock;
+                        obj.qty = obj.maxStock;
+                        alert('Max stock available is ' + obj.maxStock);
+                    } else if (newQty < 1) {
+                        e.target.value = 1;
+                        obj.qty = 1;
+                    } else {
+                        obj.qty = newQty;
+                    }
+                    updateRowUI(id);
+                    calculateTotals();
+                }
+            });
+
+            tr.querySelector('.btn-remove').addEventListener('click', function(e) {
+                const id = parseInt(e.currentTarget.dataset.id);
+                orderItems = orderItems.filter(i => i.id !== id);
+                document.getElementById('row-' + id).remove();
+                if (orderItems.length === 0) emptyRow.style.display = '';
+                calculateTotals();
+            });
+        }
+
+        function updateRowUI(id) {
+            const item = orderItems.find(i => i.id === id);
+            if (!item) return;
+            const row = document.getElementById('row-' + id);
+            row.querySelector('.qty-input').value = item.qty;
+            document.getElementById('subtotal-' + id).innerText = 'EGP ' + (item.price * item.qty).toFixed(2);
+        }
+
+        // Totals Calculation & Coupon validation
+        function calculateTotals() {
+            currentSubtotal = orderItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            
+            // Re-validate coupon quickly if applied
+            const code = document.getElementById('CouponCode').value;
+            if (code && code.trim() !== '') {
+                validateCouponOnServer(code, currentSubtotal);
+            } else {
+                currentDiscount = 0;
+                updateTotalsUI();
+            }
+        }
+
+        document.getElementById('btnApplyCoupon').addEventListener('click', function() {
+            if(orderItems.length === 0) {
+                alert("Add products first before applying a coupon.");
+                return;
+            }
+            const code = document.getElementById('CouponCode').value.trim();
+            if(code === '') {
+                currentDiscount = 0;
+                updateTotalsUI();
+                const msg = document.getElementById('couponMessage');
+                msg.className = "text-xs mt-2 hidden";
+                return;
+            }
+            validateCouponOnServer(code, currentSubtotal);
+        });
+
+        function validateCouponOnServer(code, subtotal) {
+            const btn = document.getElementById('btnApplyCoupon');
+            btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">refresh</span>';
+            btn.disabled = true;
+
+            fetch(`/Admin/Orders/ValidateCoupon?code=${encodeURIComponent(code)}&subtotal=${subtotal}`)
+                .then(res => res.json())
+                .then(data => {
+                    const msg = document.getElementById('couponMessage');
+                    msg.classList.remove('hidden');
+                    if (data.success) {
+                        currentDiscount = data.discountAmount;
+                        msg.className = "text-xs mt-2 font-medium text-emerald-600 dark:text-emerald-400";
+                        msg.innerText = data.message;
+                    } else {
+                        currentDiscount = 0;
+                        msg.className = "text-xs mt-2 font-medium text-red-500";
+                        msg.innerText = data.message;
+                    }
+                    updateTotalsUI();
+                })
+                .catch(err => {
+                    console.error(err);
+                    currentDiscount = 0;
+                    updateTotalsUI();
+                })
+                .finally(() => {
+                    btn.innerHTML = 'Apply';
+                    btn.disabled = false;
+                });
+        }
+
+        function updateTotalsUI() {
+            document.getElementById('displaySubtotal').innerText = 'EGP ' + currentSubtotal.toFixed(2);
+            document.getElementById('displayDiscount').innerText = '- EGP ' + currentDiscount.toFixed(2);
+            
+            let total = currentSubtotal - currentDiscount;
+            if (total < 0) total = 0;
+            document.getElementById('displayTotal').innerText = 'EGP ' + total.toFixed(2);
+            
+            // Update hidden inputs for server form submission
+            document.getElementById('hiddenSubtotal').value = currentSubtotal;
+            document.getElementById('hiddenDiscount').value = currentDiscount;
+        }
+
+        // Final Submit Validator
+        document.getElementById('btnSubmitForm').addEventListener('click', function() {
+            if (orderItems.length === 0) {
+                alert("Please add at least one product to the order.");
+                return;
+            }
+            document.getElementById('createOrderForm').submit();
+        });
+    </script>
 }

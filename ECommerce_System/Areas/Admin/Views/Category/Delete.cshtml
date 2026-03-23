@@ -1,0 +1,125 @@
+@model CategoryDeleteVM
+
+@{
+    ViewData["Title"] = "Delete Category";
+    bool hasBlockers = Model.SubCategoriesCount > 0 || Model.ProductsCount > 0;
+}
+
+<div class="max-w-lg mx-auto space-y-6">
+
+    <!-- Breadcrumb -->
+    <nav class="flex text-sm text-slate-500 items-center gap-2">
+        <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index"
+           class="hover:text-primary transition-colors">Dashboard</a>
+        <span class="material-symbols-outlined text-sm">chevron_right</span>
+        <a asp-area="Admin" asp-controller="Category" asp-action="Index"
+           class="hover:text-primary transition-colors">Categories</a>
+        <span class="material-symbols-outlined text-sm">chevron_right</span>
+        <span class="font-medium text-slate-900">Delete</span>
+    </nav>
+
+    <!-- Confirmation Card -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-8 flex flex-col items-center text-center">
+
+        <!-- Icon -->
+        <div class="size-14 rounded-full @(hasBlockers ? "bg-amber-50" : "bg-red-50") flex items-center justify-center mb-5">
+            <span class="material-symbols-outlined text-3xl @(hasBlockers ? "text-amber-500" : "text-red-500")">
+                @(hasBlockers ? "warning" : "delete")
+            </span>
+        </div>
+
+        <!-- Title -->
+        <h2 class="text-xl font-black text-slate-900 mb-1">
+            @(hasBlockers ? "Cannot Delete Category" : "Delete Category?")
+        </h2>
+        <p class="text-slate-500 text-sm mb-6">
+            @if (hasBlockers)
+            {
+                <span>
+                    <strong class="text-slate-700">"@Model.Name"</strong> cannot be deleted because it has active dependencies.
+                </span>
+            }
+            else
+            {
+                <span>
+                    Are you sure you want to delete <strong class="text-slate-700">"@Model.Name"</strong>?
+                    This action <span class="text-red-600 font-semibold">cannot be undone</span>.
+                </span>
+            }
+        </p>
+
+        <!-- Info Table -->
+        <div class="w-full bg-slate-50 rounded-lg border border-slate-200 divide-y divide-slate-200 mb-6 text-left">
+            <div class="flex items-center justify-between px-4 py-3">
+                <span class="text-sm text-slate-500">Category</span>
+                <span class="text-sm font-bold text-slate-900">@Model.Name</span>
+            </div>
+            @if (Model.ParentCategoryName is not null)
+            {
+                <div class="flex items-center justify-between px-4 py-3">
+                    <span class="text-sm text-slate-500">Parent</span>
+                    <span class="text-sm text-slate-700">@Model.ParentCategoryName</span>
+                </div>
+            }
+            <div class="flex items-center justify-between px-4 py-3">
+                <span class="text-sm text-slate-500">Sub-categories</span>
+                <span class="text-sm font-bold @(Model.SubCategoriesCount > 0 ? "text-amber-600" : "text-slate-400")">
+                    @Model.SubCategoriesCount
+                </span>
+            </div>
+            <div class="flex items-center justify-between px-4 py-3">
+                <span class="text-sm text-slate-500">Products</span>
+                <span class="text-sm font-bold @(Model.ProductsCount > 0 ? "text-amber-600" : "text-slate-400")">
+                    @Model.ProductsCount
+                </span>
+            </div>
+        </div>
+
+        @if (hasBlockers)
+        {
+            <!-- Blocker Warning -->
+            <div class="w-full bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-left">
+                <p class="text-sm font-semibold text-amber-800 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-amber-500 text-base">info</span>
+                    To delete this category, please:
+                </p>
+                <ul class="mt-2 space-y-1 pl-6 list-disc text-sm text-amber-700">
+                    @if (Model.SubCategoriesCount > 0)
+                    {
+                        <li>Delete or reassign the @Model.SubCategoriesCount sub-categories first.</li>
+                    }
+                    @if (Model.ProductsCount > 0)
+                    {
+                        <li>Reassign the @Model.ProductsCount products to another category first.</li>
+                    }
+                </ul>
+            </div>
+
+            <a asp-area="Admin" asp-controller="Category" asp-action="Index"
+               class="w-full py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold
+                      text-center transition-all active:scale-95 block">
+                Back to Categories
+            </a>
+        }
+        else
+        {
+            <!-- Confirm Delete Form -->
+            <form asp-area="Admin" asp-controller="Category" asp-action="Delete"
+                  asp-route-id="@Model.Id" method="post" class="w-full flex gap-3">
+                @Html.AntiForgeryToken()
+                <a asp-area="Admin" asp-controller="Category" asp-action="Index"
+                   class="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-700 text-sm font-semibold
+                          text-center hover:bg-slate-50 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold
+                               transition-colors active:scale-95">
+                    Yes, Delete
+                </button>
+            </form>
+        }
+
+    </div>
+
+</div>

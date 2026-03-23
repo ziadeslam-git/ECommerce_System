@@ -15,6 +15,10 @@ public class OrderIndexVM
     public string          Status         { get; set; } = string.Empty;
     public string          PaymentStatus  { get; set; } = string.Empty;
     public DateTime        CreatedAt      { get; set; }
+
+    // Shipment info (null when no shipment yet)
+    public int?    ShipmentId     { get; set; }
+    public string? ShipmentStatus { get; set; }
 }
 
 // ────────────────────────────────────────────────────────────

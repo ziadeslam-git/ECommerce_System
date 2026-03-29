@@ -53,6 +53,13 @@ builder.Services.Configure<StripeSettings>(
 StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 
 // ──────────────────────────────────────────────────────────────────
+// 4. Cloudinary — Image Upload Service
+// ──────────────────────────────────────────────────────────────────
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection("Cloudinary"));
+builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
+
+// ──────────────────────────────────────────────────────────────────
 // 4. Repository Pattern — Unit of Work
 // ──────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();

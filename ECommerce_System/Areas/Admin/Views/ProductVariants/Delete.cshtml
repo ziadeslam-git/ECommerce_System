@@ -1,0 +1,88 @@
+@using ECommerce_System.ViewModels.Admin
+@model ProductVariantVM
+
+@{
+    ViewData["Title"] = "Remove Variant";
+    var productName = ViewData["ProductName"]?.ToString() ?? "";
+}
+
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <div>
+        <nav class="flex text-sm text-slate-500 mb-2 items-center gap-2">
+            <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
+               asp-route-productId="@Model.ProductId"
+               class="hover:text-primary transition-colors">@productName</a>
+            <span class="material-symbols-outlined text-sm">chevron_right</span>
+            <span class="font-medium text-slate-900">Remove Variant</span>
+        </nav>
+        <h1 class="text-3xl font-black tracking-tight">Remove Variant</h1>
+    </div>
+
+    <!-- Warning -->
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 flex items-start gap-4">
+        <span class="material-symbols-outlined text-amber-500 mt-0.5">info</span>
+        <div>
+            <p class="font-bold text-amber-800">Smart deletion</p>
+            <p class="text-sm text-amber-700 mt-1">
+                If this variant has order history, it will be <strong>deactivated</strong> instead of deleted
+                to preserve historical accuracy.
+            </p>
+        </div>
+    </div>
+
+    <!-- Variant Info -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div class="grid grid-cols-2 gap-5 text-sm">
+            <div>
+                <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">Size</span>
+                <span class="font-semibold text-slate-900 mt-1 block text-lg">@Model.Size</span>
+            </div>
+            <div>
+                <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">Color</span>
+                <span class="font-semibold text-slate-900 mt-1 block text-lg">@Model.Color</span>
+            </div>
+            <div>
+                <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">SKU</span>
+                <code class="font-mono font-semibold text-slate-900 mt-1 block bg-slate-100 px-2 py-1 rounded w-fit">@Model.SKU</code>
+            </div>
+            <div>
+                <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">Current Stock</span>
+                <span class="font-bold text-slate-900 mt-1 block @(Model.Stock == 0 ? "text-red-500" : "text-emerald-600")">
+                    @Model.Stock units
+                </span>
+            </div>
+            <div>
+                <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">Price</span>
+                <span class="font-semibold text-slate-900 mt-1 block">$@Model.Price.ToString("0.00")</span>
+            </div>
+            <div>
+                <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">Status</span>
+                <span class="mt-1 block @(Model.IsActive ? "text-emerald-600 font-bold" : "text-slate-400")">
+                    @(Model.IsActive ? "Active" : "Inactive")
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center justify-end gap-3">
+        <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
+           asp-route-productId="@Model.ProductId"
+           class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold
+                  hover:bg-slate-50 transition-colors">
+            Cancel
+        </a>
+        <form asp-area="Admin" asp-controller="ProductVariants" asp-action="Delete" asp-route-id="@Model.Id"
+              method="post" class="inline">
+            @Html.AntiForgeryToken()
+            <button type="submit"
+                    class="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-red-600 hover:bg-red-700
+                           text-white text-sm font-bold transition-all active:scale-95">
+                <span class="material-symbols-outlined text-base">delete</span>
+                Confirm Remove
+            </button>
+        </form>
+    </div>
+
+</div>

@@ -49,6 +49,9 @@ public class UnitOfWork : IUnitOfWork
     public async Task<int> SaveAsync()
         => await _context.SaveChangesAsync();
 
+    public void SetRowVersion<T>(T entity, byte[] rowVersion) where T : class
+        => _context.Entry(entity).Property("RowVersion").OriginalValue = rowVersion;
+
     public void Dispose()
         => _context.Dispose();
 }

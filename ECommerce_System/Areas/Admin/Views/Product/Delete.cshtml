@@ -1,0 +1,75 @@
+@using ECommerce_System.ViewModels.Admin
+@model ProductDetailsVM
+
+@{
+    ViewData["Title"] = "Delete Product";
+}
+
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <div>
+        <nav class="flex text-sm text-slate-500 mb-2 items-center gap-2">
+            <a asp-area="Admin" asp-controller="Product" asp-action="Index"
+               class="hover:text-primary transition-colors">Products</a>
+            <span class="material-symbols-outlined text-sm">chevron_right</span>
+            <span class="font-medium text-slate-900">Deactivate</span>
+        </nav>
+        <h1 class="text-3xl font-black tracking-tight">Deactivate Product</h1>
+        <p class="text-slate-500 mt-1">This will hide the product and all its variants from the store.</p>
+    </div>
+
+    <!-- Warning Card -->
+    <div class="bg-rose-50 border border-rose-200 rounded-xl p-5 flex items-start gap-4">
+        <span class="material-symbols-outlined text-rose-500 mt-0.5">warning</span>
+        <div>
+            <p class="font-bold text-rose-800">Soft-delete — not permanent</p>
+            <p class="text-sm text-rose-600 mt-1">
+                The product will be marked as inactive but not deleted from the database.
+                This preserves all order history. You can re-activate it later via Edit.
+            </p>
+        </div>
+    </div>
+
+    <!-- Product Info -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <h3 class="font-bold text-slate-700 mb-3">Product to Deactivate</h3>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+                <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">Name</span>
+                <span class="font-semibold text-slate-900 mt-1 block">@Model.Name</span>
+            </div>
+            <div>
+                <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">Category</span>
+                <span class="font-semibold text-slate-900 mt-1 block">@Model.CategoryName</span>
+            </div>
+            <div>
+                <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">Base Price</span>
+                <span class="font-semibold text-slate-900 mt-1 block">$@Model.BasePrice.ToString("0.00")</span>
+            </div>
+            <div>
+                <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">Active Variants</span>
+                <span class="font-semibold text-slate-900 mt-1 block">@Model.Variants.Count(v => v.IsActive)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center justify-end gap-3">
+        <a asp-area="Admin" asp-controller="Product" asp-action="Details" asp-route-id="@Model.Id"
+           class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold
+                  hover:bg-slate-50 transition-colors">
+            Cancel
+        </a>
+        <form asp-area="Admin" asp-controller="Product" asp-action="Delete" asp-route-id="@Model.Id"
+              method="post" class="inline">
+            @Html.AntiForgeryToken()
+            <button type="submit"
+                    class="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-red-600 hover:bg-red-700
+                           text-white text-sm font-bold transition-all active:scale-95">
+                <span class="material-symbols-outlined text-base">block</span>
+                Yes, Deactivate
+            </button>
+        </form>
+    </div>
+
+</div>

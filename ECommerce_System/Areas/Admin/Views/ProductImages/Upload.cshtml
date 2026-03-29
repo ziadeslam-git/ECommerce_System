@@ -1,0 +1,7 @@
+@* Upload is handled inline on the Images Index page via the drag-drop zone.
+   This view should never be rendered directly. *@
+@{
+    ViewData["Title"] = "Upload";
+}
+<p>Redirecting...</p>
+<script>window.location.href = '@Url.Action("Index", "ProductImages", new { area = "Admin", productId = ViewData["ProductId"] })';</script>

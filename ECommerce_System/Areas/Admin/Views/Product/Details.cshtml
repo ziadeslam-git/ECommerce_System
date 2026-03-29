@@ -1,0 +1,220 @@
+@using ECommerce_System.ViewModels.Admin
+@model ProductDetailsVM
+
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<div class="space-y-6">
+
+    <!-- Breadcrumbs -->
+    <nav class="flex text-sm text-slate-500 items-center gap-2">
+        <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index"
+           class="hover:text-primary transition-colors">Dashboard</a>
+        <span class="material-symbols-outlined text-sm">chevron_right</span>
+        <a asp-area="Admin" asp-controller="Product" asp-action="Index"
+           class="hover:text-primary transition-colors">Products</a>
+        <span class="material-symbols-outlined text-sm">chevron_right</span>
+        <span class="font-medium text-slate-900">@Model.Name</span>
+    </nav>
+
+    <!-- Product Header Card (matches mockup style) -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+            <div class="h-16 w-16 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
+                @{
+                    var mainImg = Model.Images.FirstOrDefault(i => i.IsMain)
+                               ?? Model.Images.FirstOrDefault();
+                }
+                @if (mainImg is not null)
+                {
+                    <img src="@mainImg.ImageUrl" alt="@Model.Name" class="w-full h-full object-cover" />
+                }
+                else
+                {
+                    <div class="w-full h-full flex items-center justify-center">
+                        <span class="material-symbols-outlined text-slate-300 text-3xl">image</span>
+                    </div>
+                }
+            </div>
+            <div>
+                <div class="flex items-center gap-3 mb-1">
+                    <h1 class="text-2xl font-bold tracking-tight text-slate-900">@Model.Name</h1>
+                    @if (Model.IsActive)
+                    {
+                        <span class="bg-emerald-50 text-emerald-700 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Active</span>
+                    }
+                    else
+                    {
+                        <span class="bg-slate-100 text-slate-500 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Inactive</span>
+                    }
+                </div>
+                <div class="flex items-center gap-4 text-sm">
+                    <span class="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded text-xs font-semibold">
+                        @Model.CategoryName
+                    </span>
+                    <span class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Base Price:</span>
+                    <span class="font-semibold text-slate-900">$@Model.BasePrice.ToString("0.00")</span>
+                    @if (Model.AverageRating > 0)
+                    {
+                        <div class="flex items-center gap-1">
+                            <span class="material-symbols-outlined text-amber-400 text-sm" style="font-variation-settings:'FILL' 1">star</span>
+                            <span class="text-sm font-semibold">@Model.AverageRating.ToString("0.0")</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <a asp-area="Admin" asp-controller="Product" asp-action="Edit" asp-route-id="@Model.Id"
+               class="px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 rounded-lg
+                      flex items-center gap-2 border border-slate-200 transition-colors">
+                <span class="material-symbols-outlined text-lg">edit</span>
+                Edit
+            </a>
+            <a asp-area="Admin" asp-controller="Product" asp-action="Delete" asp-route-id="@Model.Id"
+               class="px-5 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg
+                      flex items-center gap-2 border border-red-200 transition-colors">
+                <span class="material-symbols-outlined text-lg">delete</span>
+                Deactivate
+            </a>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="flex gap-8 border-b border-slate-200">
+        <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
+           asp-route-productId="@Model.Id"
+           class="pb-4 font-semibold text-primary border-b-2 border-primary flex items-center gap-2 transition-all">
+            <span class="material-symbols-outlined text-xl">style</span>
+            Variants
+            <span class="ml-1 bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-full">
+                @Model.Variants.Count
+            </span>
+        </a>
+        <a asp-area="Admin" asp-controller="ProductImages" asp-action="Index"
+           asp-route-productId="@Model.Id"
+           class="pb-4 font-medium text-slate-500 hover:text-slate-900 flex items-center gap-2 transition-all">
+            <span class="material-symbols-outlined text-xl">image</span>
+            Media Gallery
+            <span class="ml-1 bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-full">
+                @Model.Images.Count
+            </span>
+        </a>
+    </div>
+
+    <!-- Inventory Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Stock</span>
+                <span class="material-symbols-outlined text-primary">inventory</span>
+            </div>
+            <div>
+                <h3 class="text-3xl font-black text-slate-900">@Model.TotalStock.ToString("N0")</h3>
+                <p class="text-xs text-slate-400 mt-1">Across @Model.Variants.Count(v => v.IsActive) active variants</p>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Inventory Value</span>
+                <span class="material-symbols-outlined text-primary">payments</span>
+            </div>
+            <div>
+                <h3 class="text-3xl font-black text-slate-900">$@Model.InventoryValue.ToString("N2")</h3>
+                <p class="text-xs text-slate-400 mt-1">At variant prices</p>
+            </div>
+        </div>
+        <div class="@(Model.LowStockCount > 0 ? "bg-red-50 border-red-200" : "bg-white border-slate-200") rounded-xl border p-5 flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+                <span class="text-[10px] font-black uppercase tracking-widest @(Model.LowStockCount > 0 ? "text-red-400" : "text-slate-400")">
+                    Low Stock Alerts
+                </span>
+                <span class="material-symbols-outlined @(Model.LowStockCount > 0 ? "text-red-500" : "text-slate-300")">warning</span>
+            </div>
+            <div>
+                <h3 class="text-3xl font-black @(Model.LowStockCount > 0 ? "text-red-700" : "text-slate-900")">
+                    @Model.LowStockCount
+                </h3>
+                <p class="text-xs @(Model.LowStockCount > 0 ? "text-red-400" : "text-slate-400") mt-1">
+                    @(Model.LowStockCount > 0 ? "Variants need restocking (< 10 units)" : "All variants well stocked")
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Variant Preview Table -->
+    @if (Model.Variants.Any())
+    {
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-bold text-slate-900">Variant Overview</h3>
+                <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
+                   asp-route-productId="@Model.Id"
+                   class="text-sm text-primary font-semibold hover:underline flex items-center gap-1">
+                    Manage all <span class="material-symbols-outlined text-base">arrow_forward</span>
+                </a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            <th class="px-6 py-3">Variant</th>
+                            <th class="px-6 py-3">SKU</th>
+                            <th class="px-6 py-3 text-right">Price</th>
+                            <th class="px-6 py-3 text-center">Stock</th>
+                            <th class="px-6 py-3 text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        @foreach (var v in Model.Variants.Take(5))
+                        {
+                            <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="px-6 py-3">
+                                    <span class="text-sm font-semibold text-slate-900">@v.Size / @v.Color</span>
+                                </td>
+                                <td class="px-6 py-3">
+                                    <code class="text-xs text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded">@v.SKU</code>
+                                </td>
+                                <td class="px-6 py-3 text-right text-sm font-semibold">$@v.Price.ToString("0.00")</td>
+                                <td class="px-6 py-3 text-center">
+                                    <span class="text-sm font-bold @(v.Stock > 10 ? "text-emerald-600" : v.Stock > 0 ? "text-amber-500" : "text-red-500")">
+                                        @v.Stock
+                                    </span>
+                                </td>
+                                <td class="px-6 py-3 text-center">
+                                    @if (!v.IsActive)
+                                    {
+                                        <span class="text-xs text-slate-400">Inactive</span>
+                                    }
+                                    else if (v.Stock == 0)
+                                    {
+                                        <span class="px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-[10px] font-bold">OUT OF STOCK</span>
+                                    }
+                                    else if (v.Stock < 10)
+                                    {
+                                        <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 text-[10px] font-bold">LOW</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold">IN STOCK</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.Variants.Count > 5)
+            {
+                <div class="px-6 py-3 bg-slate-50 border-t border-slate-100 text-sm text-slate-400 text-center">
+                    +@(Model.Variants.Count - 5) more variants —
+                    <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
+                       asp-route-productId="@Model.Id"
+                       class="text-primary font-semibold hover:underline">view all</a>
+                </div>
+            }
+        </div>
+    }
+
+</div>

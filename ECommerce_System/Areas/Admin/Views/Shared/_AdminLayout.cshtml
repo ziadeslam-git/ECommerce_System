@@ -81,8 +81,8 @@
                     <span class="material-symbols-outlined @(controller == "Dashboard" ? "text-white" : "text-slate-400 group-hover:text-white")">dashboard</span>
                     <span class="text-sm font-medium">Dashboard</span>
                 </a>
-                <a asp-controller="Product" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Product" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
-                    <span class="material-symbols-outlined @(controller == "Product" ? "text-white" : "text-slate-400 group-hover:text-white")">inventory_2</span>
+                <a asp-controller="Product" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Product" || controller == "ProductVariants" || controller == "ProductImages" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
+                    <span class="material-symbols-outlined @(controller == "Product" || controller == "ProductVariants" || controller == "ProductImages" ? "text-white" : "text-slate-400 group-hover:text-white")">inventory_2</span>
                     <span class="text-sm font-medium">Products</span>
                 </a>
                 <a asp-controller="Category" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Category" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">

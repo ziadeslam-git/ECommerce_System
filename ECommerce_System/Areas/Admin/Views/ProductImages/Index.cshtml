@@ -1,0 +1,288 @@
+@using ECommerce_System.ViewModels.Admin
+@model ProductDetailsVM
+
+@{
+    ViewData["Title"] = "Images — " + Model.Name;
+    var productId = Model.Id;
+}
+
+<div class="space-y-6">
+
+    <!-- Breadcrumbs -->
+    <nav class="flex items-center gap-2 text-sm text-slate-500">
+        <a asp-area="Admin" asp-controller="Product" asp-action="Index"
+           class="hover:text-primary transition-colors">Products</a>
+        <span class="material-symbols-outlined text-sm">chevron_right</span>
+        <a asp-area="Admin" asp-controller="Product" asp-action="Details" asp-route-id="@productId"
+           class="hover:text-primary transition-colors">@Model.Name</a>
+        <span class="material-symbols-outlined text-sm">chevron_right</span>
+        <span class="font-medium text-slate-900">Variants &amp; Images</span>
+    </nav>
+
+    <!-- Page Header + Compact Product Card -->
+    <div class="flex flex-col md:flex-row justify-between items-end gap-6">
+        <div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 mb-2">Variants &amp; Images</h1>
+            <p class="text-slate-500 max-w-lg">
+                Manage visual assets for <strong>@Model.Name</strong>.
+            </p>
+        </div>
+        <!-- Compact Product Summary Card -->
+        <div class="bg-white p-3 rounded-xl shadow-sm flex items-center gap-4 border border-slate-200">
+            <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
+                @{
+                    var mainImg = Model.Images.FirstOrDefault(i => i.IsMain)
+                               ?? Model.Images.FirstOrDefault();
+                }
+                @if (mainImg is not null)
+                {
+                    <img src="@mainImg.ImageUrl" alt="@Model.Name" class="w-full h-full object-cover" />
+                }
+                else
+                {
+                    <div class="w-full h-full flex items-center justify-center">
+                        <span class="material-symbols-outlined text-slate-300 text-xl">image</span>
+                    </div>
+                }
+            </div>
+            <div class="pr-4">
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-400">@Model.CategoryName</p>
+                <p class="text-sm font-semibold text-slate-900">@Model.Name</p>
+            </div>
+            <div class="pl-4 border-l border-slate-200">
+                <p class="text-xs text-slate-400">Active Variants</p>
+                <p class="text-sm font-bold text-primary">@Model.Variants.Count(v => v.IsActive) Items</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Tabs -->
+    <div class="flex gap-8 border-b border-slate-200">
+        <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
+           asp-route-productId="@productId"
+           class="pb-4 text-slate-500 font-medium hover:text-slate-900 flex items-center gap-2 transition-colors">
+            <span class="material-symbols-outlined text-lg">style</span>
+            Variants
+        </a>
+        <button class="pb-4 text-primary font-bold border-b-2 border-primary flex items-center gap-2 relative">
+            <span class="material-symbols-outlined text-lg">image</span>
+            Images
+            @if (Model.Images.Any())
+            {
+                <span class="absolute -top-1 -right-4 bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded-full font-black">
+                    @Model.Images.Count
+                </span>
+            }
+        </button>
+    </div>
+
+    <!-- Image Management Canvas -->
+    <div class="space-y-8">
+
+        <!-- Upload Zone -->
+        <form asp-area="Admin" asp-controller="ProductImages" asp-action="Upload"
+              method="post" enctype="multipart/form-data" id="uploadForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="ProductId" value="@productId" />
+
+            <div id="dropZone"
+                 class="w-full border-2 border-dashed border-indigo-200 bg-slate-50 rounded-2xl p-12
+                        flex flex-col items-center justify-center cursor-pointer
+                        hover:bg-slate-50/80 hover:border-primary/50 transition-all group">
+                <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4
+                            group-hover:scale-110 transition-transform">
+                    <span class="material-symbols-outlined text-3xl text-primary">upload_file</span>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-1">Upload product imagery</h3>
+                <p class="text-slate-400 text-sm mb-6">Drag and drop JPG or PNG files (max 10 MB each)</p>
+
+                <label for="imageFileInput"
+                       class="bg-white text-slate-800 px-6 py-2 rounded-lg font-semibold text-sm
+                              shadow-sm border border-slate-200 hover:bg-slate-50 transition-all cursor-pointer">
+                    Browse Files
+                </label>
+                <input type="file" id="imageFileInput" name="ImageFile"
+                       accept="image/jpeg,image/png,image/webp"
+                       class="hidden" onchange="handleFileSelect(this)" />
+
+                <div id="filePreview" class="hidden mt-6 flex items-center gap-3">
+                    <img id="previewImg" src="" alt="Preview" class="h-16 w-16 object-cover rounded-lg border border-slate-200" />
+                    <div>
+                        <p id="fileName" class="text-sm font-semibold text-slate-900"></p>
+                        <p id="fileSize" class="text-xs text-slate-400"></p>
+                    </div>
+                </div>
+
+                <div id="uploadOptions" class="hidden mt-6 flex flex-col items-center gap-3 w-full max-w-xs">
+                    <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <input type="checkbox" name="IsMain" value="true"
+                               class="size-4 rounded accent-primary" />
+                        Set as main image
+                    </label>
+                    <button type="submit"
+                            class="w-full flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg
+                                   bg-primary hover:bg-primary/90 text-white text-sm font-bold
+                                   shadow-lg shadow-primary/20 transition-all active:scale-95">
+                        <span class="material-symbols-outlined text-base">cloud_upload</span>
+                        Upload Image
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Image Grid -->
+        @if (Model.Images.Any())
+        {
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                @foreach (var img in Model.Images)
+                {
+                    <div class="group relative bg-white p-2 rounded-2xl shadow-sm
+                                @(img.IsMain ? "border-2 border-primary ring-4 ring-primary/10" : "border border-slate-200 hover:shadow-md")
+                                transition-all overflow-hidden">
+
+                        <!-- Main Badge -->
+                        @if (img.IsMain)
+                        {
+                            <div class="absolute top-4 left-4 z-10">
+                                <span class="bg-primary text-white text-[10px] font-black px-2 py-1 rounded
+                                             shadow-lg uppercase tracking-widest flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[12px]" style="font-variation-settings:'FILL' 1">star</span>
+                                    Main
+                                </span>
+                            </div>
+                        }
+
+                        <!-- Image -->
+                        <div class="aspect-square rounded-xl overflow-hidden bg-slate-100 mb-3 relative">
+                            <img src="@img.ImageUrl" alt="Product Image @img.DisplayOrder"
+                                 class="w-full h-full object-cover" />
+                            <!-- Hover overlay -->
+                            <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100
+                                        flex items-center justify-center transition-opacity">
+                                <span class="material-symbols-outlined text-4xl text-white/80 drop-shadow">
+                                    zoom_in
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Card Footer -->
+                        <div class="flex justify-between items-center px-2 pb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                                    @img.DisplayOrder.ToString("D2")
+                                </span>
+                                <span class="text-xs font-medium text-slate-400 truncate w-20">
+                                    @(img.PublicId?.Split('/').Last() ?? "image")
+                                </span>
+                            </div>
+                            <div class="flex gap-1">
+                                @if (!img.IsMain)
+                                {
+                                    <form asp-area="Admin" asp-controller="ProductImages" asp-action="SetMain"
+                                          asp-route-id="@img.Id" method="post" class="inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit"
+                                                class="p-1.5 text-slate-400 hover:text-amber-500 rounded-lg transition-colors"
+                                                title="Set as main image">
+                                            <span class="material-symbols-outlined text-lg">star</span>
+                                        </button>
+                                    </form>
+                                }
+                                <form asp-area="Admin" asp-controller="ProductImages" asp-action="Delete"
+                                      asp-route-id="@img.Id" method="post" class="inline"
+                                      onsubmit="return confirm('Delete this image?')">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit"
+                                            class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Delete image">
+                                        <span class="material-symbols-outlined text-lg">delete</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-12 text-slate-400">
+                <span class="material-symbols-outlined text-5xl block mb-3">photo_library</span>
+                <p class="font-medium">No images yet. Upload your first image above.</p>
+            </div>
+        }
+
+        <!-- Bottom Info Bar -->
+        <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-primary/10 p-3 rounded-full">
+                    <span class="material-symbols-outlined text-primary">info</span>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-900">Cloudinary Storage</h4>
+                    <p class="text-sm text-slate-500">
+                        Images are stored on Cloudinary CDN.
+                        @if (!Model.Images.Any())
+                        {
+                            <span>Upload your first image to get started.</span>
+                        }
+                        else
+                        {
+                            <span>@Model.Images.Count image(s) uploaded for this product.</span>
+                        }
+                    </p>
+                </div>
+            </div>
+            <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
+               asp-route-productId="@productId"
+               class="px-6 py-2.5 rounded-xl font-bold text-slate-700 bg-white hover:bg-slate-100
+                      border border-slate-200 transition-colors text-sm flex items-center gap-2">
+                <span class="material-symbols-outlined text-lg">style</span>
+                View Variants
+            </a>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('previewImg').src = e.target.result;
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
+                document.getElementById('filePreview').classList.remove('hidden');
+                document.getElementById('filePreview').classList.add('flex');
+                document.getElementById('uploadOptions').classList.remove('hidden');
+                document.getElementById('uploadOptions').classList.add('flex');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Drag & drop
+        const dropZone = document.getElementById('dropZone');
+        dropZone.addEventListener('dragover', e => {
+            e.preventDefault();
+            dropZone.classList.add('border-primary', 'bg-primary/5');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-primary', 'bg-primary/5');
+        });
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('border-primary', 'bg-primary/5');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const input = document.getElementById('imageFileInput');
+                input.files = files;
+                handleFileSelect(input);
+            }
+        });
+    </script>
+}

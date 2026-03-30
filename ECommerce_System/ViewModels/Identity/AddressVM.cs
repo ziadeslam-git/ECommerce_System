@@ -22,7 +22,7 @@ public class AddressVM
     [Display(Name = "City")]
     public string City { get; set; } = string.Empty;
 
-    [MaxLength(100)]
+    [StringLength(100)]
     [Display(Name = "State / Province")]
     public string? State { get; set; }
 

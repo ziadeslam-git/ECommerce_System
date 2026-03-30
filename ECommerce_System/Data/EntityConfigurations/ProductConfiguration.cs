@@ -41,6 +41,9 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.HasIndex(p => p.IsActive);
         builder.HasIndex(p => p.Name);
 
+        // Global Query Filter (Soft Delete)
+        builder.HasQueryFilter(p => p.IsActive);
+
         // Product → Variants (Cascade)
         builder.HasMany(p => p.Variants)
             .WithOne(v => v.Product)

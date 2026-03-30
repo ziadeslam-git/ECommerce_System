@@ -37,21 +37,7 @@
     };
 }
 
-@* ── TempData alerts ── *@
-@if (TempData["Success"] != null)
-{
-    <div class="mb-6 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 px-4 py-3 rounded-xl text-sm font-medium">
-        <span class="material-symbols-outlined text-lg">check_circle</span>
-        @TempData["Success"]
-    </div>
-}
-@if (TempData["Warning"] != null)
-{
-    <div class="mb-6 flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 px-4 py-3 rounded-xl text-sm font-medium">
-        <span class="material-symbols-outlined text-lg">warning</span>
-        @TempData["Warning"]
-    </div>
-}
+@* TempData alerts are handled in _AdminLayout *@
 
 @* ── Page Header ── *@
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">

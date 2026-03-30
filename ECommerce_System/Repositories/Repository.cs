@@ -16,33 +16,66 @@ public class Repository<T> : IRepository<T> where T : class
         _dbSet = context.Set<T>();
     }
 
-    public async Task<IEnumerable<T>> GetAllAsync(string? includeProperties = null, bool tracked = true)
+    public async Task<IEnumerable<T>> GetAllAsync(string? includeProperties = null, bool tracked = true, bool ignoreQueryFilters = false)
     {
         IQueryable<T> query = _dbSet;
         if (!tracked)
         {
             query = query.AsNoTracking();
         }
+        if (ignoreQueryFilters)
+        {
+            query = query.IgnoreQueryFilters();
+        }
         query = ApplyIncludes(query, includeProperties);
         return await query.ToListAsync();
     }
 
-    public async Task<T?> GetByIdAsync(int id)
-        => await _dbSet.FindAsync(id);
-
-    public async Task<T?> FindAsync(Expression<Func<T, bool>> predicate, string? includeProperties = null)
+    public async Task<T?> GetByIdAsync(int id, bool ignoreQueryFilters = false)
     {
-        IQueryable<T> query = _dbSet;
-        query = ApplyIncludes(query, includeProperties);
-        return await query.FirstOrDefaultAsync(predicate);
+        if (ignoreQueryFilters)
+        {
+            var keyProperty = _context.Model.FindEntityType(typeof(T))?.FindPrimaryKey()?.Properties.FirstOrDefault();
+            if (keyProperty != null)
+            {
+                var parameter = Expression.Parameter(typeof(T), "e");
+                var property = Expression.Property(parameter, keyProperty.Name);
+                if (keyProperty.ClrType == typeof(int))
+                {
+                    var equality = Expression.Equal(property, Expression.Constant(id));
+                    var lambda = Expression.Lambda<Func<T, bool>>(equality, parameter);
+                    return await _dbSet.IgnoreQueryFilters().FirstOrDefaultAsync(lambda);
+                }
+            }
+        }
+        return await _dbSet.FindAsync(id);
     }
 
-    public async Task<IEnumerable<T>> FindAllAsync(Expression<Func<T, bool>> predicate, string? includeProperties = null, bool tracked = true)
+    public async Task<T?> FindAsync(Expression<Func<T, bool>> predicate, string? includeProperties = null, bool tracked = true, bool ignoreQueryFilters = false)
     {
         IQueryable<T> query = _dbSet;
         if (!tracked)
         {
             query = query.AsNoTracking();
+        }
+        if (ignoreQueryFilters)
+        {
+            query = query.IgnoreQueryFilters();
+        }
+        query = ApplyIncludes(query, includeProperties);
+        return await query.FirstOrDefaultAsync(predicate);
+    }
+
+    public async Task<IEnumerable<T>> FindAllAsync(Expression<Func<T, bool>> predicate, string? includeProperties = null, bool tracked = true, bool ignoreQueryFilters = false)
+    {
+        IQueryable<T> query = _dbSet;
+        if (!tracked)
+        {
+            query = query.AsNoTracking();
+        }
+        if (ignoreQueryFilters)
+        {
+            query = query.IgnoreQueryFilters();
         }
         query = ApplyIncludes(query, includeProperties);
         return await query.Where(predicate).ToListAsync();

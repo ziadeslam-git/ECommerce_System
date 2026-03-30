@@ -4,6 +4,7 @@ using ECommerce_System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ECommerce_System.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260330010231_UpdateProductCategoryRelationAndVariantsTable")]
+    partial class UpdateProductCategoryRelationAndVariantsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -558,6 +561,9 @@ namespace ECommerce_System.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -568,6 +574,9 @@ namespace ECommerce_System.Migrations
 
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
+
+                    b.Property<string>("PublicId")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -604,39 +613,6 @@ namespace ECommerce_System.Migrations
                         {
                             t.HasCheckConstraint("CK_ProductVariants_Stock", "[Stock] >= 0");
                         });
-                });
-
-            modelBuilder.Entity("ECommerce_System.Models.ProductVariantImage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<bool>("IsMain")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<int>("ProductVariantId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("PublicId")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProductVariantId");
-
-                    b.ToTable("ProductVariantImages");
                 });
 
             modelBuilder.Entity("ECommerce_System.Models.Review", b =>
@@ -1022,17 +998,6 @@ namespace ECommerce_System.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("ECommerce_System.Models.ProductVariantImage", b =>
-                {
-                    b.HasOne("ECommerce_System.Models.ProductVariant", "ProductVariant")
-                        .WithMany("Images")
-                        .HasForeignKey("ProductVariantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ProductVariant");
-                });
-
             modelBuilder.Entity("ECommerce_System.Models.Review", b =>
                 {
                     b.HasOne("ECommerce_System.Models.Product", "Product")
@@ -1186,8 +1151,6 @@ namespace ECommerce_System.Migrations
             modelBuilder.Entity("ECommerce_System.Models.ProductVariant", b =>
                 {
                     b.Navigation("CartItems");
-
-                    b.Navigation("Images");
 
                     b.Navigation("OrderItems");
                 });

@@ -42,6 +42,9 @@ public class ProductVariantConfiguration : IEntityTypeConfiguration<ProductVaria
         // Stock CHECK ≥ 0 via check constraint
         builder.ToTable(t => t.HasCheckConstraint("CK_ProductVariants_Stock", "[Stock] >= 0"));
 
+        // Global Query Filter (Soft Delete)
+        builder.HasQueryFilter(v => v.IsActive);
+
         // Indexes
         builder.HasIndex(v => v.SKU).IsUnique();
         builder.HasIndex(v => v.ProductId);

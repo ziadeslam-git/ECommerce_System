@@ -29,7 +29,7 @@
 
     <!-- Form -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-        <form asp-area="Admin" asp-controller="ProductVariants" asp-action="Edit" method="post">
+        <form asp-area="Admin" asp-controller="ProductVariants" asp-action="Edit" method="post" enctype="multipart/form-data">
             @Html.AntiForgeryToken()
             <input asp-for="Id"          type="hidden" />
             <input asp-for="ProductId"   type="hidden" />
@@ -106,6 +106,62 @@
                     </label>
                 </div>
 
+                <!-- Variant Images (Multiple) -->
+                <div class="pt-4 border-t border-slate-100">
+                    <div class="flex items-start justify-between mb-1">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900">Variant Images <span class="font-normal text-slate-400">(multiple allowed)</span></h3>
+                            <p class="text-xs text-slate-400 mt-0.5">First file selected = Main Image. Uploading NEW images will replace all existing ones.</p>
+                        </div>
+                    </div>
+
+                    @if (Model.Images != null && Model.Images.Any())
+                    {
+                        <div class="flex flex-wrap gap-3 mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            @foreach (var img in Model.Images)
+                            {
+                                <div class="relative group">
+                                    <a href="@img.ImageUrl" data-fancybox="edit-gallery">
+                                        <img src="@img.ImageUrl" alt="Variant Image"
+                                             class="size-20 object-cover rounded-lg border cursor-pointer
+                                                    @(img.IsMain ? "border-primary ring-2 ring-primary/20" : "border-slate-300")
+                                                    shadow-sm group-hover:border-primary transition-colors" />
+                                    </a>
+                                    @if(img.IsMain)
+                                    {
+                                        <span class="absolute -top-2 -right-2 bg-primary text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow border-2 border-white">MAIN</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <p class="text-xs text-amber-600 font-semibold mb-4 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-xs">info</span>
+                            @Model.Images.Count existing image(s) above. Upload new files below to replace them.
+                        </p>
+                    }
+
+                    <div id="imageDropZone"
+                         class="relative border-2 border-dashed border-slate-200 rounded-xl p-6 text-center
+                                hover:border-primary/50 transition-all cursor-pointer">
+                        <input asp-for="ImageFiles" type="file" accept="image/*" multiple id="imageFilesInput"
+                               class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                        <span class="material-symbols-outlined text-3xl text-slate-300 mb-2 block">add_photo_alternate</span>
+                        <p class="text-sm font-semibold text-slate-500">Click or drag & drop new images here</p>
+                        <p class="text-xs text-slate-400 mt-1">PNG, JPG, WEBP — multiple files supported</p>
+                    </div>
+
+                    <!-- New Image Previews -->
+                    <div id="imagePreviews" class="mt-4 grid grid-cols-4 gap-3 hidden"></div>
+
+                    <div class="flex items-center gap-3 mt-4">
+                        <input asp-for="SetAsMainProductImage" type="checkbox" id="setMainCheck"
+                               class="size-4 rounded accent-primary" />
+                        <label for="setMainCheck" class="text-sm font-medium text-slate-700">
+                            @Html.DisplayNameFor(m => m.SetAsMainProductImage)
+                        </label>
+                    </div>
+                </div>
+
             </div>
 
             <!-- Actions -->
@@ -139,4 +195,32 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        const input    = document.getElementById('imageFilesInput');
+        const previews = document.getElementById('imagePreviews');
+
+        input.addEventListener('change', function () {
+            previews.innerHTML = '';
+            if (!this.files || this.files.length === 0) {
+                previews.classList.add('hidden');
+                return;
+            }
+            previews.classList.remove('hidden');
+            Array.from(this.files).forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const div = document.createElement('div');
+                    div.className = 'relative rounded-xl overflow-hidden border-2 aspect-square ' +
+                                    (index === 0 ? 'border-primary shadow-md shadow-primary/20' : 'border-slate-200');
+                    div.innerHTML = `
+                        <img src="${e.target.result}" class="w-full h-full object-cover" />
+                        ${index === 0 ? '<div class="absolute top-1.5 left-1.5 bg-primary text-white text-[9px] font-black px-1.5 py-0.5 rounded">MAIN</div>' : ''}
+                        <div class="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] truncate px-2 py-1">${file.name}</div>
+                    `;
+                    previews.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+    </script>
 }

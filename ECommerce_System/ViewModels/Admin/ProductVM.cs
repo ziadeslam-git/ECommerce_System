@@ -27,7 +27,7 @@ public class ProductFormVM
     public int Id { get; set; }   // 0 for Create
 
     [Required(ErrorMessage = "Product name is required")]
-    [MaxLength(200)]
+    [StringLength(200, ErrorMessage = "Product name cannot exceed 200 characters")]
     [Display(Name = "Product Name")]
     public string Name { get; set; } = string.Empty;
 
@@ -41,7 +41,7 @@ public class ProductFormVM
 
     [Required(ErrorMessage = "Category is required")]
     [Display(Name = "Category")]
-    public int CategoryId { get; set; }
+    public int? CategoryId { get; set; }
 
     [Display(Name = "Active")]
     public bool IsActive { get; set; } = true;

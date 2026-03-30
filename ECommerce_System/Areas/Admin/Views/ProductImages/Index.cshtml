@@ -153,7 +153,7 @@
                         }
 
                         <!-- Image -->
-                        <div class="aspect-square rounded-xl overflow-hidden bg-slate-100 mb-3 relative">
+                        <div class="aspect-square rounded-xl overflow-hidden bg-slate-100 mb-3 relative cursor-pointer" onclick="openLightbox('@img.ImageUrl')">
                             <img src="@img.ImageUrl" alt="Product Image @img.DisplayOrder"
                                  class="w-full h-full object-cover" />
                             <!-- Hover overlay -->
@@ -245,6 +245,14 @@
     </div>
 </div>
 
+<!-- Lightbox Modal -->
+<div id="lightbox" class="fixed inset-0 z-50 hidden bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity opacity-0" onclick="closeLightbox()">
+    <button class="absolute top-6 right-6 text-white/70 hover:text-white bg-slate-800/50 hover:bg-slate-800 rounded-full p-2 transition-all" onclick="closeLightbox()">
+        <span class="material-symbols-outlined text-3xl">close</span>
+    </button>
+    <img id="lightboxImg" src="" alt="Zoomed Product Image" class="max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain drop-shadow-2xl scale-95 transition-transform duration-300" onclick="event.stopPropagation()" />
+</div>
+
 @section Scripts {
     <script>
         function handleFileSelect(input) {
@@ -282,6 +290,43 @@
                 const input = document.getElementById('imageFileInput');
                 input.files = files;
                 handleFileSelect(input);
+            }
+        });
+
+        // Lightbox functionality
+        function openLightbox(url) {
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightboxImg');
+            lightboxImg.src = url;
+            
+            // Show
+            lightbox.classList.remove('hidden');
+            // Small delay to allow display:block before fading in
+            setTimeout(() => {
+                lightbox.classList.remove('opacity-0');
+                lightboxImg.classList.remove('scale-95');
+                lightboxImg.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightboxImg');
+            
+            lightbox.classList.add('opacity-0');
+            lightboxImg.classList.remove('scale-100');
+            lightboxImg.classList.add('scale-95');
+            
+            setTimeout(() => {
+                lightbox.classList.add('hidden');
+                lightboxImg.src = '';
+            }, 300);
+        }
+
+        // Close lightbox on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !document.getElementById('lightbox').classList.contains('hidden')) {
+                closeLightbox();
             }
         });
     </script>

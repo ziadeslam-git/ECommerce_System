@@ -83,7 +83,7 @@
                     }
                     @foreach (var p in Model)
                     {
-                        <tr class="hover:bg-primary/5 transition-colors group">
+                        <tr class="hover:bg-primary/5 transition-colors group @(!p.IsActive ? "opacity-60 bg-slate-50" : "")">
                             <!-- Product + thumbnail -->
                             <td class="py-4 px-6">
                                 <div class="flex items-center gap-3">
@@ -135,20 +135,15 @@
                                 </span>
                             </td>
                             <td class="py-4 px-6 text-center">
-                                @if (p.IsActive)
-                                {
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">
-                                        <span class="size-1.5 rounded-full bg-emerald-500 inline-block"></span>
-                                        Active
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">
-                                        <span class="size-1.5 rounded-full bg-slate-400 inline-block"></span>
-                                        Inactive
-                                    </span>
-                                }
+                                <form asp-area="Admin" asp-controller="Product" asp-action="ToggleActive" method="post" class="inline-block">
+                                    <input type="hidden" name="id" value="@p.Id" />
+                                    <button type="submit"
+                                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 @(p.IsActive ? "bg-emerald-500" : "bg-slate-300")"
+                                            role="switch" aria-checked="@p.IsActive.ToString().ToLower()">
+                                        <span aria-hidden="true"
+                                              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out @(p.IsActive ? "translate-x-5" : "translate-x-0")"></span>
+                                    </button>
+                                </form>
                             </td>
                             <td class="py-4 px-6 text-right">
                                 <div class="flex justify-end gap-1">

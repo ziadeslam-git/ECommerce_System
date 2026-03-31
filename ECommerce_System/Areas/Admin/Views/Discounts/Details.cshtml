@@ -1,0 +1,167 @@
+@model ECommerce_System.ViewModels.Admin.DiscountVM
+@{
+    ViewData["Title"] = "Discount Details - " + Model.CouponCode;
+}
+
+@section Styles {
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+}
+
+<div class="flex justify-center -m-4 md:-m-8">
+    <div class="w-full max-w-2xl bg-surface shadow-xl min-h-[calc(100vh-64px)] rounded-l-2xl border-l border-slate-200 overflow-hidden relative flex flex-col">
+        <!-- Sticky Header -->
+        <header class="sticky top-0 z-20 h-20 flex items-center justify-between px-8 bg-surface-container-lowest border-b border-surface-container-low">
+            <div class="flex flex-col">
+                <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-0.5">Campaign Details</span>
+                <h1 class="text-xl font-headline font-black text-on-surface tracking-tight">@Model.CouponCode</h1>
+            </div>
+            <a asp-action="Index" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-low transition-colors text-on-surface-variant">
+                <span class="material-symbols-outlined">close</span>
+            </a>
+        </header>
+
+        <div class="flex-1 overflow-y-auto no-scrollbar px-8 py-6 space-y-8 bg-surface">
+            <!-- Usage Analytics Card -->
+            <section class="p-6 rounded-xl bg-surface-container-low relative overflow-hidden ring-1 ring-slate-200/50 shadow-sm">
+                <div class="relative z-10">
+                    <div class="flex justify-between items-end mb-4">
+                        <div>
+                            <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Performance</p>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-3xl font-black font-mono text-on-surface">@Model.UsageCount</span>
+                                <span class="text-sm font-medium text-on-surface-variant">/ @(Model.UsageLimit?.ToString() ?? "∞")</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            @{
+                                var percentage = Model.UsageLimit > 0 ? ((Model.UsageCount * 100) / Model.UsageLimit.Value) : 0;
+                            }
+                            <span class="text-2xl font-black text-primary font-mono italic">@(percentage)%</span>
+                        </div>
+                    </div>
+                    <!-- Progress Bar -->
+                    <div class="h-3 w-full bg-slate-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-primary to-indigo-400 rounded-full" style="width: @percentage%"></div>
+                    </div>
+                    <div class="mt-4 flex gap-4">
+                        @if (Model.IsExpired)
+                        {
+                            <div class="flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-sm text-error">timer_off</span>
+                                <span class="text-xs font-medium text-error font-bold">Expired</span>
+                            </div>
+                        }
+                        else if (Model.EndDate.HasValue)
+                        {
+                            <div class="flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-sm text-tertiary">schedule</span>
+                                <span class="text-xs font-medium text-on-surface-variant">Expires in @((Model.EndDate.Value - DateTime.UtcNow).Days) days</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <!-- Abstract background shape -->
+                <div class="absolute -right-4 -top-4 w-24 h-24 bg-primary/10 rounded-full blur-2xl"></div>
+            </section>
+
+            <!-- Coupon Identity Section -->
+            <div class="space-y-4">
+                <h3 class="text-xs font-bold text-on-surface uppercase tracking-widest border-l-2 border-primary pl-3">Coupon Identity</h3>
+                <div class="space-y-2">
+                    <label class="block text-xs font-semibold text-on-surface-variant ml-1">Coupon Code</label>
+                    <div class="w-full px-4 py-3 bg-surface-container-lowest rounded-lg border-0 ring-1 ring-outline-variant/30 font-mono text-sm tracking-wider uppercase text-on-surface">
+                        @Model.CouponCode
+                    </div>
+                </div>
+            </div>
+
+            <!-- Discount Mechanics Section -->
+            <div class="space-y-4 pt-2">
+                <h3 class="text-xs font-bold text-on-surface uppercase tracking-widest border-l-2 border-primary pl-3">Discount Mechanics</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="block text-xs font-semibold text-on-surface-variant ml-1">Type</label>
+                        <div class="w-full px-4 py-3 bg-surface-container-lowest rounded-lg border-0 ring-1 ring-outline-variant/30 text-sm text-on-surface">
+                            @(Model.Type == ECommerce_System.Utilities.SD.Discount_Percentage ? "Percentage (%)" : "Fixed Amount ($)")
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-xs font-semibold text-on-surface-variant ml-1">Value</label>
+                        <div class="w-full px-4 py-3 bg-surface-container-lowest rounded-lg border-0 ring-1 ring-outline-variant/30 text-sm font-mono text-on-surface">
+                            @Model.DiscountValue
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-semibold text-on-surface-variant ml-1">Minimum Requirement</label>
+                    <div class="flex gap-2">
+                        <div class="relative flex-1">
+                            <span class="absolute left-4 top-3.5 text-xs font-bold text-on-surface-variant">$</span>
+                            <div class="w-full pl-8 pr-4 py-3 bg-surface-container-lowest rounded-lg border-0 ring-1 ring-outline-variant/30 text-sm font-mono text-on-surface">
+                                @(Model.MinOrderValue?.ToString("0.00") ?? "0.00")
+                            </div>
+                        </div>
+                        <div class="flex items-center px-4 bg-surface-container-low rounded-lg text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">
+                            Min Spend
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Limits & Scheduling Section -->
+            <div class="space-y-4 pt-2 pb-8">
+                <h3 class="text-xs font-bold text-on-surface uppercase tracking-widest border-l-2 border-primary pl-3">Constraints</h3>
+                <div class="space-y-2">
+                    <label class="block text-xs font-semibold text-on-surface-variant ml-1">Total Usage Limit</label>
+                    <div class="w-full px-4 py-3 bg-surface-container-lowest rounded-lg border-0 ring-1 ring-outline-variant/30 text-sm font-mono text-on-surface">
+                        @(Model.UsageLimit?.ToString() ?? "Unlimited")
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="block text-xs font-semibold text-on-surface-variant ml-1">Start Date</label>
+                        <div class="w-full px-4 py-3 bg-surface-container-lowest rounded-lg border-0 ring-1 ring-outline-variant/30 text-sm text-on-surface">
+                            @(Model.StartDate?.ToString("MMM dd, yyyy") ?? "Immediate")
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-xs font-semibold text-on-surface-variant ml-1">End Date</label>
+                        <div class="w-full px-4 py-3 bg-surface-container-lowest rounded-lg border-0 ring-1 ring-outline-variant/30 text-sm text-on-surface">
+                            @(Model.EndDate?.ToString("MMM dd, yyyy") ?? "No Expiry")
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Toggle Options -->
+                <div class="space-y-3 pt-2">
+                    <div class="flex items-center justify-between p-3 bg-surface-container-low rounded-lg shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined @(Model.IsActive ? "text-primary" : "text-slate-400")">bolt</span>
+                            <span class="text-sm font-medium">Coupon is @(Model.IsActive ? "Active" : "Disabled")</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sticky Footer Actions -->
+        <footer class="p-6 bg-surface-container-lowest border-t border-slate-100 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] grid grid-cols-2 gap-4 z-20">
+            <a asp-action="Index" class="text-center block px-6 py-3.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm hover:bg-slate-200 transition-all">
+                Back to List
+            </a>
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="text-center block px-6 py-3.5 rounded-xl bg-gradient-to-br from-primary to-[#6063ee] text-white font-black text-sm shadow-lg shadow-primary/20 active:scale-95 transition-all">
+                Edit Coupon
+            </a>
+            <div class="col-span-2 flex justify-center mt-2">
+                <a asp-action="Delete" asp-route-id="@Model.Id" class="text-xs font-bold text-error flex items-center gap-1.5 p-2 opacity-80 hover:opacity-100 bg-error/5 hover:bg-error/10 rounded-lg transition-all">
+                    <span class="material-symbols-outlined text-sm">delete</span>
+                    Delete Campaign
+                </a>
+            </div>
+        </footer>
+    </div>
+</div>

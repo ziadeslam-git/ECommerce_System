@@ -1,0 +1,174 @@
+﻿@model UserAdminVM
+@{
+    ViewData["Title"] = "Customer Profile";
+}
+
+@section Styles {
+    }
+
+<div class="space-y-10 font-inter">
+    <!-- Breadcrumb -->
+    <nav class="mb-8">
+        <a asp-action="Index" class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors group w-fit">
+            <span class="material-symbols-outlined text-sm">arrow_back</span>
+            <span class="text-sm font-medium">Back to Customers</span>
+        </a>
+    </nav>
+
+    <!-- Profile Header Section -->
+    <section class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div class="flex items-center gap-8">
+            <div class="relative">
+                @{
+                    var initial = !string.IsNullOrEmpty(Model.FullName) ? Model.FullName.Substring(0, 1).ToUpper() : "C";
+                }
+                <div class="w-24 h-24 rounded-full border-4 border-white shadow-xl bg-gradient-to-tr from-[#6063ee] to-[#c0c1ff] flex items-center justify-center text-4xl text-white font-bold">
+                    @initial
+                </div>
+                @if (Model.IsActive)
+                {
+                    <div class="absolute bottom-1 right-1 w-6 h-6 bg-green-500 border-4 border-white rounded-full"></div>
+                }
+                else
+                {
+                    <div class="absolute bottom-1 right-1 w-6 h-6 bg-red-500 border-4 border-white rounded-full"></div>
+                }
+            </div>
+            <div>
+                <div class="flex items-center gap-3 mb-1">
+                    <h2 class="text-3xl font-extrabold tracking-tight text-on-surface">@Model.FullName</h2>
+                    @if (Model.CreatedAt < DateTime.UtcNow.AddYears(-1))
+                    {
+                        <span class="bg-primary-fixed text-on-primary-fixed text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">Loyal Customer</span>
+                    }
+                    @if (Model.IsActive)
+                    {
+                        <span class="bg-success-container text-on-success-container text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">Active</span>
+                    }
+                    else
+                    {
+                        <span class="bg-error-container text-on-error-container text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">Inactive</span>
+                    }
+                </div>
+                <p class="text-on-surface-variant font-medium flex items-center gap-2 text-sm">
+                    @Model.Email
+                    <span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+                    Member since @Model.CreatedAt.ToString("MMM dd, yyyy")
+                </p>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <form asp-action="ToggleActive" method="post">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <button type="submit" class="bg-surface-container-high text-on-surface font-semibold px-5 py-2.5 rounded-xl hover:bg-surface-container-highest transition-all flex items-center gap-2">
+                    <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' @(Model.IsActive ? 1 : 0);">
+                        @(Model.IsActive ? "block" : "task_alt")
+                    </span>
+                    @(Model.IsActive ? "Deactivate Account" : "Activate Account")
+                </button>
+            </form>
+            <button class="bg-primary text-white font-semibold px-6 py-2.5 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/20">
+                Contact Customer
+            </button>
+        </div>
+    </section>
+
+    <!-- Mini Stats Bento Grid -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-transparent hover:border-outline-variant/20 transition-all flex flex-col justify-between h-36">
+            <div class="flex justify-between items-start mb-4">
+                <span class="bg-secondary-container p-2 rounded-lg">
+                    <span class="material-symbols-outlined text-on-secondary-container">shopping_bag</span>
+                </span>
+                <span class="text-tertiary font-bold text-xs flex items-center gap-1">
+                    <span class="material-symbols-outlined text-xs">trending_up</span>
+                    --
+                </span>
+            </div>
+            <div>
+                <p class="text-on-surface-variant text-[11px] font-bold mb-1 uppercase tracking-wider">Total Orders</p>
+                <p class="text-2xl font-extrabold flex items-baseline gap-2">
+                    0 <span class="text-sm font-medium text-slate-400">orders</span>
+                </p>
+            </div>
+        </div>
+        
+        <div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-transparent hover:border-outline-variant/20 transition-all flex flex-col justify-between h-36">
+            <div class="flex justify-between items-start mb-4">
+                <span class="bg-green-100 p-2 rounded-lg">
+                    <span class="material-symbols-outlined text-green-700">payments</span>
+                </span>
+                <span class="text-green-600 font-bold text-xs flex items-center gap-1">
+                    Lifetime Value
+                </span>
+            </div>
+            <div>
+                <p class="text-on-surface-variant text-[11px] font-bold mb-1 uppercase tracking-wider">Total Spent</p>
+                <p class="text-2xl font-extrabold text-slate-800">$0.00</p>
+            </div>
+        </div>
+
+        <div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-transparent hover:border-outline-variant/20 transition-all flex flex-col justify-between h-36">
+            <div class="flex justify-between items-start mb-4">
+                <span class="bg-amber-100 p-2 rounded-lg">
+                    <span class="material-symbols-outlined text-amber-700">star</span>
+                </span>
+            </div>
+            <div>
+                <p class="text-on-surface-variant text-[11px] font-bold mb-1 uppercase tracking-wider">Reviews Left</p>
+                <p class="text-2xl font-extrabold flex items-baseline gap-2">
+                    0 <span class="text-sm font-medium text-slate-400">verified</span>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Additional Details Panels -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-2 bg-surface-container-lowest p-8 rounded-2xl shadow-sm border border-slate-100">
+            <h3 class="text-lg font-bold text-on-surface mb-6 font-inter border-b border-slate-100 pb-4">Recent Order History</h3>
+            
+            <div class="flex flex-col items-center justify-center py-12 text-center">
+                <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-3xl text-slate-300">receipt_long</span>
+                </div>
+                <h4 class="text-slate-700 font-bold mb-1">No Orders Yet</h4>
+                <p class="text-sm text-slate-500 max-w-sm">This customer hasn't placed any orders. When they do, their order history will appear here.</p>
+            </div>
+        </div>
+
+        <div class="bg-surface-container-lowest p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
+            <h3 class="text-lg font-bold text-on-surface mb-6 font-inter border-b border-slate-100 pb-4">Account Information</h3>
+            
+            <div class="space-y-6 flex-1">
+                <div>
+                    <span class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">User ID</span>
+                    <span class="font-mono text-sm text-slate-700 font-medium">@Model.Id</span>
+                </div>
+                <div>
+                    <span class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Full Name</span>
+                    <span class="text-sm text-slate-800 font-medium">@Model.FullName</span>
+                </div>
+                <div>
+                    <span class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Primary Email</span>
+                    <span class="text-sm text-primary font-medium">@Model.Email</span>
+                </div>
+                <div>
+                    <span class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Registration Date</span>
+                    <span class="text-sm text-slate-700">@Model.CreatedAt.ToString("f")</span>
+                </div>
+                <div>
+                    <span class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Marketing Preferences</span>
+                    <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-50 text-slate-600 text-[11px] font-bold border border-slate-200 mt-1">
+                        <span class="material-symbols-outlined text-[14px]">mail</span> Subscribed
+                    </span>
+                </div>
+            </div>
+            
+            <div class="bg-slate-50 rounded-xl p-4 mt-6 border border-slate-100 italic text-xs text-slate-500 text-center">
+                User details are subject to GDPR regulations. Handle with care.
+            </div>
+        </div>
+    </div>
+</div>
+

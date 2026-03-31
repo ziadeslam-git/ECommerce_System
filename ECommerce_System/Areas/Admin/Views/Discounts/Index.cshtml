@@ -1,0 +1,250 @@
+@model IEnumerable<DiscountVM>
+@{
+    ViewData["Title"] = "Discounts & Coupons";
+}
+
+@section Styles {
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f465c; border-radius: 10px; }
+    </style>
+}
+
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900">Discounts &amp; Coupons</h2>
+        <p class="text-sm text-slate-500">Manage promotional offers and seasonal discounts</p>
+    </div>
+    <div class="flex gap-3">
+        <a asp-action="ExportWord" class="bg-white hover:bg-slate-50 transition-all text-slate-700 px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-sm active:scale-95 border border-slate-200">
+            <span class="material-symbols-outlined text-[20px]">download</span>
+            Export Word
+        </a>
+        <a asp-action="Create" class="bg-primary hover:opacity-90 transition-all text-white px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-sm active:scale-95" style="background: linear-gradient(135deg, #4648d4, #6063ee)">
+            <span class="material-symbols-outlined text-[20px]">add</span>
+            Create Coupon
+        </a>
+    </div>
+</div>
+
+<div class="space-y-6">
+    <!-- Stats Row: Bento Style -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-surface-container-lowest p-5 rounded-xl flex items-center gap-4 transition-transform hover:scale-[1.02] duration-200">
+            <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <span class="material-symbols-outlined">confirmation_number</span>
+            </div>
+            <div>
+                <p class="text-xs font-medium text-on-surface-variant uppercase tracking-wider">Total Coupons</p>
+                <h3 class="text-2xl font-extrabold text-on-surface font-mono">@Model.Count()</h3>
+            </div>
+        </div>
+        <div class="bg-surface-container-lowest p-5 rounded-xl flex items-center gap-4 transition-transform hover:scale-[1.02] duration-200">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <span class="material-symbols-outlined">check_circle</span>
+            </div>
+            <div>
+                <p class="text-xs font-medium text-on-surface-variant uppercase tracking-wider">Active Now</p>
+                <h3 class="text-2xl font-extrabold text-on-surface font-mono">@Model.Count(d => d.IsActive && d.EndDate > DateTime.UtcNow)</h3>
+            </div>
+        </div>
+        <div class="bg-surface-container-lowest p-5 rounded-xl flex items-center gap-4 transition-transform hover:scale-[1.02] duration-200">
+            <div class="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
+                <span class="material-symbols-outlined">timer_off</span>
+            </div>
+            <div>
+                <p class="text-xs font-medium text-on-surface-variant uppercase tracking-wider">Expired</p>
+                <h3 class="text-2xl font-extrabold text-on-surface font-mono">@Model.Count(d => d.EndDate <= DateTime.UtcNow)</h3>
+            </div>
+        </div>
+        <div class="bg-surface-container-lowest p-5 rounded-xl flex items-center gap-4 transition-transform hover:scale-[1.02] duration-200">
+            <div class="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
+                <span class="material-symbols-outlined">local_fire_department</span>
+            </div>
+            <div>
+                <p class="text-xs font-medium text-on-surface-variant uppercase tracking-wider">Total Uses</p>
+                <h3 class="text-2xl font-extrabold text-on-surface font-mono">@Model.Sum(d => d.UsageCount)</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-surface-container-lowest p-4 rounded-xl flex flex-wrap items-center gap-4 shadow-sm">
+        <form asp-action="Index" method="get" class="flex-1 flex flex-wrap items-center gap-4 w-full">
+            <div class="relative flex-1 min-w-[240px]">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+                <input type="text" name="searchQuery" value="@ViewBag.SearchQuery" class="w-full pl-10 pr-4 py-2 bg-surface text-sm rounded-lg border-none focus:ring-1 focus:ring-primary/40 focus:bg-white transition-all" placeholder="Search by coupon code..." />
+            </div>
+            <select name="typeFilter" class="bg-surface border-none text-sm rounded-lg py-2 pl-3 pr-8 focus:ring-1 focus:ring-primary/40 min-w-[140px]" onchange="this.form.submit()">
+                <option value="">Type: All</option>
+                <option value="Percentage" selected="@(ViewBag.TypeFilter == "Percentage")">Percentage</option>
+                <option value="FixedAmount" selected="@(ViewBag.TypeFilter == "FixedAmount")">Fixed Amount</option>
+            </select>
+            <a asp-action="Index" class="text-sm font-medium text-primary hover:underline px-2">Clear filters</a>
+        </form>
+    </div>
+
+    <!-- Table Container -->
+    <div class="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm relative border border-slate-100 dark:border-slate-800">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-surface-container-low border-b border-outline-variant/10">
+                    <tr>
+                        <th class="py-4 px-6 w-12 text-center">
+                            <input type="checkbox" class="rounded border-slate-300 text-primary focus:ring-primary" />
+                        </th>
+                        <th class="py-4 px-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Coupon Code</th>
+                        <th class="py-4 px-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Type</th>
+                        <th class="py-4 px-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Value</th>
+                        <th class="py-4 px-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Min Order</th>
+                        <th class="py-4 px-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Usage</th>
+                        <th class="py-4 px-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Expires</th>
+                        <th class="py-4 px-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest text-center">Active</th>
+                        <th class="py-4 px-4 text-xs font-bold text-on-surface-variant uppercase tracking-widest text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline-variant/10">
+                    @foreach (var item in Model)
+                    {
+                        var isExpired = item.EndDate.HasValue && item.EndDate.Value < DateTime.UtcNow;
+                        var isLimitReached = item.UsageLimit.HasValue && item.UsageCount >= item.UsageLimit.Value;
+                        var progressWidth = item.UsageLimit.HasValue && item.UsageLimit.Value > 0 
+                            ? Math.Min(100, (double)item.UsageCount / item.UsageLimit.Value * 100) 
+                            : 0;
+
+                        var rowClass = "hover:bg-surface-container-low/30 transition-colors bg-blue-50/20";
+                        if (isExpired) rowClass = "hover:bg-surface-container-low/30 transition-colors opacity-70 bg-surface-container-low/10";
+                        else if (isLimitReached) rowClass = "hover:bg-surface-container-low/30 transition-colors";
+
+                        <tr class="@rowClass">
+                            <td class="py-4 px-6 text-center">
+                                <input type="checkbox" class="rounded border-slate-300 text-primary focus:ring-primary" />
+                            </td>
+                            <td class="py-4 px-4">
+                                @if (isExpired)
+                                {
+                                    <span class="font-mono line-through text-slate-500 text-sm font-semibold">@item.CouponCode</span>
+                                }
+                                else
+                                {
+                                    <span class="font-mono bg-indigo-50 text-indigo-700 px-3 py-1 rounded-md text-sm font-semibold">@item.CouponCode</span>
+                                }
+                            </td>
+                            <td class="py-4 px-4">
+                                @if (item.Type == "Percentage")
+                                {
+                                    <span class="bg-violet-100 text-violet-700 text-[11px] font-bold px-2 py-0.5 rounded uppercase">Percentage</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-blue-100 text-blue-700 text-[11px] font-bold px-2 py-0.5 rounded uppercase">Fixed Amount</span>
+                                }
+                            </td>
+                            <td class="py-4 px-4 font-mono font-bold text-on-surface">
+                                @(item.Type == "Percentage" ? $"{item.DiscountValue.ToString("F0")}%" : $"${item.DiscountValue.ToString("F2")} off")
+                            </td>
+                            <td class="py-4 px-4 font-mono text-on-surface-variant">@(item.MinOrderValue.HasValue ? $"${item.MinOrderValue.Value.ToString("F2")}" : "$0.00")</td>
+                            <td class="py-4 px-4 min-w-[140px]">
+                                @if (isLimitReached)
+                                {
+                                    <div class="flex flex-col gap-1">
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-amber-500" style="width: 100%"></div>
+                                            </div>
+                                            <span class="text-xs font-mono font-medium">@item.UsageCount/@item.UsageLimit</span>
+                                        </div>
+                                        <span class="text-[10px] bg-amber-50 text-amber-700 font-bold px-1.5 rounded w-fit">Limit Reached</span>
+                                    </div>
+                                }
+                                else if (isExpired)
+                                {
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <div class="h-full bg-error" style="width: @progressWidth%"></div>
+                                        </div>
+                                        <span class="text-xs font-mono font-medium text-error">@item.UsageCount/@(item.UsageLimit?.ToString() ?? "∞")</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <div class="h-full bg-primary" style="width: @progressWidth%"></div>
+                                        </div>
+                                        <span class="text-xs font-mono font-medium">@item.UsageCount / @(item.UsageLimit?.ToString() ?? "∞")</span>
+                                    </div>
+                                }
+                            </td>
+                            <td class="py-4 px-4 text-sm text-on-surface-variant">
+                                @if (isExpired)
+                                {
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-bold text-error">@item.EndDate?.ToString("MMM dd, yyyy")</span>
+                                        <span class="text-[10px] bg-red-50 text-error inline-block px-1.5 rounded w-fit mt-0.5">Expired</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    @(item.EndDate.HasValue ? item.EndDate.Value.ToString("MMM dd, yyyy") : "No Expiry")
+                                }
+                            </td>
+                            <td class="py-4 px-4 align-middle">
+                                <form asp-action="ToggleActive" method="post" class="flex justify-center items-center">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button type="submit" class="w-10 h-5 @(item.IsActive ? "bg-emerald-500" : "bg-slate-300") rounded-full relative p-1 transition-all">
+                                        <div class="w-3 h-3 bg-white rounded-full absolute @(item.IsActive ? "right-1" : "left-1")"></div>
+                                    </button>
+                                </form>
+                            </td>
+                            <td class="py-4 px-4 text-right">
+                                <a asp-action="Details" asp-route-id="@item.Id" class="inline-block p-1 text-slate-400 hover:text-indigo-500 transition-colors" title="View details/analytics">
+                                    <span class="material-symbols-outlined text-xl">analytics</span>
+                                </a>
+                                <a asp-action="Edit" asp-route-id="@item.Id" class="inline-block p-1 text-slate-400 hover:text-primary transition-colors">
+                                    <span class="material-symbols-outlined text-xl">edit</span>
+                                </a>
+                                <a asp-action="Delete" asp-route-id="@item.Id" class="inline-block p-1 text-slate-400 hover:text-error transition-colors">
+                                    <span class="material-symbols-outlined text-xl">delete</span>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="9" class="py-8 text-center text-on-surface-variant">
+                                <span class="material-symbols-outlined text-4xl mb-2 opacity-50 block">sell</span>
+                                No coupons available.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer Pagination -->
+        @if (ViewBag.TotalPages > 1)
+        {
+            <div class="p-4 border-t border-outline-variant/10 flex items-center justify-between">
+                <p class="text-sm text-on-surface-variant">Page <span class="font-semibold text-on-surface">@ViewBag.CurrentPage</span> of <span class="font-semibold text-on-surface">@ViewBag.TotalPages</span></p>
+                <div class="flex items-center gap-1">
+                    @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                    {
+                        if (i == ViewBag.CurrentPage)
+                        {
+                            <button class="w-8 h-8 rounded-lg bg-primary text-white text-sm font-bold">@i</button>
+                        }
+                        else
+                        {
+                            <a asp-action="Index" asp-route-page="@i" asp-route-searchQuery="@ViewBag.SearchQuery" asp-route-typeFilter="@ViewBag.TypeFilter" class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high text-sm font-medium transition-colors">@i</a>
+                        }
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+
+</div>
+

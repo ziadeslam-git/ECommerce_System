@@ -28,8 +28,6 @@ public class ProfileController : Controller
         var user = await _userManager.GetUserAsync(User);
         if (user is null) return NotFound();
 
-        // ✅ FIX: استخدمنا ProfileVM بدل ApplicationUserVM اللي مش موجودة
-        // ✅ FIX: استخدمنا FullName بدل Name
         var vm = new ProfileVM
         {
             FullName    = user.FullName,

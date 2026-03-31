@@ -1,0 +1,182 @@
+@model IEnumerable<ReviewVM>
+@{
+    ViewData["Title"] = "Reviews Management";
+}
+
+@section Styles {
+    <style>
+        .custom-shadow { box-shadow: 0 20px 40px rgba(15, 23, 42, 0.05); }
+    </style>
+}
+
+<div class="space-y-8 font-inter">
+    <!-- Page Header -->
+    <div class="flex justify-between items-end mb-8">
+        <div>
+            <h2 class="text-3xl font-bold text-on-surface tracking-tight mb-1">Product Reviews</h2>
+            <p class="text-on-surface-variant text-sm">Monitor and manage customer feedback across your catalog.</p>
+        </div>
+        <div class="flex gap-3">
+            <a asp-action="ExportWord" class="flex items-center gap-2 px-4 py-2 bg-surface-container text-on-surface font-semibold rounded-xl text-sm hover:bg-surface-container-highest transition-all shadow-sm border border-transparent hover:border-surface-variant">
+                <span class="material-symbols-outlined text-[18px]">download</span>
+                Export Word
+            </a>
+            <button class="flex items-center gap-2 px-5 py-2 bg-primary text-white font-bold rounded-xl text-sm hover:shadow-lg hover:shadow-primary/20 transition-all">
+                <span class="material-symbols-outlined text-[18px]">add</span>
+                Request Review
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="flex flex-wrap items-center gap-1 bg-surface-container-low p-1.5 rounded-2xl w-fit">
+        <a asp-action="Index" class="px-5 py-2 rounded-xl text-sm font-bold transition-all shadow-sm @(string.IsNullOrEmpty(ViewBag.StatusFilter) ? "bg-white text-primary" : "text-on-surface-variant hover:bg-white/50")">
+            All <span class="ml-1 opacity-60">@Model.Count()</span>
+        </a>
+        <a asp-action="Index" asp-route-status="Pending" class="px-5 py-2 rounded-xl text-sm font-semibold transition-all @(ViewBag.StatusFilter == "Pending" ? "bg-white text-primary shadow-sm" : "text-on-surface-variant hover:bg-white/50")">
+            Pending <span class="ml-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px]">@Model.Count(r => !r.IsApproved && !r.IsRejected)</span>
+        </a>
+        <a asp-action="Index" asp-route-status="Approved" class="px-5 py-2 rounded-xl text-sm font-semibold transition-all @(ViewBag.StatusFilter == "Approved" ? "bg-white text-primary shadow-sm" : "text-on-surface-variant hover:bg-white/50")">
+            Approved <span class="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px]">@Model.Count(r => r.IsApproved)</span>
+        </a>
+        <a asp-action="Index" asp-route-status="Rejected" class="px-5 py-2 rounded-xl text-sm font-semibold transition-all @(ViewBag.StatusFilter == "Rejected" ? "bg-white text-primary shadow-sm" : "text-on-surface-variant hover:bg-white/50")">
+            Rejected <span class="ml-1 px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px]">@Model.Count(r => r.IsRejected)</span>
+        </a>
+    </div>
+
+    <!-- Reviews Table Area -->
+    <div class="bg-surface-container-lowest rounded-3xl overflow-hidden custom-shadow border border-slate-100 dark:border-slate-800">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-surface-container-low/50">
+                        <th class="py-5 px-6 w-12 text-center">
+                            <input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary" />
+                        </th>
+                        <th class="py-5 px-4 font-bold text-[11px] uppercase tracking-widest text-on-surface-variant">Product</th>
+                        <th class="py-5 px-4 font-bold text-[11px] uppercase tracking-widest text-on-surface-variant">Customer</th>
+                        <th class="py-5 px-4 font-bold text-[11px] uppercase tracking-widest text-on-surface-variant">Rating</th>
+                        <th class="py-5 px-4 font-bold text-[11px] uppercase tracking-widest text-on-surface-variant">Summary</th>
+                        <th class="py-5 px-4 font-bold text-[11px] uppercase tracking-widest text-on-surface-variant">Date</th>
+                        <th class="py-5 px-4 font-bold text-[11px] uppercase tracking-widest text-on-surface-variant text-center">Status</th>
+                        <th class="py-5 px-6 text-right font-bold text-[11px] uppercase tracking-widest text-on-surface-variant">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-container">
+                    @foreach (var review in Model)
+                    {
+                        var isPending = !review.IsApproved && !review.IsRejected;
+                        var rowClass = isPending ? "group bg-indigo-50/20 transition-colors hover:bg-indigo-50/40" : "group hover:bg-surface-container-low transition-colors";
+
+                        <tr class="@rowClass">
+                            <td class="py-6 px-6 align-top text-center">
+                                <input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary" />
+                            </td>
+                            <td class="py-6 px-4 align-top">
+                                <p class="text-[13px] font-bold text-on-surface leading-tight">@review.ProductName</p>
+                                <p class="text-[10px] font-mono text-secondary mt-0.5">ID: @review.ProductId</p>
+                            </td>
+                            <td class="py-6 px-4 align-top">
+                                <p class="text-[13px] font-semibold text-on-surface truncate max-w-[120px]">@review.UserName</p>
+                            </td>
+                            <td class="py-6 px-4 align-top">
+                                <div class="flex text-amber-400">
+                                    @for (int i = 1; i <= 5; i++)
+                                    {
+                                        <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' @(i <= review.Rating ? "1" : "0");">star</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="py-6 px-4 align-top max-w-xs">
+                                @if (review.IsRejected)
+                                {
+                                    <p class="text-[13px] text-error/80 truncate font-medium">[Rejected: Hidden Content]</p>
+                                }
+                                else
+                                {
+                                    <p class="text-[13px] text-on-surface-variant line-clamp-2 italic">"@review.Comment"</p>
+                                }
+                            </td>
+                            <td class="py-6 px-4 align-top">
+                                <p class="text-[13px] text-on-surface-variant whitespace-nowrap">@DateTime.UtcNow.AddDays(-1).ToString("MMM dd, yyyy")</p>
+                            </td>
+                            <td class="py-6 px-4 align-top text-center">
+                                @if (review.IsApproved)
+                                {
+                                    <span class="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 uppercase tracking-tighter">Approved</span>
+                                }
+                                else if (review.IsRejected)
+                                {
+                                    <span class="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 uppercase tracking-tighter">Rejected</span>
+                                }
+                                else
+                                {
+                                    <span class="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 uppercase tracking-tighter shadow-[0_2px_4px_rgba(217,119,6,0.15)]">Pending</span>
+                                }
+                            </td>
+                            <td class="py-6 px-6 align-top text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    @if (!review.IsApproved && !review.IsRejected)
+                                    {
+                                        <form asp-action="Approve" method="post" class="inline">
+                                            <input type="hidden" name="id" value="@review.Id" />
+                                            <button type="submit" class="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Approve">
+                                                <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                                            </button>
+                                        </form>
+                                        <form asp-action="Reject" method="post" class="inline">
+                                            <input type="hidden" name="id" value="@review.Id" />
+                                            <button type="submit" class="p-1.5 text-error hover:bg-error-container/50 rounded-lg transition-colors" title="Reject">
+                                                <span class="material-symbols-outlined text-[20px]">cancel</span>
+                                            </button>
+                                        </form>
+                                    }
+                                    <a asp-action="Details" asp-route-id="@review.Id" class="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded-lg transition-colors" title="View Details">
+                                        <span class="material-symbols-outlined text-[20px]">visibility</span>
+                                    </a>
+                                    <form asp-action="Delete" method="post" class="inline" onsubmit="return confirm('Delete this review completely?');">
+                                        <input type="hidden" name="id" value="@review.Id" />
+                                        <button type="submit" class="p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-colors" title="Delete">
+                                            <span class="material-symbols-outlined text-[20px]">delete</span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-16">
+                                <span class="material-symbols-outlined text-4xl text-slate-300 mb-3 block">rate_review</span>
+                                <p class="text-slate-500 font-medium">No reviews found matching your criteria.</p>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        @if (ViewBag.TotalPages > 1)
+        {
+            <div class="px-8 py-5 border-t border-surface-container flex items-center justify-between">
+                <p class="text-xs text-on-surface-variant font-medium">Page @ViewBag.CurrentPage of @ViewBag.TotalPages</p>
+                <div class="flex items-center gap-1">
+                    @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                    {
+                        if (i == ViewBag.CurrentPage)
+                        {
+                            <button class="w-8 h-8 rounded-lg bg-primary text-white font-bold text-xs shadow-sm">@i</button>
+                        }
+                        else
+                        {
+                            <a asp-action="Index" asp-route-page="@i" asp-route-status="@ViewBag.StatusFilter" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface-container font-bold text-xs text-slate-600 transition-colors">@i</a>
+                        }
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+

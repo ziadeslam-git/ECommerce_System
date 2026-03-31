@@ -70,7 +70,7 @@ public class ExternalLoginController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Confirmation(ExternalLoginConfirmationVM model, string returnUrl = null)
+    public async Task<IActionResult> Confirmation(ExternalLoginConfirmationVM model, string? returnUrl = null)
     {
         returnUrl = returnUrl ?? Url.Content("~/");
 

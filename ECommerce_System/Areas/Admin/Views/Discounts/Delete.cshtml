@@ -1,0 +1,70 @@
+﻿@model DiscountVM
+@{
+    ViewData["Title"] = "Delete Coupon";
+}
+
+@section Styles {
+    }
+
+<div class="flex items-center justify-center min-h-[calc(100vh-10rem)] p-4">
+    <div class="w-full max-w-[440px] bg-surface-container-lowest rounded-[1.25rem] shadow-[0_32px_64px_rgba(11,28,48,0.12)] p-10 flex flex-col items-center text-center overflow-hidden relative">
+        <form asp-action="Delete" method="post" class="w-full flex flex-col items-center relative z-10">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            
+            <!-- Large Red Trash Icon in Circle -->
+            <div class="w-20 h-20 bg-error-container rounded-full flex items-center justify-center mb-8 ring-8 ring-error-container/20 shadow-sm">
+                <span class="material-symbols-outlined text-error text-4xl" data-icon="delete" style="font-variation-settings: 'FILL' 1;">delete</span>
+            </div>
+
+            <!-- Title & Body -->
+            <div class="space-y-4 mb-8">
+                <h3 class="text-2xl font-extrabold text-on-surface tracking-tight" style="font-family: Inter, sans-serif;">Delete Coupon?</h3>
+                <p class="text-on-surface-variant leading-relaxed px-4" style="font-family: Inter, sans-serif;">
+                    Are you sure you want to delete coupon <span class="font-fira-precision font-bold text-primary px-1.5 py-0.5 bg-primary/5 rounded">@Model.CouponCode</span>?
+                </p>
+            </div>
+
+            @if (Model.UsageCount > 0)
+            {
+                <!-- Amber Warning Note -->
+                <div class="w-full bg-tertiary/5 rounded-xl p-5 mb-10 flex gap-4 text-left border-l-4 border-tertiary">
+                    <span class="material-symbols-outlined text-tertiary shrink-0" data-icon="warning">warning</span>
+                    <div class="space-y-1">
+                        <p class="text-[11px] font-bold text-tertiary-container uppercase tracking-wider font-inter">Usage Warning</p>
+                        <p class="text-[13px] text-on-tertiary-fixed-variant leading-tight font-inter">
+                            This coupon has been used <strong>@Model.UsageCount times</strong>. Deleting it will only prevent future use. To keep the history, you can set it to inactive instead.
+                        </p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Info Note -->
+                <div class="w-full bg-slate-50 rounded-xl p-5 mb-10 text-left border-l-4 border-slate-300">
+                    <p class="text-[13px] text-slate-600 leading-tight font-inter">
+                        This coupon has never been used. You can safely delete it without affecting any previous orders.
+                    </p>
+                </div>
+            }
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col w-full gap-3 mt-auto">
+                <!-- Delete Button (Red) -->
+                <button type="submit" class="w-full py-4 bg-error text-white rounded-xl font-bold tracking-tight shadow-lg shadow-error/20 hover:opacity-90 active:scale-[0.98] transition-all font-inter">
+                    Delete Coupon
+                </button>
+                <!-- Cancel Button (Tertiary) -->
+                <a asp-action="Index" class="w-full py-3.5 text-on-surface-variant text-sm font-semibold hover:bg-surface-container-low rounded-xl transition-colors font-inter block">
+                    Cancel
+                </a>
+            </div>
+        </form>
+
+        <!-- Subtle "Ghost" Branding Element -->
+        <div class="absolute -bottom-8 -right-8 opacity-5 pointer-events-none z-0">
+            <span class="material-symbols-outlined text-9xl text-on-surface block" data-icon="sell" style="font-variation-settings: 'FILL' 1;">sell</span>
+        </div>
+    </div>
+</div>
+

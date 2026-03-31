@@ -239,6 +239,14 @@ public class OrdersController : Controller
 
             if (appliedDiscount != null)
             {
+                var alreadyUsed = await _unitOfWork.Orders.FindAsync(o => o.UserId == user.Id && o.CouponCode == appliedDiscount.CouponCode);
+                if (alreadyUsed != null)
+                {
+                    ModelState.AddModelError(nameof(vm.CouponCode), "Customer has already used this coupon code.");
+                    await PopulateCreateDropdownsAsync();
+                    return View(vm);
+                }
+
                 if (appliedDiscount.Type == SD.Discount_Percentage)
                     discountAmount = trueSubtotal * (appliedDiscount.Value / 100m);
                 else
@@ -270,6 +278,22 @@ public class OrdersController : Controller
         await _unitOfWork.Orders.AddAsync(order);
         await _unitOfWork.SaveAsync();
 
+        // 6. Auto-generate Payment Tracking Record if applicable
+        if (order.PaymentStatus == SD.Payment_Paid || order.PaymentStatus == SD.Payment_Pending)
+        {
+            var paymentRecord = new Payment
+            {
+                OrderId = order.Id,
+                Amount = order.TotalAmount,
+                Provider = "Manual/POS",
+                TransactionId = "Manual-" + DateTime.UtcNow.Ticks,
+                Status = order.PaymentStatus,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _unitOfWork.Payments.AddAsync(paymentRecord);
+            await _unitOfWork.SaveAsync();
+        }
+
         TempData["Success"] = $"Order #{order.Id} created successfully for {vm.CustomerName}.";
         return RedirectToAction(nameof(Details), new { id = order.Id });
     }
@@ -279,12 +303,24 @@ public class OrdersController : Controller
     //  (AJAX Endpoint for dynamic subtotal calculation)
     // ──────────────────────────────────────────────────────────
     [HttpGet]
-    public async Task<IActionResult> ValidateCoupon(string code, decimal subtotal)
+    public async Task<IActionResult> ValidateCoupon(string code, decimal subtotal, string? phone)
     {
         var discount = await _unitOfWork.Discounts.FindAsync(d => d.CouponCode == code && d.IsActive);
         
         if (discount == null)
             return Json(new { success = false, message = "Invalid coupon code." });
+            
+        // Check 1-time use per customer
+        if (!string.IsNullOrWhiteSpace(phone))
+        {
+            var user = _userManager.Users.FirstOrDefault(u => u.PhoneNumber == phone || u.Email == $"{phone}@guest.local");
+            if (user != null)
+            {
+                var alreadyUsed = await _unitOfWork.Orders.FindAsync(o => o.UserId == user.Id && o.CouponCode == code);
+                if (alreadyUsed != null)
+                    return Json(new { success = false, message = "Customer has already used this coupon." });
+            }
+        }
             
         if (discount.ExpiresAt.HasValue && discount.ExpiresAt < DateTime.UtcNow)
             return Json(new { success = false, message = "Coupon has expired." });

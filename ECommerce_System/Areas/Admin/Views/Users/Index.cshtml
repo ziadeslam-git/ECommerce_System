@@ -1,0 +1,203 @@
+@model IEnumerable<UserAdminVM>
+@{
+    ViewData["Title"] = "Customers";
+}
+
+@section Styles {
+    <style>
+        .glass-effect {
+            backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.8);
+        }
+    </style>
+}
+
+<div class="space-y-8 font-inter">
+    <!-- --- PAGE HEADER --- -->
+    <div class="flex justify-between items-end">
+        <div>
+            <h2 class="text-[24px] font-bold text-slate-800 leading-tight">Customers</h2>
+            <p class="text-[14px] text-slate-500 mt-1">Manage registered customers and their account status</p>
+        </div>
+        <a asp-action="ExportWord" class="flex items-center gap-2 text-primary font-semibold text-sm px-4 py-2 hover:bg-primary/5 rounded-xl transition-all border border-transparent hover:border-primary/10">
+            <span class="material-symbols-outlined text-[18px]">download</span>
+            Export Word
+        </a>
+    </div>
+
+    <!-- --- STATS ROW --- -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <!-- Total Customers -->
+        <div class="bg-surface-container-lowest p-5 rounded-xl border border-slate-100 shadow-[0_20px_40px_rgba(15,23,42,0.03)] flex flex-col gap-1">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Customers</span>
+            <div class="flex items-end justify-between">
+                <span class="text-2xl font-bold text-slate-800">@Model.Count()</span>
+            </div>
+        </div>
+
+        <!-- Active -->
+        <div class="bg-surface-container-lowest p-5 rounded-xl border border-slate-100 shadow-[0_20px_40px_rgba(15,23,42,0.03)] flex flex-col gap-1">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Users</span>
+            <div class="flex items-end justify-between">
+                <span class="text-2xl font-bold text-emerald-600">@Model.Count(u => u.IsActive)</span>
+                @{
+                    var activePercent = Model.Any() ? (Model.Count(u => u.IsActive) * 100 / Model.Count()) : 0;
+                }
+                <div class="h-1.5 w-16 bg-emerald-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-emerald-500" style="width: @activePercent%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inactive -->
+        <div class="bg-surface-container-lowest p-5 rounded-xl border border-slate-100 shadow-[0_20px_40px_rgba(15,23,42,0.03)] flex flex-col gap-1">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Inactive</span>
+            <div class="flex items-end justify-between">
+                <span class="text-2xl font-bold text-error">@Model.Count(u => !u.IsActive)</span>
+                <span class="text-[10px] text-error font-semibold">@((100 - activePercent))% total</span>
+            </div>
+        </div>
+
+        <!-- Joined -->
+        <div class="bg-surface-container-lowest p-5 rounded-xl border border-slate-100 shadow-[0_20px_40px_rgba(15,23,42,0.03)] flex flex-col gap-1">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Joined (30d)</span>
+            <div class="flex items-end justify-between">
+                <span class="text-2xl font-bold text-primary">@Model.Count(u => u.CreatedAt >= DateTime.UtcNow.AddDays(-30))</span>
+                <span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- --- FILTER BAR --- -->
+    <form asp-action="Index" method="get" class="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-4">
+        <div class="flex-1 min-w-[240px] relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+            <input type="text" name="searchQuery" value="@ViewBag.SearchQuery" class="w-full border border-outline-variant/30 rounded-lg pl-10 py-2 text-sm focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all" placeholder="Filter by name or email..." />
+        </div>
+        <div class="w-48">
+            <select class="w-full border border-outline-variant/30 rounded-lg py-2 text-sm focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all">
+                <option value="">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+            </select>
+        </div>
+        <button type="submit" class="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-all border border-transparent hover:border-slate-200">
+            <span class="material-symbols-outlined">filter_list</span>
+        </button>
+    </form>
+
+    <!-- --- CUSTOMERS TABLE --- -->
+    <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-slate-100 overflow-hidden relative">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-surface-container-low text-slate-500 uppercase text-[11px] font-bold tracking-widest border-b border-slate-100">
+                        <th class="px-6 py-4 w-12">
+                            <input type="checkbox" class="rounded border-outline-variant/80 text-primary focus:ring-primary/20" />
+                        </th>
+                        <th class="px-6 py-4">Customer</th>
+                        <th class="px-6 py-4">Email Address</th>
+                        <th class="px-6 py-4 text-center">Orders</th>
+                        <th class="px-6 py-4">Last Order</th>
+                        <th class="px-6 py-4">Joined</th>
+                        <th class="px-6 py-4">Status</th>
+                        <th class="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @foreach (var user in Model)
+                    {
+                        <tr class="hover:bg-slate-50/70 transition-colors group @(user.IsActive ? "" : "bg-red-50/20")">
+                            <td class="px-6 py-4">
+                                <input type="checkbox" class="rounded border-outline-variant/80 text-primary focus:ring-primary/20" />
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    @{
+                                        // Generate an avatar based on initials if we don't have images
+                                        var initial = !string.IsNullOrEmpty(user.FullName) ? user.FullName.Substring(0, 1).ToUpper() : "U";
+                                    }
+                                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white bg-gradient-to-br from-primary to-[#6063ee] shadow-sm">
+                                        @initial
+                                    </div>
+                                    <span class="font-semibold text-slate-800 text-sm">@user.FullName</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-slate-600 font-medium">@user.Email</td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="bg-surface-container text-on-surface text-xs font-bold px-2.5 py-1 rounded-lg">
+                                    @user.TotalOrders
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-xs text-slate-500 font-medium whitespace-nowrap">
+                                @(user.LastOrderDate.HasValue ? user.LastOrderDate.Value.ToString("MMM dd, yyyy") : "No orders yet")
+                            </td>
+                            <td class="px-6 py-4 text-xs text-slate-500 font-medium whitespace-nowrap">@user.CreatedAt.ToString("MMM dd, yyyy")</td>
+                            <td class="px-6 py-4">
+                                @if (user.IsActive)
+                                {
+                                    <span class="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold uppercase px-2 py-1 rounded-full border border-emerald-200 shadow-sm">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="bg-red-100 text-error text-[10px] font-extrabold uppercase px-2 py-1 rounded-full border border-red-200">Inactive</span>
+                                }
+                            </td>
+                            <td class="px-6 py-4 relative text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a asp-action="Details" asp-route-id="@user.Id" class="material-symbols-outlined p-1 text-slate-400 hover:text-primary hover:bg-slate-100 rounded transition-colors text-xl" title="View Details">person_search</a>
+                                    
+                                    <form asp-action="ToggleActive" method="post" class="inline-block"
+                                          onsubmit="return confirm('Are you sure you want to @(user.IsActive ? "deactivate" : "activate") @user.FullName?');">
+                                        <input type="hidden" name="id" value="@user.Id" />
+                                        @if (user.Email == User.Identity?.Name)
+                                        {
+                                            <button type="button" disabled class="material-symbols-outlined text-slate-300 text-xl cursor-not-allowed opacity-50" title="Cannot deactivate yourself">toggle_on</button>
+                                        }
+                                        else
+                                        {
+                                            <button type="submit" class="material-symbols-outlined @(user.IsActive ? "text-emerald-500" : "text-error") hover:opacity-80 transition-colors text-2xl align-middle" style="font-variation-settings: 'FILL' 1;" title="@(user.IsActive ? "Deactivate User" : "Activate User")">
+                                                @(user.IsActive ? "toggle_on" : "toggle_off")
+                                            </button>
+                                        }
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-12">
+                                <span class="material-symbols-outlined text-4xl text-slate-300 mb-2">group_off</span>
+                                <p class="text-slate-500 font-medium">No customers found.</p>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (ViewBag.TotalPages > 1)
+        {
+            <div class="px-6 py-4 bg-surface-container-low border-t border-slate-100 flex justify-between items-center">
+                <span class="text-xs text-slate-500 font-medium">Page @ViewBag.CurrentPage of @ViewBag.TotalPages</span>
+                <div class="flex gap-1 items-center">
+                    @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                    {
+                        if (i == ViewBag.CurrentPage)
+                        {
+                            <button class="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold shadow-sm">@i</button>
+                        }
+                        else
+                        {
+                            <a asp-action="Index" asp-route-page="@i" asp-route-searchQuery="@ViewBag.SearchQuery" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-white border border-transparent hover:border-slate-200 text-xs font-bold transition-all">@i</a>
+                        }
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+

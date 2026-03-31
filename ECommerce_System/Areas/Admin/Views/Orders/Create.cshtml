@@ -405,7 +405,8 @@
             btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">refresh</span>';
             btn.disabled = true;
 
-            fetch(`/Admin/Orders/ValidateCoupon?code=${encodeURIComponent(code)}&subtotal=${subtotal}`)
+            const phone = document.getElementById('CustomerPhone').value.trim();
+            fetch(`/Admin/Orders/ValidateCoupon?code=${encodeURIComponent(code)}&subtotal=${subtotal}&phone=${encodeURIComponent(phone)}`)
                 .then(res => res.json())
                 .then(data => {
                     const msg = document.getElementById('couponMessage');

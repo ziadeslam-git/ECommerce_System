@@ -20,12 +20,12 @@ public class CategoryFormVM
     public int Id { get; set; }  // 0 for Create
 
     [Required(ErrorMessage = "Name is required")]
-    [MaxLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
+    [StringLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
     [Display(Name = "Category Name")]
     public string Name { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Slug is required")]
-    [MaxLength(120, ErrorMessage = "Slug cannot exceed 120 characters")]
+    [StringLength(120, ErrorMessage = "Slug cannot exceed 120 characters")]
     [RegularExpression(@"^[a-z0-9]+(?:-[a-z0-9]+)*$",
         ErrorMessage = "Slug must be lowercase letters, numbers and hyphens only")]
     public string Slug { get; set; } = string.Empty;

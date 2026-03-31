@@ -12,27 +12,15 @@
             <a asp-area="Admin" asp-controller="Product" asp-action="Index"
                class="hover:text-primary transition-colors">Products</a>
             <span class="material-symbols-outlined text-sm">chevron_right</span>
-            <span class="font-medium text-slate-900">Deactivate</span>
+            <span class="font-medium text-slate-900">Delete / Deactivate</span>
         </nav>
-        <h1 class="text-3xl font-black tracking-tight">Deactivate Product</h1>
-        <p class="text-slate-500 mt-1">This will hide the product and all its variants from the store.</p>
+        <h1 class="text-3xl font-black tracking-tight">Remove Product</h1>
+        <p class="text-slate-500 mt-1">Choose how to remove <strong>@Model.Name</strong> from your store.</p>
     </div>
 
-    <!-- Warning Card -->
-    <div class="bg-rose-50 border border-rose-200 rounded-xl p-5 flex items-start gap-4">
-        <span class="material-symbols-outlined text-rose-500 mt-0.5">warning</span>
-        <div>
-            <p class="font-bold text-rose-800">Soft-delete — not permanent</p>
-            <p class="text-sm text-rose-600 mt-1">
-                The product will be marked as inactive but not deleted from the database.
-                This preserves all order history. You can re-activate it later via Edit.
-            </p>
-        </div>
-    </div>
-
-    <!-- Product Info -->
+    @* Product Info *@
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
-        <h3 class="font-bold text-slate-700 mb-3">Product to Deactivate</h3>
+        <h3 class="font-bold text-slate-700 mb-3">Product Summary</h3>
         <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
                 <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">Name</span>
@@ -47,29 +35,78 @@
                 <span class="font-semibold text-slate-900 mt-1 block">$@Model.BasePrice.ToString("0.00")</span>
             </div>
             <div>
-                <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">Active Variants</span>
-                <span class="font-semibold text-slate-900 mt-1 block">@Model.Variants.Count(v => v.IsActive)</span>
+                <span class="text-slate-400 block text-xs font-bold uppercase tracking-wider">Variants</span>
+                <span class="font-semibold text-slate-900 mt-1 block">@Model.Variants.Count total</span>
             </div>
         </div>
     </div>
 
-    <!-- Actions -->
-    <div class="flex items-center justify-end gap-3">
+    @* Option A: Deactivate *@
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 flex gap-4 items-start">
+        <div class="size-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <span class="material-symbols-outlined text-amber-600">visibility_off</span>
+        </div>
+        <div class="flex-1">
+            <p class="font-bold text-amber-900">Option A — Deactivate (Recommended)</p>
+            <p class="text-sm text-amber-700 mt-1">
+                Hides the product and all its variants from the storefront.<br/>
+                <strong>Data is preserved.</strong> Order history remains intact. You can re-activate at any time via the Toggle switch.
+            </p>
+            <form asp-area="Admin" asp-controller="Product" asp-action="DeactivateConfirmed" asp-route-id="@Model.Id"
+                  method="post" class="mt-4 inline">
+                @Html.AntiForgeryToken()
+                <button type="submit"
+                        class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600
+                               text-white text-sm font-bold transition-all active:scale-95 shadow-md shadow-amber-200">
+                    <span class="material-symbols-outlined text-base">visibility_off</span>
+                    Deactivate Product
+                </button>
+            </form>
+        </div>
+    </div>
+
+    @* Option B: Hard Delete *@
+    <div class="bg-rose-50 border border-rose-200 rounded-xl p-5 flex gap-4 items-start">
+        <div class="size-10 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0">
+            <span class="material-symbols-outlined text-rose-600">delete_forever</span>
+        </div>
+        <div class="flex-1">
+            <p class="font-bold text-rose-900">Option B — Permanent Delete ⚠️</p>
+            <p class="text-sm text-rose-700 mt-1">
+                <strong>Permanently removes</strong> the product and all its variants from the database.<br/>
+                This action <strong>cannot be undone</strong>. If the product has order history it will be blocked automatically.
+            </p>
+            <form asp-area="Admin" asp-controller="Product" asp-action="HardDeleteConfirmed" asp-route-id="@Model.Id"
+                  method="post" class="mt-4 inline" id="hardDeleteForm">
+                @Html.AntiForgeryToken()
+                <button type="button" onclick="confirmHardDelete()"
+                        class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700
+                               text-white text-sm font-bold transition-all active:scale-95 shadow-md shadow-rose-200">
+                    <span class="material-symbols-outlined text-base">delete_forever</span>
+                    Permanently Delete
+                </button>
+            </form>
+        </div>
+    </div>
+
+    @* Cancel *@
+    <div class="flex justify-start">
         <a asp-area="Admin" asp-controller="Product" asp-action="Details" asp-route-id="@Model.Id"
            class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold
-                  hover:bg-slate-50 transition-colors">
-            Cancel
+                  hover:bg-slate-50 transition-colors flex items-center gap-2">
+            <span class="material-symbols-outlined text-base">arrow_back</span>
+            Cancel — Back to Details
         </a>
-        <form asp-area="Admin" asp-controller="Product" asp-action="Delete" asp-route-id="@Model.Id"
-              method="post" class="inline">
-            @Html.AntiForgeryToken()
-            <button type="submit"
-                    class="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-red-600 hover:bg-red-700
-                           text-white text-sm font-bold transition-all active:scale-95">
-                <span class="material-symbols-outlined text-base">block</span>
-                Yes, Deactivate
-            </button>
-        </form>
     </div>
 
 </div>
+
+@section Scripts {
+    <script>
+        function confirmHardDelete() {
+            if (confirm('⚠️ Are you absolutely sure?\n\nThis will PERMANENTLY DELETE the product from the database.\nThis action cannot be undone.\n\nClick OK only if you are certain.')) {
+                document.getElementById('hardDeleteForm').submit();
+            }
+        }
+    </script>
+}

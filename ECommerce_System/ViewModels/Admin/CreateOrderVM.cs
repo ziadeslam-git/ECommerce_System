@@ -19,10 +19,25 @@ public class CreateOrderVM
     [Display(Name = "Customer Phone")]
     public string CustomerPhone { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Shipping Address is required.")]
+    [Required(ErrorMessage = "Country is required.")]
+    [StringLength(50)]
+    [Display(Name = "Country")]
+    public string ShippingCountry { get; set; } = "Egypt";
+
+    [Required(ErrorMessage = "Governorate / State is required.")]
+    [StringLength(50)]
+    [Display(Name = "Governorate (State)")]
+    public string ShippingState { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "City / Region is required.")]
+    [StringLength(50)]
+    [Display(Name = "City / Region")]
+    public string ShippingCity { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Detailed Address is required.")]
     [StringLength(200)]
-    [Display(Name = "Shipping Address")]
-    public string ShippingAddress { get; set; } = string.Empty;
+    [Display(Name = "Street & Local Details")]
+    public string ShippingStreet { get; set; } = string.Empty;
 
     [Display(Name = "Order Status")]
     public string Status { get; set; } = SD.Status_Pending;

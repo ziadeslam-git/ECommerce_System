@@ -10,6 +10,7 @@ public class ProductVariant
     public decimal Price { get; set; }                 // Can override BasePrice
     public int Stock { get; set; } = 0;
     public bool IsActive { get; set; } = true;
+    public ICollection<ProductVariantImage> Images { get; set; } = [];
 
     // Optimistic concurrency token — prevents race conditions on Stock updates
     public byte[] RowVersion { get; set; } = [];

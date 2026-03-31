@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@@fancyapps/ui@5.0/dist/fancybox/fancybox.css" />
     
     <script id="tailwind-config">
         tailwind.config = {
@@ -196,16 +197,25 @@
             
             <!-- Main Content Area -->
             <main class="p-4 md:p-8 space-y-8">
-                @if (TempData["success"] != null)
+                @if (TempData["Success"] != null || TempData["success"] != null)
                 {
-                    <div class="bg-emerald-100 border border-emerald-400 text-emerald-700 px-4 py-3 rounded relative" role="alert">
-                        <span class="block sm:inline">@TempData["success"]</span>
+                    <div class="mb-6 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 px-4 py-3 rounded-xl text-sm font-medium">
+                        <span class="material-symbols-outlined text-lg">check_circle</span>
+                        @(TempData["Success"] ?? TempData["success"])
                     </div>
                 }
-                @if (TempData["error"] != null)
+                @if (TempData["Error"] != null || TempData["error"] != null)
                 {
-                    <div class="bg-rose-100 border border-rose-400 text-rose-700 px-4 py-3 rounded relative" role="alert">
-                        <span class="block sm:inline">@TempData["error"]</span>
+                    <div class="mb-6 flex items-center gap-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 px-4 py-3 rounded-xl text-sm font-medium">
+                        <span class="material-symbols-outlined text-lg">error</span>
+                        @(TempData["Error"] ?? TempData["error"])
+                    </div>
+                }
+                @if (TempData["Warning"] != null || TempData["warning"] != null)
+                {
+                    <div class="mb-6 flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 px-4 py-3 rounded-xl text-sm font-medium">
+                        <span class="material-symbols-outlined text-lg">warning</span>
+                        @(TempData["Warning"] ?? TempData["warning"])
                     </div>
                 }
 
@@ -216,6 +226,12 @@
     </div>
 
     <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.jsdelivr.net/npm/@@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
+    <script>
+      Fancybox.bind('[data-fancybox]', {
+        // Options available
+      });
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

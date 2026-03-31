@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace ECommerce_System.ViewModels.Admin
 {
@@ -33,5 +33,20 @@ namespace ECommerce_System.ViewModels.Admin
         public byte[]? RowVersion { get; set; }  // Optimistic Concurrency
 
         public string? ProductName { get; set; }
+
+        public List<ProductVariantImageVM> Images { get; set; } = new();
+
+        public List<Microsoft.AspNetCore.Http.IFormFile>? ImageFiles { get; set; }
+        
+        [Display(Name = "Set one image as Main Product Image")]
+        public bool SetAsMainProductImage { get; set; }
+    }
+    
+    public class ProductVariantImageVM
+    {
+        public int Id { get; set; }
+        public string ImageUrl { get; set; } = string.Empty;
+        public string PublicId { get; set; } = string.Empty;
+        public bool IsMain { get; set; }
     }
 }

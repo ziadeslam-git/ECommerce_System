@@ -23,7 +23,9 @@ public class ProductController : Controller
         ViewData["Title"] = "Products";
 
         var products = await _uow.Products
-            .GetAllAsync("Category,Variants,Images", tracked: false);
+            .GetAllAsync("Category,Variants,Images", tracked: false, ignoreQueryFilters: true);
+
+        products = products.OrderByDescending(p => p.CreatedAt).Take(50);
 
         var vms = products
             .OrderByDescending(p => p.CreatedAt)
@@ -51,7 +53,7 @@ public class ProductController : Controller
     public async Task<IActionResult> Details(int id)
     {
         var product = await _uow.Products
-            .FindAsync(p => p.Id == id, "Category,Variants,Images");
+            .FindAsync(p => p.Id == id, "Category,Variants,Images", tracked: false, ignoreQueryFilters: true);
 
         if (product is null) return NotFound();
 
@@ -105,7 +107,7 @@ public class ProductController : Controller
 
     public async Task<IActionResult> Edit(int id)
     {
-        var product = await _uow.Products.GetByIdAsync(id);
+        var product = await _uow.Products.GetByIdAsync(id, ignoreQueryFilters: true);
         if (product is null) return NotFound();
 
         ViewData["Title"] = $"Edit — {product.Name}";
@@ -126,26 +128,62 @@ public class ProductController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(ProductFormVM vm)
+    public async Task<IActionResult> Edit(int id, ProductFormVM vm)
     {
+        if (id != vm.Id) return BadRequest();
+
         if (!ModelState.IsValid)
         {
             vm.Categories = await GetCategoriesDropdownAsync();
             return View(vm);
         }
 
-        var product = await _uow.Products.GetByIdAsync(vm.Id);
+        var product = await _uow.Products.GetByIdAsync(vm.Id, ignoreQueryFilters: true);
         if (product is null) return NotFound();
 
         product.Name        = vm.Name.Trim();
         product.Description = vm.Description?.Trim();
         product.BasePrice   = vm.BasePrice;
         product.CategoryId  = vm.CategoryId;
+        
+        bool wasActive = product.IsActive;
         product.IsActive    = vm.IsActive;
         product.UpdatedAt   = DateTime.UtcNow;
 
-        _uow.Products.Update(product);
-        await _uow.SaveAsync();
+        if (wasActive && !product.IsActive)
+        {
+            var variants = await _uow.ProductVariants.FindAllAsync(v => v.ProductId == product.Id);
+            foreach (var variant in variants)
+            {
+                variant.IsActive = false;
+            }
+        }
+        else if (!wasActive && product.IsActive)
+        {
+            var variants = await _uow.ProductVariants.FindAllAsync(v => v.ProductId == product.Id);
+            foreach (var variant in variants)
+            {
+                if (variant.Stock > 0)
+                {
+                    variant.IsActive = true;
+                }
+            }
+        }
+
+        try
+        {
+            // _uow.Products.Update(product) is skipped here because GetByIdAsync is tracked
+            await _uow.SaveAsync();
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
+        {
+            if (await _uow.Products.GetByIdAsync(vm.Id) is null)
+                return NotFound();
+
+            ModelState.AddModelError(string.Empty, "The product was modified by another user. Please reload and try again.");
+            vm.Categories = await GetCategoriesDropdownAsync();
+            return View(vm);
+        }
 
         TempData["success"] = $"Product \"{product.Name}\" updated.";
         return RedirectToAction(nameof(Details), new { id = product.Id });
@@ -156,30 +194,94 @@ public class ProductController : Controller
     public async Task<IActionResult> Delete(int id)
     {
         var product = await _uow.Products
-            .FindAsync(p => p.Id == id, "Category,Variants,Images");
+            .FindAsync(p => p.Id == id, "Category,Variants,Images", tracked: false, ignoreQueryFilters: true);
         if (product is null) return NotFound();
 
         ViewData["Title"] = "Delete Product";
         return View(MapToDetailsVM(product));
     }
 
-    [HttpPost, ActionName("Delete")]
+    // Soft-delete: Deactivate only (keeps data in DB)
+    [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteConfirmed(int id)
+    public async Task<IActionResult> DeactivateConfirmed(int id)
     {
         var product = await _uow.Products
-            .FindAsync(p => p.Id == id, "Variants");
+            .FindAsync(p => p.Id == id, "Variants", ignoreQueryFilters: true);
         if (product is null) return NotFound();
 
-        // Soft-delete (preserves order history)
         product.IsActive  = false;
         product.UpdatedAt = DateTime.UtcNow;
         foreach (var v in product.Variants) v.IsActive = false;
 
-        _uow.Products.Update(product);
         await _uow.SaveAsync();
 
-        TempData["success"] = $"Product \"{product.Name}\" deactivated.";
+        TempData["success"] = $"Product \"{product.Name}\" deactivated. It no longer shows to customers.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // Hard-delete: Permanent removal from DB (only if no order history)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> HardDeleteConfirmed(int id)
+    {
+        var product = await _uow.Products
+            .FindAsync(p => p.Id == id, "Variants,OrderItems", ignoreQueryFilters: true);
+        if (product is null) return NotFound();
+
+        // Safety: check if any variant has order history
+        var variantIds = product.Variants.Select(v => v.Id).ToList();
+        var hasOrders  = await _uow.OrderItems
+            .FindAsync(oi => variantIds.Contains(oi.ProductVariantId), ignoreQueryFilters: true);
+
+        if (hasOrders is not null)
+        {
+            TempData["error"] = $"Cannot permanently delete \"{product.Name}\" — it has existing order history. Use Deactivate instead.";
+            return RedirectToAction(nameof(Delete), new { id });
+        }
+
+        _uow.Products.Remove(product);
+        await _uow.SaveAsync();
+
+        TempData["success"] = $"Product \"{product.Name}\" permanently deleted from the database.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // ─── TOGGLE ACTIVE ────────────────────────────────────────────────────────
+    
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleActive(int id)
+    {
+        var product = await _uow.Products.GetByIdAsync(id, ignoreQueryFilters: true);
+        if (product is null) return NotFound();
+
+        product.IsActive = !product.IsActive;
+        product.UpdatedAt = DateTime.UtcNow;
+
+        var variants = await _uow.ProductVariants.FindAllAsync(v => v.ProductId == product.Id, ignoreQueryFilters: true);
+        
+        if (!product.IsActive)
+        {
+            foreach (var variant in variants) variant.IsActive = false;
+            TempData["success"] = $"Product \"{product.Name}\" deactivated. All variants deactivated.";
+        }
+        else
+        {
+            int activatedCount = 0;
+            foreach (var variant in variants)
+            {
+                if (variant.Stock > 0)
+                {
+                    variant.IsActive = true;
+                    activatedCount++;
+                }
+            }
+            TempData["success"] = $"Product \"{product.Name}\" activated. {activatedCount} variant(s) activated.";
+        }
+
+        await _uow.SaveAsync();
+
         return RedirectToAction(nameof(Index));
     }
 

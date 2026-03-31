@@ -162,7 +162,8 @@ public class OrdersController : Controller
         }
 
         // 2. Resolve Address
-        var address = await _unitOfWork.Addresses.FindAsync(a => a.UserId == user.Id && a.Street == vm.ShippingAddress);
+        // Address uniqueness could be checked by Street + City + State
+        var address = await _unitOfWork.Addresses.FindAsync(a => a.UserId == user.Id && a.Street == vm.ShippingStreet && a.City == vm.ShippingCity);
         if (address is null)
         {
             address = new Address
@@ -170,9 +171,10 @@ public class OrdersController : Controller
                 UserId = user.Id,
                 FullName = vm.CustomerName,
                 PhoneNumber = vm.CustomerPhone,
-                Street = vm.ShippingAddress,
-                City = "Unknown",
-                Country = "Egypt",
+                Street = vm.ShippingStreet,
+                City = vm.ShippingCity,
+                State = vm.ShippingState,
+                Country = vm.ShippingCountry,
                 PostalCode = "00000"
             };
             await _unitOfWork.Addresses.AddAsync(address);
@@ -217,7 +219,12 @@ public class OrdersController : Controller
 
             // Deduct Stock
             variant.Stock -= item.Quantity;
-            _unitOfWork.ProductVariants.Update(variant);
+            if (variant.Stock <= 0)
+            {
+                variant.Stock    = 0; // clamp to 0
+                variant.IsActive = false; // auto-deactivate when stock hits 0
+            }
+            // EF Core Change Tracker detects the changes upon SaveAsync.
         }
 
         // 4. Calculate Discount Securely
@@ -292,6 +299,14 @@ public class OrdersController : Controller
             };
             await _unitOfWork.Payments.AddAsync(paymentRecord);
             await _unitOfWork.SaveAsync();
+        // Update Product Status internally for all processed items
+        foreach (var item in vm.Items)
+        {
+            var variant = await _unitOfWork.ProductVariants.FindAsync(v => v.Id == item.ProductVariantId);
+            if (variant != null)
+            {
+                await UpdateProductStatusAsync(variant.ProductId);
+            }
         }
 
         TempData["Success"] = $"Order #{order.Id} created successfully for {vm.CustomerName}.";
@@ -451,10 +466,38 @@ public class OrdersController : Controller
 
         foreach (var item in items)
         {
-            var variant = await _unitOfWork.ProductVariants.GetByIdAsync(item.ProductVariantId);
+            var variant = await _unitOfWork.ProductVariants
+                .GetByIdAsync(item.ProductVariantId, ignoreQueryFilters: true);
             if (variant is null) continue;
+
             variant.Stock += item.Quantity;
-            _unitOfWork.ProductVariants.Update(variant);
+
+            // Auto-reactivate variant if it was deactivated due to zero stock
+            if (!variant.IsActive && variant.Stock > 0)
+                variant.IsActive = true;
+
+            // EF Change Tracker handles the update automatically
+        }
+    }
+
+    private async Task UpdateProductStatusAsync(int productId)
+    {
+        var product = await _unitOfWork.Products
+            .FindAsync(p => p.Id == productId, "Variants", ignoreQueryFilters: true);
+
+        if (product is null) return;
+
+        bool hasActiveStock = product.Variants.Any(v => v.IsActive && v.Stock > 0);
+
+        if (!hasActiveStock && product.IsActive)
+        {
+            product.IsActive = false;
+            await _unitOfWork.SaveAsync();
+        }
+        else if (hasActiveStock && !product.IsActive)
+        {
+            product.IsActive = true;
+            await _unitOfWork.SaveAsync();
         }
     }
 }

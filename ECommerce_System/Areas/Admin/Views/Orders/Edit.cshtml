@@ -1,0 +1,544 @@
+@model ECommerce_System.ViewModels.Admin.EditOrderVM
+@using ECommerce_System.Utilities
+
+@{
+    ViewData["Title"] = $"Edit Order #{Model.OrderId}";
+    Layout = "_AdminLayout";
+    var productsJson = ViewBag.ProductsListJson as string ?? "[]";
+    var canEdit = Model.CurrentStatus != SD.Status_Shipped &&
+                  Model.CurrentStatus != SD.Status_Delivered &&
+                  Model.CurrentStatus != SD.Status_Cancelled;
+}
+
+@* ── Breadcrumb ── *@
+<div class="mb-8">
+    <nav class="flex items-center gap-2 text-sm text-slate-400 mb-2">
+        <a asp-action="Index" class="hover:text-primary transition-colors">Orders</a>
+        <span class="material-symbols-outlined text-xs">chevron_right</span>
+        <a asp-action="Details" asp-route-id="@Model.OrderId" class="hover:text-primary transition-colors">#ORD-@Model.OrderId</a>
+        <span class="material-symbols-outlined text-xs">chevron_right</span>
+        <span class="text-slate-700 dark:text-slate-300 font-medium">Edit</span>
+    </nav>
+    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Edit Order #@Model.OrderId</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+        Editing order for <strong>@Model.CustomerName</strong>
+        &bull;
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold
+            @(Model.CurrentStatus == SD.Status_Cancelled ? "bg-red-100 text-red-700"
+            : Model.CurrentStatus == SD.Status_Pending   ? "bg-amber-100 text-amber-700"
+            : Model.CurrentStatus == SD.Status_Delivered ? "bg-emerald-100 text-emerald-700"
+            : "bg-blue-100 text-blue-700")">
+            @Model.CurrentStatus
+        </span>
+    </p>
+</div>
+
+@* ── Cannot edit guard ── *@
+@if (!canEdit)
+{
+    <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-5 flex items-start gap-3 mb-6">
+        <span class="material-symbols-outlined text-red-500 flex-shrink-0 mt-0.5">block</span>
+        <div>
+            <p class="font-bold text-red-800 dark:text-red-300">Order cannot be edited</p>
+            <p class="text-sm text-red-600 dark:text-red-400 mt-1">
+                This order is <strong>@Model.CurrentStatus</strong>. Only <em>Pending, Confirmed</em> and <em>Processing</em> orders can be edited.
+            </p>
+        </div>
+    </div>
+    <a asp-action="Details" asp-route-id="@Model.OrderId"
+       class="flex w-fit items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+        <span class="material-symbols-outlined text-sm">arrow_back</span>
+        Back to Details
+    </a>
+}
+else
+{
+<form asp-action="Edit" asp-route-id="@Model.OrderId" id="editOrderForm" method="post"
+      class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="OrderId"       value="@Model.OrderId" />
+    <input type="hidden" name="CustomerName"  value="@Model.CustomerName" />
+    <input type="hidden" name="CustomerEmail" value="@Model.CustomerEmail" />
+    <input type="hidden" name="CurrentStatus" value="@Model.CurrentStatus" />
+    <input type="hidden" name="AddressLine"   value="@Model.AddressLine" />
+
+    @* ─── Left Column ─── *@
+    <div class="lg:col-span-4 space-y-6">
+
+        @* Order Info Card *@
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+            <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Order Info</h3>
+            <div class="space-y-3">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Customer</p>
+                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">@Model.CustomerName</p>
+                    @if (!string.IsNullOrWhiteSpace(Model.CustomerEmail))
+                    {
+                        <p class="text-xs text-slate-400 mt-0.5">@Model.CustomerEmail</p>
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.AddressLine))
+                {
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Shipping Address</p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">@Model.AddressLine</p>
+                    </div>
+                }
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Order Status</p>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold
+                        @(Model.CurrentStatus == SD.Status_Pending   ? "bg-amber-100 text-amber-700"
+                        : Model.CurrentStatus == SD.Status_Confirmed  ? "bg-blue-100 text-blue-700"
+                        : Model.CurrentStatus == SD.Status_Processing ? "bg-indigo-100 text-indigo-700"
+                        : "bg-slate-100 text-slate-600")">
+                        @Model.CurrentStatus
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        @* Coupon Card *@
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+            <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Coupon / Discount</h3>
+            <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Have a Coupon?</label>
+            <div class="flex gap-2">
+                <input type="text" name="CouponCode" id="CouponCode"
+                       value="@Model.CouponCode"
+                       placeholder="Enter coupon code..."
+                       class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-primary/30 uppercase" />
+                <button type="button" id="btnApplyCoupon"
+                        class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg text-sm font-semibold transition-all flex-shrink-0">
+                    Apply
+                </button>
+            </div>
+            <p id="couponMessage" class="text-xs mt-2 hidden"></p>
+        </div>
+
+        @* Summary Card *@
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+            <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Order Summary</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between text-sm font-medium text-slate-600 dark:text-slate-400">
+                    <span>Subtotal</span>
+                    <span id="displaySubtotal">EGP 0.00</span>
+                </div>
+                <div class="flex justify-between text-sm font-medium text-emerald-600 dark:text-emerald-400 pb-3 border-b border-slate-200 dark:border-slate-700">
+                    <span>Discount</span>
+                    <span id="displayDiscount">- EGP 0.00</span>
+                </div>
+                <div class="flex justify-between font-bold text-lg text-slate-900 dark:text-slate-100 pt-1">
+                    <span>Total</span>
+                    <span id="displayTotal" class="text-primary">EGP 0.00</span>
+                </div>
+            </div>
+
+            <input type="hidden" id="hiddenSubtotal" name="Subtotal"        value="0" />
+            <input type="hidden" id="hiddenDiscount" name="DiscountAmount"  value="0" />
+
+            <div class="mt-6 space-y-2">
+                <button type="button" id="btnSubmitForm"
+                        class="w-full px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-bold shadow-md shadow-primary/20 hover:opacity-90 transition-all flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-sm">save</span>
+                    Save Changes
+                </button>
+                <a asp-action="Details" asp-route-id="@Model.OrderId"
+                   class="w-full flex items-center justify-center px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
+                    Cancel
+                </a>
+            </div>
+
+            <p class="text-[11px] text-slate-400 mt-4 flex items-start gap-1">
+                <span class="material-symbols-outlined text-xs mt-0.5">info</span>
+                Existing items are kept. New items are appended. Set qty to 0 to remove an item.
+            </p>
+        </div>
+    </div>
+
+    @* ─── Right Column (Items Table) ─── *@
+    <div class="lg:col-span-8 space-y-6">
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+
+            @* Add Product Bar *@
+            <div class="p-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Search &amp; Add Product</label>
+                <div class="flex gap-2">
+                    <div class="relative flex-1" id="productDropdownContainer">
+                        <div class="relative">
+                            <input type="text" id="productSearchInput" placeholder="Type to search products..."
+                                   class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-primary/30"
+                                   autocomplete="off" />
+                            <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">arrow_drop_down</span>
+                        </div>
+                        <ul id="customProductDropdown"
+                            class="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl hidden divide-y divide-slate-100 dark:divide-slate-700">
+                        </ul>
+                    </div>
+                    <button type="button" id="btnAddProduct"
+                            class="px-5 py-2.5 bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg text-sm font-bold hover:opacity-90 transition-all flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">add</span> Add
+                    </button>
+                </div>
+                <p id="productSearchError" class="text-red-500 text-xs mt-1 hidden">Please select a valid product from the list.</p>
+            </div>
+
+            @* Items Table *@
+            <div class="flex-1 overflow-x-auto">
+                <table class="w-full text-left text-sm" id="itemsTable">
+                    <thead class="bg-slate-50 dark:bg-slate-800/50">
+                        <tr>
+                            <th class="px-4 py-3 text-xs font-semibold text-slate-500">Product</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-slate-500 w-24">Price</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-slate-500 w-28">Quantity</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-slate-500 w-24 text-right">Total</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-slate-500 w-12 text-center"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800" id="itemsBody">
+
+                        @* ── Seed existing items from server ── *@
+                        @for (int i = 0; i < Model.ExistingItems.Count; i++)
+                        {
+                            var ei = Model.ExistingItems[i];
+                            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group existing-db-row"
+                                data-item-id="@ei.OrderItemId"
+                                data-variant-id="@ei.ProductVariantId"
+                                data-price="@ei.UnitPrice"
+                                data-original-qty="@ei.OriginalQuantity">
+
+                                <input type="hidden" name="ExistingItems[@i].OrderItemId"      value="@ei.OrderItemId" />
+                                <input type="hidden" name="ExistingItems[@i].ProductVariantId" value="@ei.ProductVariantId" />
+                                <input type="hidden" name="ExistingItems[@i].ProductName"      value="@ei.ProductName" />
+                                <input type="hidden" name="ExistingItems[@i].Size"             value="@ei.Size" />
+                                <input type="hidden" name="ExistingItems[@i].Color"            value="@ei.Color" />
+                                <input type="hidden" name="ExistingItems[@i].UnitPrice"        value="@ei.UnitPrice" />
+                                <input type="hidden" name="ExistingItems[@i].OriginalQuantity" value="@ei.OriginalQuantity" />
+
+                                <td class="px-4 py-3">
+                                    <p class="font-medium text-slate-900 dark:text-slate-100">@ei.ProductName</p>
+                                    <p class="text-xs text-slate-400">@ei.Size &bull; @ei.Color</p>
+                                </td>
+                                <td class="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs">
+                                    EGP @ei.UnitPrice.ToString("F2")
+                                </td>
+                                <td class="px-4 py-3">
+                                    <input type="number"
+                                           name="ExistingItems[@i].Quantity"
+                                           value="@ei.Quantity" min="0" max="999"
+                                           class="existing-qty w-20 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-sm font-medium text-center focus:ring-1 focus:ring-primary/50"
+                                           data-price="@ei.UnitPrice"
+                                           data-idx="@i" />
+                                </td>
+                                <td class="px-4 py-3 text-right font-bold text-slate-900 dark:text-slate-100 font-mono text-sm existing-subtotal">
+                                    EGP @((ei.UnitPrice * ei.Quantity).ToString("F2"))
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <button type="button" class="btn-remove-existing text-red-400 hover:text-red-600 transition-colors opacity-50 group-hover:opacity-100"
+                                            data-idx="@i" title="Remove item (sets qty to 0)">
+                                        <span class="material-symbols-outlined text-sm">close</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+
+                        @* Empty state (shows when no existing + no new items) *@
+                        <tr id="emptyRow" @(Model.ExistingItems.Any() ? "style=display:none" : "")>
+                            <td colspan="5" class="px-6 py-12 text-center text-slate-400">
+                                <span class="material-symbols-outlined text-3xl mb-2 opacity-50">shopping_basket</span>
+                                <p>No products in this order yet.</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            @* Footer note *@
+            <div class="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
+                <p class="text-xs text-slate-400">
+                    <strong>Tip:</strong> Set quantity to <strong>0</strong> to remove an item. New products are added on top of existing ones (not replacing them).
+                </p>
+            </div>
+        </div>
+    </div>
+</form>
+}
+
+@section Scripts {
+<script>
+// ── Data from server ─────────────────────────────────────────
+const products = @Html.Raw(productsJson);
+
+const searchInput      = document.getElementById('productSearchInput');
+const customDropdown   = document.getElementById('customProductDropdown');
+const container        = document.getElementById('productDropdownContainer');
+const itemsBody        = document.getElementById('itemsBody');
+const emptyRow         = document.getElementById('emptyRow');
+
+// Track newly added items (from the JS side — not in DB yet)
+let newItems = [];
+let currentSubtotal = 0;
+let currentDiscount = 0;
+let selectedProduct = null;
+
+// ── Dropdown ─────────────────────────────────────────────────
+function renderDropdown(filterText = '') {
+    customDropdown.innerHTML = '';
+    let filtered = products;
+    if (filterText.trim() !== '') {
+        const q = filterText.toLowerCase();
+        filtered = products.filter(p => p.name.toLowerCase().includes(q));
+    }
+    if (filtered.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'px-4 py-3 text-sm text-slate-400 italic text-center';
+        li.innerText = 'No products found.';
+        customDropdown.appendChild(li);
+    } else {
+        filtered.forEach(p => {
+            const li = document.createElement('li');
+            li.className = 'px-4 py-3 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors flex justify-between items-center';
+            li.innerHTML = `
+                <span class="font-medium">${p.name}</span>
+                <div class="text-right">
+                    <span class="block font-mono font-bold text-xs text-primary">EGP ${parseFloat(p.price).toFixed(2)}</span>
+                    <span class="block text-[10px] text-slate-400">Stock: ${p.stock}</span>
+                </div>
+            `;
+            li.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectedProduct = p;
+                searchInput.value = p.name;
+                closeDropdown();
+            });
+            customDropdown.appendChild(li);
+        });
+    }
+}
+
+function openDropdown()  { customDropdown.classList.remove('hidden'); renderDropdown(searchInput.value); }
+function closeDropdown() { customDropdown.classList.add('hidden'); }
+
+searchInput.addEventListener('focus', openDropdown);
+searchInput.addEventListener('click', openDropdown);
+searchInput.addEventListener('input', (e) => {
+    selectedProduct = null;
+    openDropdown();
+    renderDropdown(e.target.value);
+});
+document.addEventListener('click', (e) => {
+    if (!container.contains(e.target)) closeDropdown();
+});
+
+// ── Add Product ───────────────────────────────────────────────
+document.getElementById('btnAddProduct').addEventListener('click', function () {
+    if (!selectedProduct) {
+        document.getElementById('productSearchError').classList.remove('hidden');
+        return;
+    }
+    document.getElementById('productSearchError').classList.add('hidden');
+
+    const id       = selectedProduct.id;
+    const price    = parseFloat(selectedProduct.price);
+    const maxStock = parseInt(selectedProduct.stock);
+    const name     = selectedProduct.name;
+
+    // If same product already in NEW list → increment qty
+    const existing = newItems.find(i => i.id === id);
+    if (existing) {
+        if (existing.qty < maxStock) {
+            existing.qty++;
+            updateNewRowUI(id);
+        } else {
+            alert('Cannot add more than available stock (' + maxStock + ')');
+        }
+    } else {
+        const guid = Math.random().toString(36).substring(2, 15);
+        newItems.push({ id, name, price, maxStock, qty: 1, guid });
+        renderNewRow(newItems[newItems.length - 1]);
+    }
+
+    searchInput.value = '';
+    selectedProduct = null;
+    calculateTotals();
+});
+
+function generateGuid() { return Math.random().toString(36).substring(2, 15); }
+
+function renderNewRow(item) {
+    if (emptyRow) emptyRow.style.display = 'none';
+    const tr = document.createElement('tr');
+    tr.id = 'new-row-' + item.id;
+    tr.className = 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group bg-emerald-50/30 dark:bg-emerald-900/10';
+    tr.innerHTML = `
+        <td class="px-4 py-3">
+            <p class="font-medium text-slate-900 dark:text-slate-100">${item.name}</p>
+            <span class="text-[10px] font-bold text-emerald-600 uppercase">New</span>
+            <input type="hidden" name="NewItems.Index"                         value="${item.guid}" />
+            <input type="hidden" name="NewItems[${item.guid}].ProductVariantId" value="${item.id}" />
+        </td>
+        <td class="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs">EGP ${item.price.toFixed(2)}</td>
+        <td class="px-4 py-3">
+            <input type="number" name="NewItems[${item.guid}].Quantity" value="${item.qty}" min="1" max="${item.maxStock}"
+                   class="new-qty w-20 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-sm font-medium text-center focus:ring-1 focus:ring-primary/50"
+                   data-id="${item.id}" />
+        </td>
+        <td class="px-4 py-3 text-right font-bold text-slate-900 dark:text-slate-100 font-mono text-sm" id="new-subtotal-${item.id}">
+            EGP ${(item.price * item.qty).toFixed(2)}
+        </td>
+        <td class="px-4 py-3 text-center">
+            <button type="button" class="btn-remove-new text-red-400 hover:text-red-600 transition-colors opacity-50 group-hover:opacity-100" data-id="${item.id}">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+        </td>
+    `;
+
+    itemsBody.appendChild(tr);
+
+    // Qty input event
+    tr.querySelector('.new-qty').addEventListener('input', function (e) {
+        const newQty = parseInt(e.target.value) || 1;
+        const id     = parseInt(e.target.dataset.id);
+        const obj    = newItems.find(i => i.id === id);
+        if (obj) {
+            obj.qty = Math.min(Math.max(1, newQty), obj.maxStock);
+            e.target.value = obj.qty;
+            updateNewRowUI(id);
+            calculateTotals();
+        }
+    });
+
+    // Remove button
+    tr.querySelector('.btn-remove-new').addEventListener('click', function (e) {
+        const id = parseInt(e.currentTarget.dataset.id);
+        newItems = newItems.filter(i => i.id !== id);
+        document.getElementById('new-row-' + id).remove();
+        checkEmpty();
+        calculateTotals();
+    });
+}
+
+function updateNewRowUI(id) {
+    const item = newItems.find(i => i.id === id);
+    if (!item) return;
+    const row = document.getElementById('new-row-' + id);
+    if (!row) return;
+    row.querySelector('.new-qty').value = item.qty;
+    const cell = document.getElementById('new-subtotal-' + id);
+    if (cell) cell.innerText = 'EGP ' + (item.price * item.qty).toFixed(2);
+}
+
+// ── Existing items qty change ─────────────────────────────────
+document.querySelectorAll('.existing-qty').forEach(input => {
+    input.addEventListener('input', function () {
+        const price = parseFloat(this.dataset.price) || 0;
+        const qty   = Math.max(0, parseInt(this.value) || 0);
+        this.value  = qty;
+        const row   = this.closest('tr');
+        const cell  = row.querySelector('.existing-subtotal');
+        if (cell) cell.innerText = 'EGP ' + (price * qty).toFixed(2);
+        calculateTotals();
+    });
+});
+
+// Remove existing item (set qty = 0)
+document.querySelectorAll('.btn-remove-existing').forEach(btn => {
+    btn.addEventListener('click', function () {
+        const row   = this.closest('tr');
+        const input = row.querySelector('.existing-qty');
+        if (input) { input.value = 0; input.dispatchEvent(new Event('input')); }
+    });
+});
+
+function checkEmpty() {
+    const hasExisting = document.querySelectorAll('.existing-db-row').length > 0;
+    const hasNew      = newItems.length > 0;
+    if (emptyRow) emptyRow.style.display = (hasExisting || hasNew) ? 'none' : '';
+}
+
+// ── Totals ────────────────────────────────────────────────────
+function calculateTotals() {
+    let existSub = 0;
+    document.querySelectorAll('.existing-qty').forEach(input => {
+        const price = parseFloat(input.dataset.price) || 0;
+        const qty   = Math.max(0, parseInt(input.value) || 0);
+        existSub += price * qty;
+    });
+    const newSub = newItems.reduce((s, i) => s + i.price * i.qty, 0);
+    currentSubtotal = existSub + newSub;
+
+    const code = document.getElementById('CouponCode').value;
+    if (code && code.trim() !== '') {
+        validateCouponOnServer(code, currentSubtotal);
+    } else {
+        currentDiscount = 0;
+        updateTotalsUI();
+    }
+}
+
+document.getElementById('btnApplyCoupon').addEventListener('click', function () {
+    const code = document.getElementById('CouponCode').value.trim();
+    if (code === '') {
+        currentDiscount = 0;
+        updateTotalsUI();
+        const msg = document.getElementById('couponMessage');
+        msg.className = 'text-xs mt-2 hidden';
+        return;
+    }
+    validateCouponOnServer(code, currentSubtotal);
+});
+
+// Apply on Enter
+document.getElementById('CouponCode').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btnApplyCoupon').click(); }
+});
+
+function validateCouponOnServer(code, subtotal) {
+    const btn = document.getElementById('btnApplyCoupon');
+    btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">refresh</span>';
+    btn.disabled  = true;
+
+    fetch(`/Admin/Orders/ValidateCoupon?code=${encodeURIComponent(code)}&subtotal=${subtotal}`)
+        .then(r => r.json())
+        .then(data => {
+            const msg = document.getElementById('couponMessage');
+            msg.classList.remove('hidden');
+            if (data.success) {
+                currentDiscount = data.discountAmount;
+                msg.className   = 'text-xs mt-2 font-medium text-emerald-600 dark:text-emerald-400';
+                msg.innerText   = data.message;
+            } else {
+                currentDiscount = 0;
+                msg.className   = 'text-xs mt-2 font-medium text-red-500';
+                msg.innerText   = data.message;
+            }
+            updateTotalsUI();
+        })
+        .catch(() => { currentDiscount = 0; updateTotalsUI(); })
+        .finally(() => { btn.innerHTML = 'Apply'; btn.disabled = false; });
+}
+
+function updateTotalsUI() {
+    document.getElementById('displaySubtotal').innerText = 'EGP ' + currentSubtotal.toFixed(2);
+    document.getElementById('displayDiscount').innerText = '- EGP ' + currentDiscount.toFixed(2);
+    const total = Math.max(0, currentSubtotal - currentDiscount);
+    document.getElementById('displayTotal').innerText    = 'EGP ' + total.toFixed(2);
+    document.getElementById('hiddenSubtotal').value = currentSubtotal;
+    document.getElementById('hiddenDiscount').value = currentDiscount;
+}
+
+// ── Submit ────────────────────────────────────────────────────
+document.getElementById('btnSubmitForm').addEventListener('click', function () {
+    document.getElementById('editOrderForm').submit();
+});
+
+// ── Init ──────────────────────────────────────────────────────
+calculateTotals();
+
+// Pre-apply coupon if one was already saved
+window.addEventListener('DOMContentLoaded', () => {
+    const savedCode = document.getElementById('CouponCode').value.trim();
+    if (savedCode) {
+        validateCouponOnServer(savedCode, currentSubtotal);
+    }
+});
+</script>
+}

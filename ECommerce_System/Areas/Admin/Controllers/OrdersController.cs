@@ -299,18 +299,221 @@ public class OrdersController : Controller
             };
             await _unitOfWork.Payments.AddAsync(paymentRecord);
             await _unitOfWork.SaveAsync();
-        // Update Product Status internally for all processed items
+        }
+
+        // 7. Update Product Status for all processed items
         foreach (var item in vm.Items)
         {
-            var variant = await _unitOfWork.ProductVariants.FindAsync(v => v.Id == item.ProductVariantId);
+            var variant = await _unitOfWork.ProductVariants
+                .FindAsync(v => v.Id == item.ProductVariantId, ignoreQueryFilters: true);
             if (variant != null)
-            {
                 await UpdateProductStatusAsync(variant.ProductId);
-            }
         }
 
         TempData["Success"] = $"Order #{order.Id} created successfully for {vm.CustomerName}.";
         return RedirectToAction(nameof(Details), new { id = order.Id });
+    }
+
+    // ──────────────────────────────────────────────────────────
+    //  GET /Admin/Orders/Edit/{id}
+    // ──────────────────────────────────────────────────────────
+    public async Task<IActionResult> Edit(int id)
+    {
+        var order = await _unitOfWork.Orders.GetOrderWithDetailsAsync(id);
+        if (order is null) return NotFound();
+
+        var address = order.Address;
+        var addressLine = address is null ? string.Empty
+            : $"{address.Street}, {address.City}, {address.State}, {address.Country}";
+
+        var vm = new EditOrderVM
+        {
+            OrderId       = order.Id,
+            CustomerName  = order.User?.FullName ?? address?.FullName ?? "Unknown",
+            CustomerEmail = order.User?.Email    ?? string.Empty,
+            CurrentStatus = order.Status,
+            AddressLine   = addressLine,
+            CouponCode    = order.CouponCode,
+            ExistingItems = order.OrderItems?.Select(i => new EditOrderItemVM
+            {
+                OrderItemId      = i.Id,
+                ProductVariantId = i.ProductVariantId,
+                ProductName      = i.ProductName,
+                Size             = i.Size,
+                Color            = i.Color,
+                UnitPrice        = i.UnitPrice,
+                OriginalQuantity = i.Quantity,
+                Quantity         = i.Quantity
+            }).ToList() ?? []
+        };
+
+        await PopulateCreateDropdownsAsync();
+        ViewData["Title"] = $"Edit Order #{id}";
+        return View(vm);
+    }
+
+    // ──────────────────────────────────────────────────────────
+    //  POST /Admin/Orders/Edit/{id}
+    // ──────────────────────────────────────────────────────────
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(int id, EditOrderVM vm)
+    {
+        if (id != vm.OrderId) return BadRequest();
+
+        var order = await _unitOfWork.Orders.GetOrderWithDetailsAsync(id);
+        if (order is null) return NotFound();
+
+        // Only allow editing orders that are not yet shipped/delivered/cancelled
+        if (order.Status == SD.Status_Shipped    ||
+            order.Status == SD.Status_Delivered  ||
+            order.Status == SD.Status_Cancelled)
+        {
+            TempData["error"] = $"Order #{id} cannot be edited — it is already {order.Status}.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // ── 1. Update EXISTING items (quantity change or remove if 0) ──
+        if (vm.ExistingItems != null)
+        {
+            foreach (var editedItem in vm.ExistingItems)
+            {
+                var dbItem = await _unitOfWork.OrderItems
+                    .FindAsync(oi => oi.Id == editedItem.OrderItemId);
+                if (dbItem is null) continue;
+
+                var variant = await _unitOfWork.ProductVariants
+                    .GetByIdAsync(dbItem.ProductVariantId, ignoreQueryFilters: true);
+                if (variant is null) continue;
+
+                int diff = editedItem.Quantity - dbItem.Quantity;
+
+                if (editedItem.Quantity <= 0)
+                {
+                    // Remove item → restore full stock
+                    variant.Stock += dbItem.Quantity;
+                    if (!variant.IsActive && variant.Stock > 0) variant.IsActive = true;
+                    _unitOfWork.OrderItems.Remove(dbItem);
+                }
+                else if (diff != 0)
+                {
+                    // Changed quantity
+                    if (diff > 0 && variant.Stock < diff)
+                    {
+                        TempData["error"] = $"Not enough stock to increase {dbItem.ProductName} - {dbItem.Size}. Available extra: {variant.Stock}";
+                        await PopulateCreateDropdownsAsync();
+                        ViewData["Title"] = $"Edit Order #{id}";
+                        return View(vm);
+                    }
+                    variant.Stock        -= diff;  // negative diff = returning stock
+                    if (variant.Stock < 0) variant.Stock = 0;
+                    if (variant.Stock <= 0)  variant.IsActive = false;
+                    else if (!variant.IsActive) variant.IsActive = true;
+                    dbItem.Quantity  = editedItem.Quantity;
+                    dbItem.Subtotal  = dbItem.UnitPrice * editedItem.Quantity;
+                }
+            }
+        }
+
+        // ── 2. Add NEW items ──
+        if (vm.NewItems != null && vm.NewItems.Any(i => i.Value.ProductVariantId > 0 && i.Value.Quantity > 0))
+        {
+            foreach (var kvp in vm.NewItems.Where(i => i.Value.ProductVariantId > 0 && i.Value.Quantity > 0))
+            {
+                var newItem = kvp.Value;
+
+                var variant = await _unitOfWork.ProductVariants
+                    .FindAsync(v => v.Id == newItem.ProductVariantId, "Product");
+                if (variant is null) continue;
+
+                if (variant.Stock < newItem.Quantity)
+                {
+                    TempData["error"] = $"Not enough stock for {variant.Product.Name} - {variant.Size}. Available: {variant.Stock}";
+                    await PopulateCreateDropdownsAsync();
+                    ViewData["Title"] = $"Edit Order #{id}";
+                    return View(vm);
+                }
+
+                var unitPrice = variant.Price > 0 ? variant.Price : variant.Product.BasePrice;
+
+                // Check if variant already in order — increase quantity instead
+                var existingItem = order.OrderItems?
+                    .FirstOrDefault(oi => oi.ProductVariantId == newItem.ProductVariantId);
+
+                if (existingItem != null)
+                {
+                    existingItem.Quantity += newItem.Quantity;
+                    existingItem.Subtotal  = existingItem.UnitPrice * existingItem.Quantity;
+                }
+                else
+                {
+                    var orderItem = new OrderItem
+                    {
+                        OrderId          = order.Id,
+                        ProductVariantId = variant.Id,
+                        ProductName      = variant.Product.Name,
+                        Size             = variant.Size,
+                        Color            = variant.Color,
+                        UnitPrice        = unitPrice,
+                        Quantity         = newItem.Quantity,
+                        Subtotal         = unitPrice * newItem.Quantity
+                    };
+                    await _unitOfWork.OrderItems.AddAsync(orderItem);
+                }
+
+                // Deduct stock
+                variant.Stock -= newItem.Quantity;
+                if (variant.Stock <= 0)
+                {
+                    variant.Stock    = 0;
+                    variant.IsActive = false;
+                }
+            }
+        }
+
+        // Recalculate totals
+        await _unitOfWork.SaveAsync(); // save new items first so we can reload
+
+        var reloadedOrder = await _unitOfWork.Orders.GetOrderWithDetailsAsync(id);
+        if (reloadedOrder is null) return NotFound();
+
+        decimal newSubtotal = reloadedOrder.OrderItems?.Sum(i => i.Subtotal) ?? 0;
+        decimal newDiscount = 0;
+
+        // Re-apply coupon if present (keep existing logic)
+        if (!string.IsNullOrWhiteSpace(reloadedOrder.CouponCode))
+        {
+            var disc = await _unitOfWork.Discounts
+                .FindAsync(d => d.CouponCode == reloadedOrder.CouponCode && d.IsActive);
+            if (disc != null)
+            {
+                newDiscount = disc.Type == SD.Discount_Percentage
+                    ? newSubtotal * (disc.Value / 100m)
+                    : disc.Value;
+                if (newDiscount > newSubtotal) newDiscount = newSubtotal;
+            }
+        }
+
+        reloadedOrder.Subtotal       = newSubtotal;
+        reloadedOrder.DiscountAmount = newDiscount;
+        reloadedOrder.TotalAmount    = newSubtotal - newDiscount;
+        reloadedOrder.UpdatedAt      = DateTime.UtcNow;
+
+        await _unitOfWork.SaveAsync();
+
+        // Update product statuses
+        if (reloadedOrder.OrderItems != null)
+        {
+            foreach (var oi in reloadedOrder.OrderItems)
+            {
+                var v = await _unitOfWork.ProductVariants
+                    .FindAsync(pv => pv.Id == oi.ProductVariantId, ignoreQueryFilters: true);
+                if (v != null) await UpdateProductStatusAsync(v.ProductId);
+            }
+        }
+
+        TempData["Success"] = $"Order #{id} updated successfully. New total: {reloadedOrder.TotalAmount:C}";
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     // ──────────────────────────────────────────────────────────

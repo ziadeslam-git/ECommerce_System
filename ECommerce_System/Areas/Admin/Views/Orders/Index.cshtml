@@ -171,6 +171,13 @@
                                         <span class="material-symbols-outlined text-sm">visibility</span>
                                     </a>
 
+                                    @* Edit Order *@
+                                    <a asp-action="Edit" asp-route-id="@order.Id"
+                                       title="Edit Order"
+                                       class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold transition-all">
+                                        <span class="material-symbols-outlined text-sm">edit</span>
+                                    </a>
+
                                     @* Update Status *@
                                     <a asp-action="UpdateStatus" asp-route-id="@order.Id"
                                        title="Update Status"

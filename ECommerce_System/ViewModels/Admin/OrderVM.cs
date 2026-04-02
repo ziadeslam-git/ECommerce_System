@@ -92,3 +92,56 @@ public class UpdateOrderStatusVM
         SD.Payment_Failed
     ];
 }
+
+// ────────────────────────────────────────────────────────────
+//  EditOrderVM  – Edit an existing order's items + coupon
+// ────────────────────────────────────────────────────────────
+public class EditOrderVM
+{
+    public int    OrderId        { get; set; }
+    public string CustomerName   { get; set; } = string.Empty;
+    public string CustomerEmail  { get; set; } = string.Empty;
+    public string CurrentStatus  { get; set; } = string.Empty;
+    public string AddressLine    { get; set; } = string.Empty;
+
+
+    public List<EditOrderItemVM> ExistingItems { get; set; } = [];
+
+
+    public Dictionary<string, EditOrderNewItemVM> NewItems { get; set; } = [];
+
+
+    public string? CouponCode { get; set; }
+
+
+    public decimal Subtotal        { get; set; }
+    public decimal DiscountAmount  { get; set; }
+}
+
+// ────────────────────────────────────────────────────────────
+//  EditOrderNewItemVM – one line of new item to add
+// ────────────────────────────────────────────────────────────
+public class EditOrderNewItemVM
+{
+    public int ProductVariantId { get; set; }
+    public int Quantity         { get; set; } = 1;
+}
+
+// ────────────────────────────────────────────────────────────
+//  EditOrderItemVM – one line of existing item
+// ────────────────────────────────────────────────────────────
+public class EditOrderItemVM
+{
+    public int    OrderItemId      { get; set; }
+    public int    ProductVariantId { get; set; }
+    public string ProductName      { get; set; } = string.Empty;
+    public string Size             { get; set; } = string.Empty;
+    public string Color            { get; set; } = string.Empty;
+    public decimal UnitPrice       { get; set; }
+    
+    // Original quantity when loaded
+    public int    OriginalQuantity { get; set; }
+
+    // User can edit this. If 0, it removes the item.
+    public int    Quantity         { get; set; }
+}

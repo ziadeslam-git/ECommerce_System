@@ -48,7 +48,13 @@
         <p class="text-xs text-slate-400 mt-1">Placed on @Model.CreatedAt.ToString("MMMM dd, yyyy HH:mm")</p>
     </div>
 
-    <div class="flex items-center gap-3 flex-shrink-0">
+    <div class="flex items-center gap-3 flex-shrink-0 flex-wrap">
+        <a asp-action="Edit" asp-route-id="@Model.Id"
+           class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm"
+           title="Edit order items">
+            <span class="material-symbols-outlined text-sm">edit</span>
+            Edit Order
+        </a>
         <a asp-action="UpdateStatus" asp-route-id="@Model.Id"
            class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm">
             <span class="material-symbols-outlined text-sm">edit_note</span>

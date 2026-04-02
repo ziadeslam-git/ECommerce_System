@@ -1,5 +1,5 @@
 using ECommerce_System.Models;
-using ECommerce_System.Repositories.IRepositories;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace ECommerce_System.Repositories.IRepositories;
 
@@ -22,6 +22,9 @@ public interface IUnitOfWork : IDisposable
 
     /// <summary>Persists all pending changes to the database.</summary>
     Task<int> SaveAsync();
+
+    /// <summary>Begins a database transaction on the underlying context.</summary>
+    Task<IDbContextTransaction> BeginTransactionAsync();
 
     /// <summary>Sets the RowVersion original value on a tracked entity for optimistic concurrency.</summary>
     void SetRowVersion<T>(T entity, byte[] rowVersion) where T : class;

@@ -175,7 +175,7 @@ public class AccountController : Controller
         if (result.IsLockedOut)
             ModelState.AddModelError(string.Empty, "Account locked due to too many failed attempts. Try again later.");
         else if (result.IsNotAllowed)
-            ModelState.AddModelError(string.Empty, "Please confirm your email before logging in.");
+            ModelState.AddModelError(string.Empty, "Login is not allowed. Contact support if this persists.");
         else
             ModelState.AddModelError(string.Empty, "Invalid email or password.");
 

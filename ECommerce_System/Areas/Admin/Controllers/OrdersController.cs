@@ -99,14 +99,26 @@ public class OrdersController : Controller
         var order = await _unitOfWork.Orders.GetByIdAsync(vm.OrderId);
         if (order is null) return NotFound();
 
+        if (!IsValidOrderTransition(order.Status, vm.NewStatus))
+        {
+            TempData["error"] = $"Cannot transition order from {order.Status} to {vm.NewStatus}.";
+            return RedirectToAction(nameof(Details), new { id = vm.OrderId });
+        }
+
+        if (!IsValidPaymentTransition(order.PaymentStatus, vm.NewPaymentStatus))
+        {
+            TempData["error"] = "Invalid payment status transition.";
+            return RedirectToAction(nameof(Details), new { id = vm.OrderId });
+        }
+
+        // Business rule BR-009: return stock automatically on cancellation (before mutating status)
+        if (vm.NewStatus == SD.Status_Cancelled && order.Status != SD.Status_Cancelled)
+            await ReturnStockAsync(order.Id);
+
         // Apply changes
         order.Status        = vm.NewStatus;
         order.PaymentStatus = vm.NewPaymentStatus;
         order.UpdatedAt     = DateTime.UtcNow;
-
-        // Business rule BR-009: return stock automatically on cancellation
-        if (vm.NewStatus == SD.Status_Cancelled && vm.CurrentStatus != SD.Status_Cancelled)
-            await ReturnStockAsync(order.Id);
 
         _unitOfWork.Orders.Update(order);
         await _unitOfWork.SaveAsync();
@@ -161,8 +173,7 @@ public class OrdersController : Controller
             }
         }
 
-        // 2. Resolve Address
-        // Address uniqueness could be checked by Street + City + State
+        // 2. Resolve Address (persisted inside transaction — no intermediate SaveAsync)
         var address = await _unitOfWork.Addresses.FindAsync(a => a.UserId == user.Id && a.Street == vm.ShippingStreet && a.City == vm.ShippingCity);
         if (address is null)
         {
@@ -178,130 +189,139 @@ public class OrdersController : Controller
                 PostalCode = "00000"
             };
             await _unitOfWork.Addresses.AddAsync(address);
-            await _unitOfWork.SaveAsync();
         }
 
-        // 3. Process Items & Calculate Subtotal Securely
-        decimal trueSubtotal = 0;
-        var orderItemsToSave = new List<OrderItem>();
-
-        foreach (var item in vm.Items)
+        Order order;
+        using (var tx = await _unitOfWork.BeginTransactionAsync())
         {
-            var variant = await _unitOfWork.ProductVariants.FindAsync(v => v.Id == item.ProductVariantId, includeProperties: "Product");
-            if (variant is null)
+            try
             {
-                ModelState.AddModelError("", $"Product Variant ID {item.ProductVariantId} not found.");
-                await PopulateCreateDropdownsAsync();
-                return View(vm);
-            }
+                // 3. Process Items & Calculate Subtotal Securely
+                decimal trueSubtotal = 0;
+                var orderItemsToSave = new List<OrderItem>();
 
-            if (variant.Stock < item.Quantity)
-            {
-                ModelState.AddModelError("", $"Not enough stock for {variant.Product.Name} - {variant.Size}. Available: {variant.Stock}");
-                await PopulateCreateDropdownsAsync();
-                return View(vm);
-            }
-
-            var itemPrice = variant.Price > 0 ? variant.Price : variant.Product.BasePrice;
-            var lineTotal = itemPrice * item.Quantity;
-            trueSubtotal += lineTotal;
-
-            orderItemsToSave.Add(new OrderItem
-            {
-                ProductVariantId = variant.Id,
-                ProductName = variant.Product.Name,
-                Size = variant.Size,
-                Color = variant.Color,
-                UnitPrice = itemPrice,
-                Quantity = item.Quantity,
-                Subtotal = lineTotal
-            });
-
-            // Deduct Stock
-            variant.Stock -= item.Quantity;
-            if (variant.Stock <= 0)
-            {
-                variant.Stock    = 0; // clamp to 0
-                variant.IsActive = false; // auto-deactivate when stock hits 0
-            }
-            // EF Core Change Tracker detects the changes upon SaveAsync.
-        }
-
-        // 4. Calculate Discount Securely
-        decimal discountAmount = 0;
-        Discount? appliedDiscount = null;
-
-        if (!string.IsNullOrWhiteSpace(vm.CouponCode))
-        {
-            appliedDiscount = await _unitOfWork.Discounts.FindAsync(d => d.CouponCode == vm.CouponCode && d.IsActive);
-            if (appliedDiscount != null)
-            {
-                if (appliedDiscount.ExpiresAt.HasValue && appliedDiscount.ExpiresAt < DateTime.UtcNow)
-                    appliedDiscount = null;
-                else if (appliedDiscount.MinimumOrderAmount.HasValue && trueSubtotal < appliedDiscount.MinimumOrderAmount.Value)
-                    appliedDiscount = null;
-                else if (appliedDiscount.UsageLimit.HasValue && appliedDiscount.UsageCount >= appliedDiscount.UsageLimit.Value)
-                    appliedDiscount = null;
-            }
-
-            if (appliedDiscount != null)
-            {
-                var alreadyUsed = await _unitOfWork.Orders.FindAsync(o => o.UserId == user.Id && o.CouponCode == appliedDiscount.CouponCode);
-                if (alreadyUsed != null)
+                foreach (var item in vm.Items)
                 {
-                    ModelState.AddModelError(nameof(vm.CouponCode), "Customer has already used this coupon code.");
-                    await PopulateCreateDropdownsAsync();
-                    return View(vm);
+                    var variant = await _unitOfWork.ProductVariants.FindAsync(v => v.Id == item.ProductVariantId, includeProperties: "Product");
+                    if (variant is null)
+                    {
+                        await tx.RollbackAsync();
+                        ModelState.AddModelError("", $"Product Variant ID {item.ProductVariantId} not found.");
+                        await PopulateCreateDropdownsAsync();
+                        return View(vm);
+                    }
+
+                    if (variant.Stock < item.Quantity)
+                    {
+                        await tx.RollbackAsync();
+                        ModelState.AddModelError("", $"Not enough stock for {variant.Product.Name} - {variant.Size}. Available: {variant.Stock}");
+                        await PopulateCreateDropdownsAsync();
+                        return View(vm);
+                    }
+
+                    var itemPrice = variant.Price > 0 ? variant.Price : variant.Product.BasePrice;
+                    var lineTotal = itemPrice * item.Quantity;
+                    trueSubtotal += lineTotal;
+
+                    orderItemsToSave.Add(new OrderItem
+                    {
+                        ProductVariantId = variant.Id,
+                        ProductName = variant.Product.Name,
+                        Size = variant.Size,
+                        Color = variant.Color,
+                        UnitPrice = itemPrice,
+                        Quantity = item.Quantity,
+                        Subtotal = lineTotal
+                    });
+
+                    variant.Stock -= item.Quantity;
+                    if (variant.Stock <= 0)
+                    {
+                        variant.Stock    = 0;
+                        variant.IsActive = false;
+                    }
                 }
 
-                if (appliedDiscount.Type == SD.Discount_Percentage)
-                    discountAmount = trueSubtotal * (appliedDiscount.Value / 100m);
-                else
-                    discountAmount = appliedDiscount.Value;
+                // 4. Calculate Discount Securely
+                decimal discountAmount = 0;
+                Discount? appliedDiscount = null;
 
-                if (discountAmount > trueSubtotal) discountAmount = trueSubtotal;
-                
-                appliedDiscount.UsageCount++;
-                _unitOfWork.Discounts.Update(appliedDiscount);
+                if (!string.IsNullOrWhiteSpace(vm.CouponCode))
+                {
+                    appliedDiscount = await _unitOfWork.Discounts.FindAsync(d => d.CouponCode == vm.CouponCode && d.IsActive);
+                    if (appliedDiscount != null)
+                    {
+                        if (appliedDiscount.ExpiresAt.HasValue && appliedDiscount.ExpiresAt < DateTime.UtcNow)
+                            appliedDiscount = null;
+                        else if (appliedDiscount.MinimumOrderAmount.HasValue && trueSubtotal < appliedDiscount.MinimumOrderAmount.Value)
+                            appliedDiscount = null;
+                        else if (appliedDiscount.UsageLimit.HasValue && appliedDiscount.UsageCount >= appliedDiscount.UsageLimit.Value)
+                            appliedDiscount = null;
+                    }
+
+                    if (appliedDiscount != null)
+                    {
+                        var alreadyUsed = await _unitOfWork.Orders.FindAsync(o => o.UserId == user.Id && o.CouponCode == appliedDiscount.CouponCode);
+                        if (alreadyUsed != null)
+                        {
+                            await tx.RollbackAsync();
+                            ModelState.AddModelError(nameof(vm.CouponCode), "Customer has already used this coupon code.");
+                            await PopulateCreateDropdownsAsync();
+                            return View(vm);
+                        }
+
+                        if (appliedDiscount.Type == SD.Discount_Percentage)
+                            discountAmount = trueSubtotal * (appliedDiscount.Value / 100m);
+                        else
+                            discountAmount = appliedDiscount.Value;
+
+                        if (discountAmount > trueSubtotal) discountAmount = trueSubtotal;
+
+                        appliedDiscount.UsageCount++;
+                        _unitOfWork.Discounts.Update(appliedDiscount);
+                    }
+                }
+
+                // 5. Create Order
+                order = new Order
+                {
+                    UserId         = user.Id,
+                    AddressId      = address.Id,
+                    Status         = vm.Status,
+                    PaymentStatus  = vm.PaymentStatus,
+                    Subtotal       = trueSubtotal,
+                    DiscountAmount = discountAmount,
+                    TotalAmount    = trueSubtotal - discountAmount,
+                    CouponCode     = appliedDiscount?.CouponCode,
+                    CreatedAt      = DateTime.UtcNow,
+                    UpdatedAt      = DateTime.UtcNow,
+                    OrderItems     = orderItemsToSave
+                };
+
+                if (order.PaymentStatus == SD.Payment_Paid || order.PaymentStatus == SD.Payment_Pending)
+                {
+                    order.Payment = new Payment
+                    {
+                        Amount          = order.TotalAmount,
+                        Provider        = "Manual/POS",
+                        TransactionId   = "Manual-" + DateTime.UtcNow.Ticks,
+                        Status          = order.PaymentStatus,
+                        CreatedAt       = DateTime.UtcNow
+                    };
+                }
+
+                await _unitOfWork.Orders.AddAsync(order);
+                await _unitOfWork.SaveAsync();
+                await tx.CommitAsync();
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
             }
         }
 
-        // 5. Create Order
-        var order = new Order
-        {
-            UserId        = user.Id,
-            AddressId     = address.Id,
-            Status        = vm.Status,
-            PaymentStatus = vm.PaymentStatus,
-            Subtotal      = trueSubtotal,
-            DiscountAmount= discountAmount,
-            TotalAmount   = trueSubtotal - discountAmount,
-            CouponCode    = appliedDiscount?.CouponCode,
-            CreatedAt     = DateTime.UtcNow,
-            UpdatedAt     = DateTime.UtcNow,
-            OrderItems    = orderItemsToSave 
-        };
-
-        await _unitOfWork.Orders.AddAsync(order);
-        await _unitOfWork.SaveAsync();
-
-        // 6. Auto-generate Payment Tracking Record if applicable
-        if (order.PaymentStatus == SD.Payment_Paid || order.PaymentStatus == SD.Payment_Pending)
-        {
-            var paymentRecord = new Payment
-            {
-                OrderId = order.Id,
-                Amount = order.TotalAmount,
-                Provider = "Manual/POS",
-                TransactionId = "Manual-" + DateTime.UtcNow.Ticks,
-                Status = order.PaymentStatus,
-                CreatedAt = DateTime.UtcNow
-            };
-            await _unitOfWork.Payments.AddAsync(paymentRecord);
-            await _unitOfWork.SaveAsync();
-        }
-
-        // 7. Update Product Status for all processed items
+        // 7. Update Product Status for all processed items (after commit — uses its own SaveAsync)
         foreach (var item in vm.Items)
         {
             var variant = await _unitOfWork.ProductVariants
@@ -578,10 +598,12 @@ public class OrdersController : Controller
         if (order.Status != SD.Status_Cancelled)
             await ReturnStockAsync(order.Id);
 
-        _unitOfWork.Orders.Remove(order);
+        order.Status    = SD.Status_Cancelled;
+        order.UpdatedAt = DateTime.UtcNow;
+        _unitOfWork.Orders.Update(order);
         await _unitOfWork.SaveAsync();
 
-        TempData["Success"] = $"Order #{id} deleted successfully.";
+        TempData["Success"] = $"Order #{id} has been cancelled.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -657,6 +679,28 @@ public class OrdersController : Controller
                 Subtotal    = i.Subtotal
             }).ToList() ?? []
         };
+    }
+
+    private static bool IsValidOrderTransition(string from, string to)
+    {
+        if (from == to) return true;
+        if (from == SD.Status_Delivered) return false;
+        if (from == SD.Status_Cancelled) return false;
+        if (to == SD.Status_Cancelled) return from != SD.Status_Delivered;
+        var order = new[]
+        {
+            SD.Status_Pending, SD.Status_Confirmed, SD.Status_Processing,
+            SD.Status_Shipped, SD.Status_Delivered
+        };
+        return Array.IndexOf(order, to) > Array.IndexOf(order, from);
+    }
+
+    private static bool IsValidPaymentTransition(string from, string to)
+    {
+        if (from == to) return true;
+        if (to == SD.Payment_Refunded && from != SD.Payment_Paid) return false;
+        if (to == SD.Payment_Pending && from == SD.Payment_Paid) return false;
+        return true;
     }
 
     // ──────────────────────────────────────────────────────────

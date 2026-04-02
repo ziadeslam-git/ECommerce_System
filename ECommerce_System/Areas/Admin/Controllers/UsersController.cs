@@ -31,13 +31,17 @@ public class UsersController : Controller
             .OrderByDescending(u => u.CreatedAt)
             .ToListAsync();
 
+        var allOrders = await _unitOfWork.Orders.GetAllAsync(tracked: false);
+        var ordersByUser = allOrders
+            .GroupBy(o => o.UserId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         // Build VMs with roles
         var vms = new List<UserAdminVM>();
         foreach (var user in users)
         {
-            var roles  = await _userManager.GetRolesAsync(user);
-            var orders = await _unitOfWork.Orders
-                .FindAllAsync(o => o.UserId == user.Id, tracked: false);
+            var roles = await _userManager.GetRolesAsync(user);
+            var userOrders = ordersByUser.TryGetValue(user.Id, out var ord) ? ord : new List<Order>();
 
             vms.Add(new UserAdminVM
             {
@@ -47,8 +51,8 @@ public class UsersController : Controller
                 IsActive      = user.IsActive,
                 CreatedAt     = user.CreatedAt,
                 Roles         = roles,
-                TotalOrders   = orders.Count(),
-                LastOrderDate = orders.OrderByDescending(o => o.CreatedAt).FirstOrDefault()?.CreatedAt
+                TotalOrders   = userOrders.Count,
+                LastOrderDate = userOrders.OrderByDescending(o => o.CreatedAt).FirstOrDefault()?.CreatedAt
             });
         }
 

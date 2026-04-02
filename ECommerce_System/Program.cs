@@ -28,6 +28,8 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     options.Password.RequireLowercase = true;
 
     options.User.RequireUniqueEmail = true;
+    // NOTE: Email confirmation is optional in dev phase.
+    // Change to true in production after SMTP is verified and tested.
     options.SignIn.RequireConfirmedEmail = false;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()

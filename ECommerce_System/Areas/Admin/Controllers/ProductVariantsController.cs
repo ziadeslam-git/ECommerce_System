@@ -183,7 +183,8 @@ public class ProductVariantsController : Controller
             return View(vm);
         }
 
-        var variant = await _uow.ProductVariants.GetByIdAsync(vm.Id, ignoreQueryFilters: true);
+        var variant = await _uow.ProductVariants
+            .FindAsync(v => v.Id == vm.Id, "Images", tracked: true, ignoreQueryFilters: true);
         if (variant is null) return NotFound();
 
         // Attach row version for optimistic concurrency
@@ -316,27 +317,16 @@ public class ProductVariantsController : Controller
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
         var variant = await _uow.ProductVariants
-            .FindAsync(v => v.Id == id, "CartItems,OrderItems", ignoreQueryFilters: true);
+            .GetByIdAsync(id, ignoreQueryFilters: true);
         if (variant is null) return NotFound();
 
-        int productId = variant.ProductId;
-
-        if (variant.OrderItems.Any())
-        {
-            // Soft-delete to preserve order history
-            variant.IsActive = false;
-            variant.Stock    = 0;
-            _uow.ProductVariants.Update(variant);
-            TempData["success"] = "Variant deactivated (has order history — not physically deleted).";
-        }
-        else
-        {
-            _uow.ProductVariants.Remove(variant);
-            TempData["success"] = "Variant deleted.";
-        }
-
+        variant.IsActive = false;
+        variant.Stock = 0;
+        _uow.ProductVariants.Update(variant);
         await _uow.SaveAsync();
-        return RedirectToAction(nameof(Index), new { productId });
+
+        TempData["success"] = "Variant deactivated successfully.";
+        return RedirectToAction(nameof(Index), new { productId = variant.ProductId });
     }
 
     // ─── TOGGLE ACTIVE ────────────────────────────────────────────────────────
@@ -360,27 +350,32 @@ public class ProductVariantsController : Controller
 
     private async Task SetVariantImageAsMainProductImage(int productId, string imageUrl, string publicId)
     {
-        var existingImages = await _uow.ProductImages.FindAllAsync(i => i.ProductId == productId, tracked: true);
-        
-        foreach (var img in existingImages)
+        var existing = (await _uow.ProductImages
+            .FindAllAsync(i => i.ProductId == productId, null, tracked: true)).ToList();
+
+        foreach (var img in existing)
         {
-            if (img.IsMain)
-            {
-                img.IsMain = false;
-                _uow.ProductImages.Update(img);
-            }
+            img.IsMain = false;
+            _uow.ProductImages.Update(img);
         }
 
-        var newImage = new ProductImage
+        var match = existing.FirstOrDefault(i => i.PublicId == publicId);
+        if (match is not null)
         {
-            ProductId = productId,
-            ImageUrl = imageUrl,
-            PublicId = publicId,
-            IsMain = true,
-            DisplayOrder = 0
-        };
-
-        await _uow.ProductImages.AddAsync(newImage);
+            match.IsMain = true;
+            _uow.ProductImages.Update(match);
+        }
+        else
+        {
+            await _uow.ProductImages.AddAsync(new ProductImage
+            {
+                ProductId = productId,
+                ImageUrl = imageUrl,
+                PublicId = publicId,
+                IsMain = true,
+                DisplayOrder = 0
+            });
+        }
     }
 
     private static ProductDetailsVM MapToDetailsVM(Product p) => new()

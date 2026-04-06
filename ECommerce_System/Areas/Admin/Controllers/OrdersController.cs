@@ -27,8 +27,17 @@ public class OrdersController : Controller
     // ──────────────────────────────────────────────────────────
     public async Task<IActionResult> Index(string? status)
     {
+        var cutoff = DateTime.UtcNow.AddHours(-24);
+
         var orders = await _unitOfWork.Orders
             .FindAllAsync(o => true, includeProperties: "User,Address,OrderItems,Shipment", tracked: false);
+
+        // Hide cancelled orders that were cancelled more than 24 hours ago
+        // (they remain in the database but are no longer shown in the admin UI)
+        orders = orders.Where(o =>
+            o.Status != SD.Status_Cancelled ||
+            !o.CancelledAt.HasValue ||
+            o.CancelledAt.Value > cutoff);
 
         // Filter by status if provided
         if (!string.IsNullOrWhiteSpace(status))
@@ -99,6 +108,18 @@ public class OrdersController : Controller
         var order = await _unitOfWork.Orders.GetByIdAsync(vm.OrderId);
         if (order is null) return NotFound();
 
+        // FIX #3: Enforce legal order status transitions
+        if (!IsValidOrderTransition(vm.CurrentStatus, vm.NewStatus))
+        {
+            TempData["error"] = $"Cannot transition order from {vm.CurrentStatus} to {vm.NewStatus}.";
+            return RedirectToAction(nameof(Details), new { id = vm.OrderId });
+        }
+        if (!IsValidPaymentTransition(vm.CurrentPaymentStatus, vm.NewPaymentStatus))
+        {
+            TempData["error"] = $"Invalid payment status transition.";
+            return RedirectToAction(nameof(Details), new { id = vm.OrderId });
+        }
+
         // Apply changes
         order.Status        = vm.NewStatus;
         order.PaymentStatus = vm.NewPaymentStatus;
@@ -106,12 +127,18 @@ public class OrdersController : Controller
 
         // Business rule BR-009: return stock automatically on cancellation
         if (vm.NewStatus == SD.Status_Cancelled && vm.CurrentStatus != SD.Status_Cancelled)
+        {
             await ReturnStockAsync(order.Id);
+            order.CancelledAt = DateTime.UtcNow;  // Start 24h countdown
+        }
+
+        // Sync payment records (e.g. Unpaid -> Paid creates a record, Pending -> Paid updates it)
+        await SyncPaymentRecordAsync(order);
 
         _unitOfWork.Orders.Update(order);
         await _unitOfWork.SaveAsync();
 
-        TempData["Success"] = $"Order #{order.Id} status updated successfully.";
+        TempData["success"] = $"Order #{order.Id} status updated successfully.";
         return RedirectToAction(nameof(Details), new { id = order.Id });
     }
 
@@ -161,157 +188,161 @@ public class OrdersController : Controller
             }
         }
 
-        // 2. Resolve Address
-        // Address uniqueness could be checked by Street + City + State
-        var address = await _unitOfWork.Addresses.FindAsync(a => a.UserId == user.Id && a.Street == vm.ShippingStreet && a.City == vm.ShippingCity);
-        if (address is null)
+        // FIX #2: Wrap all DB operations in a single transaction for atomicity
+        using var tx = await _unitOfWork.BeginTransactionAsync();
+        try
         {
-            address = new Address
+            // 2. Resolve Address
+            var address = await _unitOfWork.Addresses.FindAsync(a => a.UserId == user.Id && a.Street == vm.ShippingStreet && a.City == vm.ShippingCity);
+            if (address is null)
             {
-                UserId = user.Id,
-                FullName = vm.CustomerName,
-                PhoneNumber = vm.CustomerPhone,
-                Street = vm.ShippingStreet,
-                City = vm.ShippingCity,
-                State = vm.ShippingState,
-                Country = vm.ShippingCountry,
-                PostalCode = "00000"
-            };
-            await _unitOfWork.Addresses.AddAsync(address);
-            await _unitOfWork.SaveAsync();
-        }
-
-        // 3. Process Items & Calculate Subtotal Securely
-        decimal trueSubtotal = 0;
-        var orderItemsToSave = new List<OrderItem>();
-
-        foreach (var item in vm.Items)
-        {
-            var variant = await _unitOfWork.ProductVariants.FindAsync(v => v.Id == item.ProductVariantId, includeProperties: "Product");
-            if (variant is null)
-            {
-                ModelState.AddModelError("", $"Product Variant ID {item.ProductVariantId} not found.");
-                await PopulateCreateDropdownsAsync();
-                return View(vm);
-            }
-
-            if (variant.Stock < item.Quantity)
-            {
-                ModelState.AddModelError("", $"Not enough stock for {variant.Product.Name} - {variant.Size}. Available: {variant.Stock}");
-                await PopulateCreateDropdownsAsync();
-                return View(vm);
-            }
-
-            var itemPrice = variant.Price > 0 ? variant.Price : variant.Product.BasePrice;
-            var lineTotal = itemPrice * item.Quantity;
-            trueSubtotal += lineTotal;
-
-            orderItemsToSave.Add(new OrderItem
-            {
-                ProductVariantId = variant.Id,
-                ProductName = variant.Product.Name,
-                Size = variant.Size,
-                Color = variant.Color,
-                UnitPrice = itemPrice,
-                Quantity = item.Quantity,
-                Subtotal = lineTotal
-            });
-
-            // Deduct Stock
-            variant.Stock -= item.Quantity;
-            if (variant.Stock <= 0)
-            {
-                variant.Stock    = 0; // clamp to 0
-                variant.IsActive = false; // auto-deactivate when stock hits 0
-            }
-            // EF Core Change Tracker detects the changes upon SaveAsync.
-        }
-
-        // 4. Calculate Discount Securely
-        decimal discountAmount = 0;
-        Discount? appliedDiscount = null;
-
-        if (!string.IsNullOrWhiteSpace(vm.CouponCode))
-        {
-            appliedDiscount = await _unitOfWork.Discounts.FindAsync(d => d.CouponCode == vm.CouponCode && d.IsActive);
-            if (appliedDiscount != null)
-            {
-                if (appliedDiscount.ExpiresAt.HasValue && appliedDiscount.ExpiresAt < DateTime.UtcNow)
-                    appliedDiscount = null;
-                else if (appliedDiscount.MinimumOrderAmount.HasValue && trueSubtotal < appliedDiscount.MinimumOrderAmount.Value)
-                    appliedDiscount = null;
-                else if (appliedDiscount.UsageLimit.HasValue && appliedDiscount.UsageCount >= appliedDiscount.UsageLimit.Value)
-                    appliedDiscount = null;
-            }
-
-            if (appliedDiscount != null)
-            {
-                var alreadyUsed = await _unitOfWork.Orders.FindAsync(o => o.UserId == user.Id && o.CouponCode == appliedDiscount.CouponCode);
-                if (alreadyUsed != null)
+                address = new Address
                 {
-                    ModelState.AddModelError(nameof(vm.CouponCode), "Customer has already used this coupon code.");
+                    UserId = user.Id,
+                    FullName = vm.CustomerName,
+                    PhoneNumber = vm.CustomerPhone,
+                    Street = vm.ShippingStreet,
+                    City = vm.ShippingCity,
+                    State = vm.ShippingState,
+                    Country = vm.ShippingCountry,
+                    PostalCode = "00000"
+                };
+                await _unitOfWork.Addresses.AddAsync(address);
+                await _unitOfWork.SaveAsync(); // Need address.Id as FK
+            }
+
+            // 3. Process Items & Calculate Subtotal Securely
+            decimal trueSubtotal = 0;
+            var orderItemsToSave = new List<OrderItem>();
+
+            foreach (var item in vm.Items)
+            {
+                var variant = await _unitOfWork.ProductVariants.FindAsync(v => v.Id == item.ProductVariantId, includeProperties: "Product");
+                if (variant is null)
+                {
+                    ModelState.AddModelError("", $"Product Variant ID {item.ProductVariantId} not found.");
+                    await tx.RollbackAsync();
                     await PopulateCreateDropdownsAsync();
                     return View(vm);
                 }
 
-                if (appliedDiscount.Type == SD.Discount_Percentage)
-                    discountAmount = trueSubtotal * (appliedDiscount.Value / 100m);
-                else
-                    discountAmount = appliedDiscount.Value;
+                if (variant.Stock < item.Quantity)
+                {
+                    ModelState.AddModelError("", $"Not enough stock for {variant.Product.Name} - {variant.Size}. Available: {variant.Stock}");
+                    await tx.RollbackAsync();
+                    await PopulateCreateDropdownsAsync();
+                    return View(vm);
+                }
 
-                if (discountAmount > trueSubtotal) discountAmount = trueSubtotal;
-                
-                appliedDiscount.UsageCount++;
-                _unitOfWork.Discounts.Update(appliedDiscount);
+                var itemPrice = variant.Price > 0 ? variant.Price : variant.Product.BasePrice;
+                var lineTotal = itemPrice * item.Quantity;
+                trueSubtotal += lineTotal;
+
+                orderItemsToSave.Add(new OrderItem
+                {
+                    ProductVariantId = variant.Id,
+                    ProductName = variant.Product.Name,
+                    Size = variant.Size,
+                    Color = variant.Color,
+                    UnitPrice = itemPrice,
+                    Quantity = item.Quantity,
+                    Subtotal = lineTotal
+                });
+
+                // Deduct Stock
+                variant.Stock -= item.Quantity;
+                if (variant.Stock <= 0)
+                {
+                    variant.Stock    = 0;
+                    variant.IsActive = false;
+                }
             }
-        }
 
-        // 5. Create Order
-        var order = new Order
-        {
-            UserId        = user.Id,
-            AddressId     = address.Id,
-            Status        = vm.Status,
-            PaymentStatus = vm.PaymentStatus,
-            Subtotal      = trueSubtotal,
-            DiscountAmount= discountAmount,
-            TotalAmount   = trueSubtotal - discountAmount,
-            CouponCode    = appliedDiscount?.CouponCode,
-            CreatedAt     = DateTime.UtcNow,
-            UpdatedAt     = DateTime.UtcNow,
-            OrderItems    = orderItemsToSave 
-        };
+            // 4. Calculate Discount Securely
+            decimal discountAmount = 0;
+            Discount? appliedDiscount = null;
 
-        await _unitOfWork.Orders.AddAsync(order);
-        await _unitOfWork.SaveAsync();
-
-        // 6. Auto-generate Payment Tracking Record if applicable
-        if (order.PaymentStatus == SD.Payment_Paid || order.PaymentStatus == SD.Payment_Pending)
-        {
-            var paymentRecord = new Payment
+            if (!string.IsNullOrWhiteSpace(vm.CouponCode))
             {
-                OrderId = order.Id,
-                Amount = order.TotalAmount,
-                Provider = "Manual/POS",
-                TransactionId = "Manual-" + DateTime.UtcNow.Ticks,
-                Status = order.PaymentStatus,
-                CreatedAt = DateTime.UtcNow
+                appliedDiscount = await _unitOfWork.Discounts.FindAsync(d => d.CouponCode == vm.CouponCode && d.IsActive);
+                if (appliedDiscount != null)
+                {
+                    if (appliedDiscount.ExpiresAt.HasValue && appliedDiscount.ExpiresAt < DateTime.UtcNow)
+                        appliedDiscount = null;
+                    else if (appliedDiscount.MinimumOrderAmount.HasValue && trueSubtotal < appliedDiscount.MinimumOrderAmount.Value)
+                        appliedDiscount = null;
+                    else if (appliedDiscount.UsageLimit.HasValue && appliedDiscount.UsageCount >= appliedDiscount.UsageLimit.Value)
+                        appliedDiscount = null;
+                }
+
+                if (appliedDiscount != null)
+                {
+                    var alreadyUsed = await _unitOfWork.Orders.FindAsync(o => o.UserId == user.Id && o.CouponCode == appliedDiscount.CouponCode);
+                    if (alreadyUsed != null)
+                    {
+                        ModelState.AddModelError(nameof(vm.CouponCode), "Customer has already used this coupon code.");
+                        await tx.RollbackAsync();
+                        await PopulateCreateDropdownsAsync();
+                        return View(vm);
+                    }
+
+                    if (appliedDiscount.Type == SD.Discount_Percentage)
+                        discountAmount = trueSubtotal * (appliedDiscount.Value / 100m);
+                    else
+                        discountAmount = appliedDiscount.Value;
+
+                    if (discountAmount > trueSubtotal) discountAmount = trueSubtotal;
+                    
+                    appliedDiscount.UsageCount++;
+                    _unitOfWork.Discounts.Update(appliedDiscount);
+                }
+            }
+
+            // 5. Create Order
+            var order = new Order
+            {
+                UserId        = user.Id,
+                AddressId     = address.Id,
+                Status        = vm.Status,
+                PaymentStatus = vm.PaymentStatus,
+                Subtotal      = trueSubtotal,
+                DiscountAmount= discountAmount,
+                TotalAmount   = trueSubtotal - discountAmount,
+                CouponCode    = appliedDiscount?.CouponCode,
+                CreatedAt     = DateTime.UtcNow,
+                UpdatedAt     = DateTime.UtcNow,
+                OrderItems    = orderItemsToSave 
             };
-            await _unitOfWork.Payments.AddAsync(paymentRecord);
+
+            await _unitOfWork.Orders.AddAsync(order);
+
+            // Save first so order.Id is generated as FK for Payment
             await _unitOfWork.SaveAsync();
-        }
 
-        // 7. Update Product Status for all processed items
-        foreach (var item in vm.Items)
+            // 6. Auto-generate Payment Tracking Record if applicable
+            await SyncPaymentRecordAsync(order);
+
+            // Final save + commit transaction
+            await _unitOfWork.SaveAsync();
+            await tx.CommitAsync();
+
+            // 7. Update Product Status for all processed items (outside tx — non-critical)
+            foreach (var item in vm.Items)
+            {
+                var variant = await _unitOfWork.ProductVariants
+                    .FindAsync(v => v.Id == item.ProductVariantId, ignoreQueryFilters: true);
+                if (variant != null)
+                    await UpdateProductStatusAsync(variant.ProductId);
+            }
+
+            TempData["success"] = $"Order #{order.Id} created successfully for {vm.CustomerName}.";
+            return RedirectToAction(nameof(Details), new { id = order.Id });
+        }
+        catch
         {
-            var variant = await _unitOfWork.ProductVariants
-                .FindAsync(v => v.Id == item.ProductVariantId, ignoreQueryFilters: true);
-            if (variant != null)
-                await UpdateProductStatusAsync(variant.ProductId);
+            await tx.RollbackAsync();
+            throw;
         }
-
-        TempData["Success"] = $"Order #{order.Id} created successfully for {vm.CustomerName}.";
-        return RedirectToAction(nameof(Details), new { id = order.Id });
     }
 
     // ──────────────────────────────────────────────────────────
@@ -364,14 +395,14 @@ public class OrdersController : Controller
         var order = await _unitOfWork.Orders.GetOrderWithDetailsAsync(id);
         if (order is null) return NotFound();
 
-        // Only allow editing orders that are not yet shipped/delivered/cancelled
-        if (order.Status == SD.Status_Shipped    ||
-            order.Status == SD.Status_Delivered  ||
-            order.Status == SD.Status_Cancelled)
+        // FIX #1: Admin has FULL edit access regardless of status
+        // (the view still shows a warning banner when editing Shipped/Delivered/Cancelled,
+        //  but it no longer blocks the save)
+
+        // FIX #3: Wrap in transaction for atomicity
+        using var tx = await _unitOfWork.BeginTransactionAsync();
+        try
         {
-            TempData["error"] = $"Order #{id} cannot be edited — it is already {order.Status}.";
-            return RedirectToAction(nameof(Details), new { id });
-        }
 
         // ── 1. Update EXISTING items (quantity change or remove if 0) ──
         if (vm.ExistingItems != null)
@@ -416,11 +447,10 @@ public class OrdersController : Controller
         }
 
         // ── 2. Add NEW items ──
-        if (vm.NewItems != null && vm.NewItems.Any(i => i.Value.ProductVariantId > 0 && i.Value.Quantity > 0))
+        if (vm.NewItems != null && vm.NewItems.Any(i => i.ProductVariantId > 0 && i.Quantity > 0))
         {
-            foreach (var kvp in vm.NewItems.Where(i => i.Value.ProductVariantId > 0 && i.Value.Quantity > 0))
+            foreach (var newItem in vm.NewItems.Where(i => i.ProductVariantId > 0 && i.Quantity > 0))
             {
-                var newItem = kvp.Value;
 
                 var variant = await _unitOfWork.ProductVariants
                     .FindAsync(v => v.Id == newItem.ProductVariantId, "Product");
@@ -500,6 +530,8 @@ public class OrdersController : Controller
         reloadedOrder.UpdatedAt      = DateTime.UtcNow;
 
         await _unitOfWork.SaveAsync();
+        
+        await SyncPaymentRecordAsync(reloadedOrder);
 
         // Update product statuses
         if (reloadedOrder.OrderItems != null)
@@ -512,8 +544,15 @@ public class OrdersController : Controller
             }
         }
 
-        TempData["Success"] = $"Order #{id} updated successfully. New total: {reloadedOrder.TotalAmount:C}";
+        await tx.CommitAsync();
+        TempData["success"] = $"Order #{id} updated successfully. New total: {reloadedOrder.TotalAmount:C}";
         return RedirectToAction(nameof(Details), new { id });
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
     }
 
     // ──────────────────────────────────────────────────────────
@@ -567,6 +606,7 @@ public class OrdersController : Controller
     // ──────────────────────────────────────────────────────────
     //  POST /Admin/Orders/Delete/{id}
     // ──────────────────────────────────────────────────────────
+    // FIX #4: Soft-cancel instead of physical delete — preserves order history
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
@@ -578,10 +618,13 @@ public class OrdersController : Controller
         if (order.Status != SD.Status_Cancelled)
             await ReturnStockAsync(order.Id);
 
-        _unitOfWork.Orders.Remove(order);
+        order.Status      = SD.Status_Cancelled;
+        order.UpdatedAt   = DateTime.UtcNow;
+        order.CancelledAt = DateTime.UtcNow;  // Start 24h UI countdown
+        _unitOfWork.Orders.Update(order);
         await _unitOfWork.SaveAsync();
 
-        TempData["Success"] = $"Order #{id} deleted successfully.";
+        TempData["success"] = $"Order #{id} has been cancelled. It will be hidden from this list in 24 hours.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -701,6 +744,57 @@ public class OrdersController : Controller
         {
             product.IsActive = true;
             await _unitOfWork.SaveAsync();
+        }
+    }
+
+    // FIX #3: Order status transition validation
+    private static bool IsValidOrderTransition(string from, string to)
+    {
+        if (from == to) return true;
+        if (from == SD.Status_Delivered) return false;
+        if (from == SD.Status_Cancelled) return false;
+        if (to == SD.Status_Cancelled) return from != SD.Status_Delivered;
+        var order = new[] {
+            SD.Status_Pending, SD.Status_Confirmed, SD.Status_Processing,
+            SD.Status_Shipped, SD.Status_Delivered
+        };
+        return Array.IndexOf(order, to) > Array.IndexOf(order, from);
+    }
+
+    // FIX #3: Payment status transition validation
+    private static bool IsValidPaymentTransition(string from, string to)
+    {
+        if (from == to) return true;
+        if (to == SD.Payment_Refunded && from != SD.Payment_Paid) return false;
+        if (to == SD.Payment_Pending && from == SD.Payment_Paid) return false;
+        return true;
+    }
+    // ──────────────────────────────────────────────────────────
+    //  Payment Synchronization Logic
+    // ──────────────────────────────────────────────────────────
+    private async Task SyncPaymentRecordAsync(Order order)
+    {
+        var existingPayment = await _unitOfWork.Payments.FindAsync(p => p.OrderId == order.Id);
+
+        if (existingPayment != null)
+        {
+            existingPayment.Status = order.PaymentStatus;
+            existingPayment.Amount = order.TotalAmount; // Sync amount in case it changed via Edit
+            _unitOfWork.Payments.Update(existingPayment);
+        }
+        else if (order.PaymentStatus != SD.Payment_Unpaid)
+        {
+            // Only create if we transitioned to a tracked state (Paid, Pending, Failed, Refunded)
+            var newPayment = new Payment
+            {
+                OrderId = order.Id,
+                Amount = order.TotalAmount,
+                Provider = "Manual/System",
+                TransactionId = "SYS-" + DateTime.UtcNow.Ticks,
+                Status = order.PaymentStatus,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _unitOfWork.Payments.AddAsync(newPayment);
         }
     }
 }

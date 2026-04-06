@@ -1,4 +1,4 @@
-﻿@model UserAdminVM
+@model UserAdminVM
 @{
     ViewData["Title"] = "Customer Profile";
 }
@@ -80,15 +80,11 @@
                 <span class="bg-secondary-container p-2 rounded-lg">
                     <span class="material-symbols-outlined text-on-secondary-container">shopping_bag</span>
                 </span>
-                <span class="text-tertiary font-bold text-xs flex items-center gap-1">
-                    <span class="material-symbols-outlined text-xs">trending_up</span>
-                    --
-                </span>
             </div>
             <div>
                 <p class="text-on-surface-variant text-[11px] font-bold mb-1 uppercase tracking-wider">Total Orders</p>
                 <p class="text-2xl font-extrabold flex items-baseline gap-2">
-                    0 <span class="text-sm font-medium text-slate-400">orders</span>
+                    @Model.TotalOrders <span class="text-sm font-medium text-slate-400">orders</span>
                 </p>
             </div>
         </div>
@@ -104,7 +100,7 @@
             </div>
             <div>
                 <p class="text-on-surface-variant text-[11px] font-bold mb-1 uppercase tracking-wider">Total Spent</p>
-                <p class="text-2xl font-extrabold text-slate-800">$0.00</p>
+                <p class="text-2xl font-extrabold text-slate-800">$@Model.TotalSpent.ToString("N2")</p>
             </div>
         </div>
 
@@ -117,7 +113,7 @@
             <div>
                 <p class="text-on-surface-variant text-[11px] font-bold mb-1 uppercase tracking-wider">Reviews Left</p>
                 <p class="text-2xl font-extrabold flex items-baseline gap-2">
-                    0 <span class="text-sm font-medium text-slate-400">verified</span>
+                    @Model.TotalReviews <span class="text-sm font-medium text-slate-400">verified</span>
                 </p>
             </div>
         </div>
@@ -128,13 +124,55 @@
         <div class="md:col-span-2 bg-surface-container-lowest p-8 rounded-2xl shadow-sm border border-slate-100">
             <h3 class="text-lg font-bold text-on-surface mb-6 font-inter border-b border-slate-100 pb-4">Recent Order History</h3>
             
-            <div class="flex flex-col items-center justify-center py-12 text-center">
-                <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                    <span class="material-symbols-outlined text-3xl text-slate-300">receipt_long</span>
+            @if (Model.RecentOrders.Any())
+            {
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="text-[11px] uppercase text-slate-400 font-bold tracking-wider">
+                            <th class="pb-3">Order</th>
+                            <th class="pb-3">Total</th>
+                            <th class="pb-3">Status</th>
+                            <th class="pb-3">Payment</th>
+                            <th class="pb-3">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach (var order in Model.RecentOrders)
+                        {
+                            <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="py-3">
+                                    <a asp-area="Admin" asp-controller="Orders" asp-action="Details" asp-route-id="@order.Id"
+                                       class="font-bold text-primary hover:underline">#ORD-@order.Id</a>
+                                </td>
+                                <td class="py-3 font-mono font-semibold text-slate-800">$@order.TotalAmount.ToString("N2")</td>
+                                <td class="py-3">
+                                    <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
+                                        @(order.Status == "Delivered" ? "bg-emerald-100 text-emerald-700"
+                                         : order.Status == "Cancelled" ? "bg-red-100 text-red-700"
+                                         : "bg-amber-100 text-amber-700")">@order.Status</span>
+                                </td>
+                                <td class="py-3">
+                                    <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
+                                        @(order.PaymentStatus == "Paid" ? "bg-emerald-100 text-emerald-700"
+                                         : order.PaymentStatus == "Failed" ? "bg-red-100 text-red-700"
+                                         : "bg-slate-100 text-slate-600")">@order.PaymentStatus</span>
+                                </td>
+                                <td class="py-3 text-xs text-slate-500">@order.CreatedAt.ToString("MMM dd, yyyy")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <div class="flex flex-col items-center justify-center py-12 text-center">
+                    <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                        <span class="material-symbols-outlined text-3xl text-slate-300">receipt_long</span>
+                    </div>
+                    <h4 class="text-slate-700 font-bold mb-1">No Orders Yet</h4>
+                    <p class="text-sm text-slate-500 max-w-sm">This customer hasn't placed any orders. When they do, their order history will appear here.</p>
                 </div>
-                <h4 class="text-slate-700 font-bold mb-1">No Orders Yet</h4>
-                <p class="text-sm text-slate-500 max-w-sm">This customer hasn't placed any orders. When they do, their order history will appear here.</p>
-            </div>
+            }
         </div>
 
         <div class="bg-surface-container-lowest p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col">

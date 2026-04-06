@@ -1,6 +1,8 @@
 using ECommerce_System.Data;
 using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace ECommerce_System.Repositories;
 
@@ -48,6 +50,9 @@ public class UnitOfWork : IUnitOfWork
 
     public async Task<int> SaveAsync()
         => await _context.SaveChangesAsync();
+
+    public async Task<IDbContextTransaction> BeginTransactionAsync()
+        => await _context.Database.BeginTransactionAsync();
 
     public void SetRowVersion<T>(T entity, byte[] rowVersion) where T : class
         => _context.Entry(entity).Property("RowVersion").OriginalValue = rowVersion;

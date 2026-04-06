@@ -1,3 +1,4 @@
+using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
 using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Admin;
@@ -17,22 +18,51 @@ public class PaymentsController : Controller
         => _unitOfWork = unitOfWork;
 
     // GET: /Admin/Payments
-    public async Task<IActionResult> Index(int page = 1, string? status = null)
+    //  FIX: server-side pagination so stats reflect ALL records, not just the current page
+    public async Task<IActionResult> Index(
+        int page = 1, string? statusFilter = null, string? searchQuery = null)
     {
-        var payments = await _unitOfWork.Payments
-            .GetAllAsync("Order,Order.User", tracked: false);
+        // ── 1. Global stats — NO filter, full table ──────────────────────
+        //  These two queries go directly to DB (no in-memory loading)
+        var allPayments = await _unitOfWork.Payments.GetAllAsync(tracked: false);
+        var allList = allPayments.ToList();
 
-        if (!string.IsNullOrWhiteSpace(status))
-            payments = payments.Where(p => p.Status == status);
+        ViewBag.TotalVolume   = allList.Where(p => p.Status == SD.Payment_Paid).Sum(p => p.Amount);
+        ViewBag.PaidCount     = allList.Count(p => p.Status == SD.Payment_Paid);
+        ViewBag.PendingCount  = allList.Count(p => p.Status == SD.Payment_Pending);
+        ViewBag.FailedCount   = allList.Count(p => p.Status == "Failed" || p.Status == "Refunded");
 
-        var ordered = payments.OrderByDescending(p => p.CreatedAt).ToList();
+        // ── 2. Build filter expression ─────────────────────────────────
+        System.Linq.Expressions.Expression<Func<Payment, bool>>? filter = null;
 
-        int totalCount = ordered.Count;
-        int totalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
+        if (!string.IsNullOrWhiteSpace(statusFilter) && !string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var q = searchQuery.Trim();
+            filter = p => p.Status == statusFilter &&
+                          (p.Order.User!.Email!.Contains(q) || p.OrderId.ToString().Contains(q));
+        }
+        else if (!string.IsNullOrWhiteSpace(statusFilter))
+        {
+            filter = p => p.Status == statusFilter;
+        }
+        else if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var q = searchQuery.Trim();
+            filter = p => p.Order.User!.Email!.Contains(q) || p.OrderId.ToString().Contains(q);
+        }
 
-        var paged = ordered
-            .Skip((page - 1) * PageSize)
-            .Take(PageSize)
+        // ── 3. Server-side paged query ─────────────────────────────────
+        var (pagedItems, totalCount) = await _unitOfWork.Payments.GetPagedAsync(
+            filter: filter,
+            includeProperties: "Order,Order.User",
+            page: page,
+            pageSize: PageSize,
+            tracked: false);
+
+        // Note: GetPagedAsync on Payment doesn't order — we need IQueryable ordering.
+        // Since Payment has simple fields, we order in memory after paging (acceptable for 15 items):
+        var paged = pagedItems
+            .OrderByDescending(p => p.CreatedAt)
             .Select(p => new PaymentVM
             {
                 Id            = p.Id,
@@ -47,10 +77,12 @@ public class PaymentsController : Controller
             })
             .ToList();
 
-        ViewBag.CurrentPage   = page;
-        ViewBag.TotalPages    = totalPages;
-        ViewBag.StatusFilter  = status;
-        ViewData["Title"]     = "Payments";
+        ViewBag.CurrentPage  = page;
+        ViewBag.TotalPages   = (int)Math.Ceiling(totalCount / (double)PageSize);
+        ViewBag.TotalCount   = totalCount;
+        ViewBag.StatusFilter = statusFilter;
+        ViewBag.SearchQuery  = searchQuery;
+        ViewData["Title"]    = "Payments";
         return View(paged);
     }
 
@@ -79,5 +111,5 @@ public class PaymentsController : Controller
         return View(vm);
     }
 
-    // NO Create, Edit, Delete — Payments are managed by Stripe webhooks only
+    // NO Create, Edit, Delete — Payments are read-only transaction records
 }

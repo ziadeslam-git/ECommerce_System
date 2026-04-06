@@ -13,6 +13,7 @@ public class Order
     public string? CouponCode { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CancelledAt { get; set; }   // set when Status → Cancelled; UI hides after 24h
 
     // Navigation
     public ApplicationUser User { get; set; } = null!;

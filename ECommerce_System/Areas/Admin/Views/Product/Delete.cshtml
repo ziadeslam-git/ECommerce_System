@@ -65,30 +65,6 @@
         </div>
     </div>
 
-    @* Option B: Hard Delete *@
-    <div class="bg-rose-50 border border-rose-200 rounded-xl p-5 flex gap-4 items-start">
-        <div class="size-10 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0">
-            <span class="material-symbols-outlined text-rose-600">delete_forever</span>
-        </div>
-        <div class="flex-1">
-            <p class="font-bold text-rose-900">Option B — Permanent Delete ⚠️</p>
-            <p class="text-sm text-rose-700 mt-1">
-                <strong>Permanently removes</strong> the product and all its variants from the database.<br/>
-                This action <strong>cannot be undone</strong>. If the product has order history it will be blocked automatically.
-            </p>
-            <form asp-area="Admin" asp-controller="Product" asp-action="HardDeleteConfirmed" asp-route-id="@Model.Id"
-                  method="post" class="mt-4 inline" id="hardDeleteForm">
-                @Html.AntiForgeryToken()
-                <button type="button" onclick="confirmHardDelete()"
-                        class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700
-                               text-white text-sm font-bold transition-all active:scale-95 shadow-md shadow-rose-200">
-                    <span class="material-symbols-outlined text-base">delete_forever</span>
-                    Permanently Delete
-                </button>
-            </form>
-        </div>
-    </div>
-
     @* Cancel *@
     <div class="flex justify-start">
         <a asp-area="Admin" asp-controller="Product" asp-action="Details" asp-route-id="@Model.Id"
@@ -101,12 +77,3 @@
 
 </div>
 
-@section Scripts {
-    <script>
-        function confirmHardDelete() {
-            if (confirm('⚠️ Are you absolutely sure?\n\nThis will PERMANENTLY DELETE the product from the database.\nThis action cannot be undone.\n\nClick OK only if you are certain.')) {
-                document.getElementById('hardDeleteForm').submit();
-            }
-        }
-    </script>
-}

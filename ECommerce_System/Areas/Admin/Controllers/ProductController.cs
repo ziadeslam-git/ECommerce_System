@@ -220,32 +220,9 @@ public class ProductController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    // Hard-delete: Permanent removal from DB (only if no order history)
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> HardDeleteConfirmed(int id)
-    {
-        var product = await _uow.Products
-            .FindAsync(p => p.Id == id, "Variants,OrderItems", ignoreQueryFilters: true);
-        if (product is null) return NotFound();
+    // FIX #5: Hard-delete path removed — only soft-delete (deactivation) is allowed
+    //         to maintain data integrity and order history consistency.
 
-        // Safety: check if any variant has order history
-        var variantIds = product.Variants.Select(v => v.Id).ToList();
-        var hasOrders  = await _uow.OrderItems
-            .FindAsync(oi => variantIds.Contains(oi.ProductVariantId), ignoreQueryFilters: true);
-
-        if (hasOrders is not null)
-        {
-            TempData["error"] = $"Cannot permanently delete \"{product.Name}\" — it has existing order history. Use Deactivate instead.";
-            return RedirectToAction(nameof(Delete), new { id });
-        }
-
-        _uow.Products.Remove(product);
-        await _uow.SaveAsync();
-
-        TempData["success"] = $"Product \"{product.Name}\" permanently deleted from the database.";
-        return RedirectToAction(nameof(Index));
-    }
 
     // ─── TOGGLE ACTIVE ────────────────────────────────────────────────────────
     

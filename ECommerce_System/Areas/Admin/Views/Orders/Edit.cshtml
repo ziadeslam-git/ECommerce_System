@@ -5,9 +5,10 @@
     ViewData["Title"] = $"Edit Order #{Model.OrderId}";
     Layout = "_AdminLayout";
     var productsJson = ViewBag.ProductsListJson as string ?? "[]";
-    var canEdit = Model.CurrentStatus != SD.Status_Shipped &&
-                  Model.CurrentStatus != SD.Status_Delivered &&
-                  Model.CurrentStatus != SD.Status_Cancelled;
+    // Admin has full access — canEdit is purely for UI warning badge
+    var isLocked = Model.CurrentStatus != SD.Status_Shipped &&
+                   Model.CurrentStatus != SD.Status_Delivered &&
+                   Model.CurrentStatus != SD.Status_Cancelled;
 }
 
 @* ── Breadcrumb ── *@
@@ -33,26 +34,22 @@
     </p>
 </div>
 
-@* ── Cannot edit guard ── *@
-@if (!canEdit)
+@* ── Informational warning (Admin still CAN edit) ── *@
+@if (!isLocked)
 {
-    <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-5 flex items-start gap-3 mb-6">
-        <span class="material-symbols-outlined text-red-500 flex-shrink-0 mt-0.5">block</span>
+    <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3 mb-6">
+        <span class="material-symbols-outlined text-amber-500 flex-shrink-0 mt-0.5">warning</span>
         <div>
-            <p class="font-bold text-red-800 dark:text-red-300">Order cannot be edited</p>
-            <p class="text-sm text-red-600 dark:text-red-400 mt-1">
-                This order is <strong>@Model.CurrentStatus</strong>. Only <em>Pending, Confirmed</em> and <em>Processing</em> orders can be edited.
+            <p class="font-bold text-amber-800 dark:text-amber-300">Editing a completed order</p>
+            <p class="text-sm text-amber-600 dark:text-amber-400 mt-1">
+                This order is <strong>@Model.CurrentStatus</strong>. You are editing it as Admin — changes will affect stock and totals.
             </p>
         </div>
     </div>
-    <a asp-action="Details" asp-route-id="@Model.OrderId"
-       class="flex w-fit items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
-        <span class="material-symbols-outlined text-sm">arrow_back</span>
-        Back to Details
-    </a>
 }
-else
-{
+
+@* ── Form (always shown for Admin) ── *@
+
 <form asp-action="Edit" asp-route-id="@Model.OrderId" id="editOrderForm" method="post"
       class="grid grid-cols-1 lg:grid-cols-12 gap-6">
     @Html.AntiForgeryToken()
@@ -368,16 +365,18 @@ function renderNewRow(item) {
     const tr = document.createElement('tr');
     tr.id = 'new-row-' + item.id;
     tr.className = 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group bg-emerald-50/30 dark:bg-emerald-900/10';
+
+    // Use the item's index in newItems array for list-based binding
+    const idx = newItems.findIndex(i => i.id === item.id);
     tr.innerHTML = `
         <td class="px-4 py-3">
             <p class="font-medium text-slate-900 dark:text-slate-100">${item.name}</p>
             <span class="text-[10px] font-bold text-emerald-600 uppercase">New</span>
-            <input type="hidden" name="NewItems.Index"                         value="${item.guid}" />
-            <input type="hidden" name="NewItems[${item.guid}].ProductVariantId" value="${item.id}" />
+            <input type="hidden" class="new-item-variant-input" name="NewItems[${idx}].ProductVariantId" value="${item.id}" />
         </td>
         <td class="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs">EGP ${item.price.toFixed(2)}</td>
         <td class="px-4 py-3">
-            <input type="number" name="NewItems[${item.guid}].Quantity" value="${item.qty}" min="1" max="${item.maxStock}"
+            <input type="number" name="NewItems[${idx}].Quantity" value="${item.qty}" min="1" max="${item.maxStock}"
                    class="new-qty w-20 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-sm font-medium text-center focus:ring-1 focus:ring-primary/50"
                    data-id="${item.id}" />
         </td>
@@ -411,6 +410,8 @@ function renderNewRow(item) {
         const id = parseInt(e.currentTarget.dataset.id);
         newItems = newItems.filter(i => i.id !== id);
         document.getElementById('new-row-' + id).remove();
+        // Re-index all remaining new items
+        reIndexNewItems();
         checkEmpty();
         calculateTotals();
     });
@@ -424,6 +425,18 @@ function updateNewRowUI(id) {
     row.querySelector('.new-qty').value = item.qty;
     const cell = document.getElementById('new-subtotal-' + id);
     if (cell) cell.innerText = 'EGP ' + (item.price * item.qty).toFixed(2);
+}
+
+// Re-number all new item hidden inputs after a deletion so indices are contiguous
+function reIndexNewItems() {
+    newItems.forEach((item, idx) => {
+        const row = document.getElementById('new-row-' + item.id);
+        if (!row) return;
+        const variantInput = row.querySelector('.new-item-variant-input');
+        const qtyInput     = row.querySelector('.new-qty');
+        if (variantInput) variantInput.name = `NewItems[${idx}].ProductVariantId`;
+        if (qtyInput)     qtyInput.name     = `NewItems[${idx}].Quantity`;
+    });
 }
 
 // ── Existing items qty change ─────────────────────────────────

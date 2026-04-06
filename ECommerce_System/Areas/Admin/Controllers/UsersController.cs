@@ -23,21 +23,32 @@ public class UsersController : Controller
         _userManager = userManager;
     }
 
-    // GET: /Admin/Users
-    public async Task<IActionResult> Index(int page = 1)
+    // GET: /Admin/Users — FIX #10: N+1 eliminated, BUG #4: filter support
+    public async Task<IActionResult> Index(int page = 1, string? searchQuery = null, string? statusFilter = null)
     {
         var users = await _userManager.Users
             .AsNoTracking()
             .OrderByDescending(u => u.CreatedAt)
             .ToListAsync();
 
+        // FIX #10: Single batch query for orders instead of one per user
+        var allOrders = await _unitOfWork.Orders.GetAllAsync(tracked: false);
+        var ordersByUser = allOrders
+            .GroupBy(o => o.UserId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // BUG #2: Single batch for reviews
+        var allReviews = await _unitOfWork.Reviews.GetAllAsync(tracked: false);
+        var reviewsByUser = allReviews
+            .GroupBy(r => r.UserId)
+            .ToDictionary(g => g.Key, g => g.Count());
+
         // Build VMs with roles
         var vms = new List<UserAdminVM>();
         foreach (var user in users)
         {
-            var roles  = await _userManager.GetRolesAsync(user);
-            var orders = await _unitOfWork.Orders
-                .FindAllAsync(o => o.UserId == user.Id, tracked: false);
+            var roles      = await _userManager.GetRolesAsync(user);
+            var userOrders = ordersByUser.TryGetValue(user.Id, out var ord) ? ord : new();
 
             vms.Add(new UserAdminVM
             {
@@ -47,21 +58,36 @@ public class UsersController : Controller
                 IsActive      = user.IsActive,
                 CreatedAt     = user.CreatedAt,
                 Roles         = roles,
-                TotalOrders   = orders.Count(),
-                LastOrderDate = orders.OrderByDescending(o => o.CreatedAt).FirstOrDefault()?.CreatedAt
+                TotalOrders   = userOrders.Count,
+                TotalSpent    = userOrders.Sum(o => o.TotalAmount),
+                TotalReviews  = reviewsByUser.TryGetValue(user.Id, out var rc) ? rc : 0,
+                LastOrderDate = userOrders.OrderByDescending(o => o.CreatedAt).FirstOrDefault()?.CreatedAt
             });
         }
+
+        // BUG #4: Apply search filter
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+            vms = vms.Where(u => u.FullName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)
+                               || u.Email.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        // BUG #4: Apply status filter
+        if (statusFilter == "Active")
+            vms = vms.Where(u => u.IsActive).ToList();
+        else if (statusFilter == "Inactive")
+            vms = vms.Where(u => !u.IsActive).ToList();
 
         int totalPages = (int)Math.Ceiling(vms.Count / (double)PageSize);
         var paged = vms.Skip((page - 1) * PageSize).Take(PageSize).ToList();
 
-        ViewBag.CurrentPage = page;
-        ViewBag.TotalPages  = totalPages;
-        ViewData["Title"]   = "Users";
+        ViewBag.CurrentPage   = page;
+        ViewBag.TotalPages    = totalPages;
+        ViewBag.SearchQuery   = searchQuery;
+        ViewBag.StatusFilter  = statusFilter;
+        ViewData["Title"]     = "Users";
         return View(paged);
     }
 
-    // GET: /Admin/Users/Details/{id}
+    // GET: /Admin/Users/Details/{id} — BUG #2: populate stats + recent orders
     public async Task<IActionResult> Details(string id)
     {
         var user = await _userManager.FindByIdAsync(id);
@@ -70,6 +96,10 @@ public class UsersController : Controller
         var roles  = await _userManager.GetRolesAsync(user);
         var orders = await _unitOfWork.Orders
             .FindAllAsync(o => o.UserId == user.Id, tracked: false);
+        var orderList = orders.ToList();
+
+        var reviews = await _unitOfWork.Reviews
+            .FindAllAsync(r => r.UserId == user.Id, tracked: false);
 
         var vm = new UserAdminVM
         {
@@ -79,8 +109,21 @@ public class UsersController : Controller
             IsActive      = user.IsActive,
             CreatedAt     = user.CreatedAt,
             Roles         = roles,
-            TotalOrders   = orders.Count(),
-            LastOrderDate = orders.OrderByDescending(o => o.CreatedAt).FirstOrDefault()?.CreatedAt
+            TotalOrders   = orderList.Count,
+            TotalSpent    = orderList.Sum(o => o.TotalAmount),
+            TotalReviews  = reviews.Count(),
+            LastOrderDate = orderList.OrderByDescending(o => o.CreatedAt).FirstOrDefault()?.CreatedAt,
+            RecentOrders  = orderList
+                .OrderByDescending(o => o.CreatedAt)
+                .Take(5)
+                .Select(o => new OrderSummaryForUserVM
+                {
+                    Id            = o.Id,
+                    TotalAmount   = o.TotalAmount,
+                    Status        = o.Status,
+                    PaymentStatus = o.PaymentStatus,
+                    CreatedAt     = o.CreatedAt
+                }).ToList()
         };
 
         ViewData["Title"] = "User Details";

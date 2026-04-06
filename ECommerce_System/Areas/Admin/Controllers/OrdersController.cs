@@ -702,6 +702,28 @@ public class OrdersController : Controller
         };
     }
 
+    private static bool IsValidOrderTransition(string from, string to)
+    {
+        if (from == to) return true;
+        if (from == SD.Status_Delivered) return false;
+        if (from == SD.Status_Cancelled) return false;
+        if (to == SD.Status_Cancelled) return from != SD.Status_Delivered;
+        var order = new[]
+        {
+            SD.Status_Pending, SD.Status_Confirmed, SD.Status_Processing,
+            SD.Status_Shipped, SD.Status_Delivered
+        };
+        return Array.IndexOf(order, to) > Array.IndexOf(order, from);
+    }
+
+    private static bool IsValidPaymentTransition(string from, string to)
+    {
+        if (from == to) return true;
+        if (to == SD.Payment_Refunded && from != SD.Payment_Paid) return false;
+        if (to == SD.Payment_Pending && from == SD.Payment_Paid) return false;
+        return true;
+    }
+
     // ──────────────────────────────────────────────────────────
     //  Private helper – Return stock when cancelling
     // ──────────────────────────────────────────────────────────

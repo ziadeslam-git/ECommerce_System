@@ -98,7 +98,7 @@
                                 }
                             </td>
                             <td class="py-6 px-4 align-top">
-                                <p class="text-[13px] text-on-surface-variant whitespace-nowrap">@DateTime.UtcNow.AddDays(-1).ToString("MMM dd, yyyy")</p>
+                                <p class="text-[13px] text-on-surface-variant whitespace-nowrap">@review.CreatedAt.ToString("MMM dd, yyyy")</p>
                             </td>
                             <td class="py-6 px-4 align-top text-center">
                                 @if (review.IsApproved)

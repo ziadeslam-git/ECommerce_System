@@ -220,6 +220,10 @@ public class ProductController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // FIX #5: Hard-delete path removed — only soft-delete (deactivation) is allowed
+    //         to maintain data integrity and order history consistency.
+
+
     // ─── TOGGLE ACTIVE ────────────────────────────────────────────────────────
     
     [HttpPost]

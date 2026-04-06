@@ -289,8 +289,8 @@
                     alert('Cannot add more than available stock (' + maxStock + ')');
                 }
             } else {
-                orderItems.push({ id: id, name: name, price: price, maxStock: maxStock, qty: 1, guid: generateGuid() });
-                renderNewRow(orderItems[orderItems.length - 1]);
+                orderItems.push({ id: id, name: name, price: price, maxStock: maxStock, qty: 1 });
+                renderNewRow(orderItems[orderItems.length - 1], orderItems.length - 1);
             }
             
             // Reset search input
@@ -299,10 +299,17 @@
             calculateTotals();
         });
 
-        // Generate GUID for MVC model binding
-        function generateGuid() { return Math.random().toString(36).substring(2, 15); }
+        // Re-renders all row indices after a remove to keep sequential binding
+        function refreshAllIndices() {
+            orderItems.forEach((item, idx) => {
+                const tr = document.getElementById('row-' + item.id);
+                if (!tr) return;
+                tr.querySelector('input[name$=".ProductVariantId"]').name = `Items[${idx}].ProductVariantId`;
+                tr.querySelector('input[name$=".Quantity"]').name = `Items[${idx}].Quantity`;
+            });
+        }
 
-        function renderNewRow(item) {
+        function renderNewRow(item, index) {
             emptyRow.style.display = 'none';
             const tr = document.createElement('tr');
             tr.id = 'row-' + item.id;
@@ -311,12 +318,11 @@
             tr.innerHTML = `
                 <td class="px-4 py-3">
                     <p class="font-medium text-slate-900 dark:text-slate-100">${item.name}</p>
-                    <input type="hidden" name="Items.Index" value="${item.guid}" />
-                    <input type="hidden" name="Items[${item.guid}].ProductVariantId" value="${item.id}" />
+                    <input type="hidden" name="Items[${index}].ProductVariantId" value="${item.id}" />
                 </td>
                 <td class="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs">EGP ${item.price.toFixed(2)}</td>
                 <td class="px-4 py-3">
-                    <input type="number" name="Items[${item.guid}].Quantity" value="${item.qty}" min="1" max="${item.maxStock}"
+                    <input type="number" name="Items[${index}].Quantity" value="${item.qty}" min="1" max="${item.maxStock}"
                            class="qty-input w-20 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-sm font-medium text-center focus:ring-1 focus:ring-primary/50" 
                            data-id="${item.id}" />
                 </td>
@@ -358,6 +364,7 @@
                 orderItems = orderItems.filter(i => i.id !== id);
                 document.getElementById('row-' + id).remove();
                 if (orderItems.length === 0) emptyRow.style.display = '';
+                refreshAllIndices(); // FIX: re-sequence after remove
                 calculateTotals();
             });
         }

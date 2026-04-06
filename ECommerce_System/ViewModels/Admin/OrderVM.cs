@@ -108,7 +108,7 @@ public class EditOrderVM
     public List<EditOrderItemVM> ExistingItems { get; set; } = [];
 
 
-    public Dictionary<string, EditOrderNewItemVM> NewItems { get; set; } = [];
+    public List<EditOrderNewItemVM> NewItems { get; set; } = [];
 
 
     public string? CouponCode { get; set; }

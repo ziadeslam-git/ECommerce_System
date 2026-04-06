@@ -183,8 +183,9 @@ public class ProductVariantsController : Controller
             return View(vm);
         }
 
+        // FIX #7A: Include Images to prevent null issues when editing images
         var variant = await _uow.ProductVariants
-            .FindAsync(v => v.Id == vm.Id, "Images", tracked: true, ignoreQueryFilters: true);
+            .FindAsync(v => v.Id == vm.Id, "Images", ignoreQueryFilters: true);
         if (variant is null) return NotFound();
 
         // Attach row version for optimistic concurrency
@@ -312,6 +313,7 @@ public class ProductVariantsController : Controller
         });
     }
 
+    // FIX #6: Always soft-delete — never physically remove variants
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)
@@ -348,10 +350,12 @@ public class ProductVariantsController : Controller
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    private async Task SetVariantImageAsMainProductImage(int productId, string imageUrl, string publicId)
+    // FIX #7B: Prevents duplicate ProductImage rows by matching on PublicId
+    private async Task SetVariantImageAsMainProductImage(
+        int productId, string imageUrl, string publicId)
     {
-        var existing = (await _uow.ProductImages
-            .FindAllAsync(i => i.ProductId == productId, null, tracked: true)).ToList();
+        var existing = await _uow.ProductImages
+            .FindAllAsync(i => i.ProductId == productId, tracked: true);
 
         foreach (var img in existing)
         {

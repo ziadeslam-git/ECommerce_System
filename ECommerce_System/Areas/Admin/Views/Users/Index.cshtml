@@ -75,10 +75,10 @@
             <input type="text" name="searchQuery" value="@ViewBag.SearchQuery" class="w-full border border-outline-variant/30 rounded-lg pl-10 py-2 text-sm focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all" placeholder="Filter by name or email..." />
         </div>
         <div class="w-48">
-            <select class="w-full border border-outline-variant/30 rounded-lg py-2 text-sm focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all">
+            <select name="statusFilter" class="w-full border border-outline-variant/30 rounded-lg py-2 text-sm focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all">
                 <option value="">All Statuses</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                <option value="Active" selected="@(ViewBag.StatusFilter == "Active")">Active</option>
+                <option value="Inactive" selected="@(ViewBag.StatusFilter == "Inactive")">Inactive</option>
             </select>
         </div>
         <button type="submit" class="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-all border border-transparent hover:border-slate-200">
@@ -192,7 +192,7 @@
                         }
                         else
                         {
-                            <a asp-action="Index" asp-route-page="@i" asp-route-searchQuery="@ViewBag.SearchQuery" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-white border border-transparent hover:border-slate-200 text-xs font-bold transition-all">@i</a>
+                            <a asp-action="Index" asp-route-page="@i" asp-route-searchQuery="@ViewBag.SearchQuery" asp-route-statusFilter="@ViewBag.StatusFilter" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-white border border-transparent hover:border-slate-200 text-xs font-bold transition-all">@i</a>
                         }
                     }
                 </div>

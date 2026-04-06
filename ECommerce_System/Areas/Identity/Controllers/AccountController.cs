@@ -160,8 +160,7 @@ public class AccountController : Controller
 
         if (!user.IsActive)
         {
-            ModelState.AddModelError(string.Empty, "Your account has been deactivated. Contact support.");
-            return View(vm);
+            return RedirectToAction(nameof(AccountDeactivated));
         }
 
         var result = await _signInManager.PasswordSignInAsync(
@@ -181,6 +180,11 @@ public class AccountController : Controller
 
         return View(vm);
     }
+
+    // ─── ACCOUNT DEACTIVATED ─────────────────────────────────
+    [HttpGet]
+    public IActionResult AccountDeactivated() => View();
+
 
     // ─── FORGOT PASSWORD ────────────────────────────────────────
     [HttpGet]

@@ -1,4 +1,5 @@
 using ECommerce_System.Models;
+using ECommerce_System.Repositories.IRepositories;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace ECommerce_System.Repositories.IRepositories;
@@ -20,12 +21,12 @@ public interface IUnitOfWork : IDisposable
     IRepository<Discount> Discounts { get; }
     IRepository<Review> Reviews { get; }
 
-    /// <summary>Persists all pending changes to the database.</summary>
+    //Persists all pending changes to the database
     Task<int> SaveAsync();
 
-    /// <summary>Begins a database transaction on the underlying context.</summary>
+    //Begins a database transaction for atomic multi-step operations.
     Task<IDbContextTransaction> BeginTransactionAsync();
 
-    /// <summary>Sets the RowVersion original value on a tracked entity for optimistic concurrency.</summary>
+    //Sets the RowVersion original value on a tracked entity for optimistic concurrency.
     void SetRowVersion<T>(T entity, byte[] rowVersion) where T : class;
 }

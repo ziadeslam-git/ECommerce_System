@@ -1,6 +1,7 @@
 using ECommerce_System.Data;
 using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace ECommerce_System.Repositories;

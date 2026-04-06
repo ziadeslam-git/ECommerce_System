@@ -11,44 +11,57 @@ namespace ECommerce_System.Areas.Admin.Controllers;
 public class ReviewsController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;
+    private const int PageSize = 15;
 
     public ReviewsController(IUnitOfWork unitOfWork)
         => _unitOfWork = unitOfWork;
 
-    // GET: /Admin/Reviews?filter=all|pending|approved
-    public async Task<IActionResult> Index(string filter = "all")
+    // ──────────────────────────────────────────────────────────
+    // GET: /Admin/Reviews?status=Pending|Approved|Rejected
+    //  FIX: server-side pagination + correct Rejected filter
+    // ──────────────────────────────────────────────────────────
+    public async Task<IActionResult> Index(string? status = null, int page = 1)
     {
-        var reviews = await _unitOfWork.Reviews
-            .GetAllAsync("User,Product", tracked: false);
+        // Build expression filter — pushed to DB
+        System.Linq.Expressions.Expression<Func<ECommerce_System.Models.Review, bool>>? filter =
+            (status ?? "").ToLower() switch
+            {
+                "approved" => r => r.IsApproved,
+                "rejected" => r => r.IsRejected,                   // FIX: was !IsApproved (same as Pending)
+                "pending"  => r => !r.IsApproved && !r.IsRejected, // FIX: exclude Rejected from Pending
+                _          => null
+            };
 
-        var filtered = filter.ToLower() switch
-        {
-            "pending"  => reviews.Where(r => !r.IsApproved),
-            "approved" => reviews.Where(r => r.IsApproved),
-            _          => reviews
-        };
+        var (items, total) = await _unitOfWork.Reviews.GetPagedAsync(
+            filter: filter,
+            includeProperties: "User,Product",
+            page: page,
+            pageSize: PageSize,
+            tracked: false);
 
-        var vms = filtered
-            .OrderByDescending(r => r.CreatedAt)
+        var vms = items
             .Select(r => new ReviewVM
             {
                 Id           = r.Id,
                 UserId       = r.UserId,
                 UserFullName = r.User?.FullName ?? "Unknown",
-                UserEmail    = r.User?.Email   ?? string.Empty,
+                UserEmail    = r.User?.Email    ?? string.Empty,
                 UserName     = r.User?.FullName ?? "Unknown",
                 ProductId    = r.ProductId,
                 ProductName  = r.Product?.Name ?? "Unknown",
                 Rating       = r.Rating,
                 Comment      = r.Comment,
                 IsApproved   = r.IsApproved,
-                IsRejected   = false,
-                CreatedAt    = r.CreatedAt
+                IsRejected   = r.IsRejected,        // FIX: map real field
+                CreatedAt    = r.CreatedAt           // FIX: use actual DB date
             })
             .ToList();
 
-        ViewBag.Filter    = filter.ToLower();
-        ViewData["Title"] = "Reviews";
+        ViewBag.StatusFilter = status;
+        ViewBag.CurrentPage  = page;
+        ViewBag.TotalPages   = (int)Math.Ceiling(total / (double)PageSize);
+        ViewBag.TotalCount   = total;
+        ViewData["Title"]    = "Reviews";
         return View(vms);
     }
 
@@ -65,14 +78,14 @@ public class ReviewsController : Controller
             Id           = review.Id,
             UserId       = review.UserId,
             UserFullName = review.User?.FullName ?? "Unknown",
-            UserEmail    = review.User?.Email   ?? string.Empty,
+            UserEmail    = review.User?.Email    ?? string.Empty,
             UserName     = review.User?.FullName ?? "Unknown",
             ProductId    = review.ProductId,
             ProductName  = review.Product?.Name ?? "Unknown",
             Rating       = review.Rating,
             Comment      = review.Comment,
             IsApproved   = review.IsApproved,
-            IsRejected   = false,
+            IsRejected   = review.IsRejected,
             CreatedAt    = review.CreatedAt
         };
 
@@ -89,6 +102,7 @@ public class ReviewsController : Controller
         if (review == null) return NotFound();
 
         review.IsApproved = true;
+        review.IsRejected = false; // clear any previous rejection
         _unitOfWork.Reviews.Update(review);
         await _unitOfWork.SaveAsync();
 
@@ -107,6 +121,7 @@ public class ReviewsController : Controller
         if (review == null) return NotFound();
 
         review.IsApproved = false;
+        review.IsRejected = true;  // FIX: set the correct flag
         _unitOfWork.Reviews.Update(review);
         await _unitOfWork.SaveAsync();
 
@@ -175,23 +190,25 @@ public class ReviewsController : Controller
         sb.Append("<h1>Product Reviews Report</h1>");
         sb.Append("<table>");
         sb.Append("<tr><th>Product</th><th>Customer</th><th>Rating</th><th>Comment</th><th>Status</th></tr>");
-        
+
         foreach (var r in reviews)
         {
-            var pName = r.Product?.Name ?? "Unknown Product";
-            var uName = r.User?.FullName ?? "Unknown User";
-            
-            string status;
-            if (r.IsApproved) status = "<span class='approved'>Approved</span>";
-            else status = "<span class='pending'>Pending</span>";
+            var pName = System.Net.WebUtility.HtmlEncode(r.Product?.Name ?? "Unknown Product");
+            var uName = System.Net.WebUtility.HtmlEncode(r.User?.FullName ?? "Unknown User");
+
+            string statusLabel = r.IsApproved
+                ? "<span class='approved'>Approved</span>"
+                : r.IsRejected
+                    ? "<span class='rejected'>Rejected</span>"
+                    : "<span class='pending'>Pending</span>";
 
             string commentEscaped = System.Net.WebUtility.HtmlEncode(r.Comment ?? string.Empty);
 
-            sb.Append($"<tr><td>{pName}</td><td>{uName}</td><td>{r.Rating} / 5</td><td>{commentEscaped}</td><td>{status}</td></tr>");
+            sb.Append($"<tr><td>{pName}</td><td>{uName}</td><td>{r.Rating} / 5</td><td>{commentEscaped}</td><td>{statusLabel}</td></tr>");
         }
-        
+
         sb.Append("</table></body></html>");
-        
+
         byte[] bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
         return File(bytes, "application/msword", "Reviews_Export.doc");
     }

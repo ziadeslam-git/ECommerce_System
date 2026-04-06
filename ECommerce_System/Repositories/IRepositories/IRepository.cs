@@ -1,3 +1,4 @@
+using ECommerce_System.Models;
 using System.Linq.Expressions;
 
 namespace ECommerce_System.Repositories.IRepositories;
@@ -15,6 +16,18 @@ public interface IRepository<T> where T : class
 
     /// <summary>Returns all entities matching the predicate.</summary>
     Task<IEnumerable<T>> FindAllAsync(Expression<Func<T, bool>> predicate, string? includeProperties = null, bool tracked = true, bool ignoreQueryFilters = false);
+
+    /// <summary>
+    /// Returns a paginated result set. Filtering, ordering, and paging are
+    /// pushed down to the database — no in-memory loading.
+    /// </summary>
+    Task<(IEnumerable<T> Items, int TotalCount)> GetPagedAsync(
+        Expression<Func<T, bool>>? filter = null,
+        string? includeProperties = null,
+        int page = 1,
+        int pageSize = 15,
+        bool tracked = false,
+        bool ignoreQueryFilters = false);
 
     /// <summary>Adds a new entity to the context (does not save).</summary>
     Task AddAsync(T entity);

@@ -13,6 +13,7 @@
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.5" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
+		<PackageReference Include="Microsoft.DotNet.Scaffolding.Shared" Version="10.0.2" />
 		<PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" />
 		<PackageReference Include="Scalar.AspNetCore" Version="2.13.18" />
 		<PackageReference Include="FluentValidation" Version="12.1.1" />

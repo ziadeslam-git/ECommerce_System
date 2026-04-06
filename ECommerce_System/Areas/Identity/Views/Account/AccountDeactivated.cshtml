@@ -1,0 +1,47 @@
+@{
+    ViewData["Title"] = "Account Deactivated";
+}
+
+<div class="flex min-h-screen w-full items-center justify-center bg-background-light dark:bg-background-dark px-6 py-12">
+    <div class="w-full max-w-md text-center space-y-8">
+        @* Lock Icon *@
+        <div class="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 shadow-lg shadow-red-100/50">
+            <span class="material-symbols-outlined text-5xl text-red-500 dark:text-red-400" style="font-variation-settings: 'FILL' 1;">lock</span>
+        </div>
+
+        @* Title & Message *@
+        <div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 mb-3">
+                Account Deactivated
+            </h1>
+            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                Your account has been deactivated by an administrator.
+                If you believe this is a mistake, please contact our support team.
+            </p>
+        </div>
+
+        @* Action Buttons *@
+        <div class="flex flex-col gap-3 items-center">
+            <a href="https://wa.me/201000000000"
+               target="_blank"
+               class="w-full max-w-xs inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 active:scale-[0.98] transition-all">
+                <span class="material-symbols-outlined text-lg">support_agent</span>
+                Contact Support
+            </a>
+            <a asp-area="Identity" asp-controller="Account" asp-action="Login"
+               class="w-full max-w-xs inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-6 py-3.5 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
+                <span class="material-symbols-outlined text-lg">arrow_back</span>
+                Back to Login
+            </a>
+            <a asp-area="Customer" asp-controller="Home" asp-action="Index"
+               class="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary transition-colors mt-2">
+                Go to Home Page
+            </a>
+        </div>
+
+        @* Footer *@
+        <p class="text-xs text-slate-400 dark:text-slate-500 pt-4 border-t border-slate-200 dark:border-slate-800">
+            © 2026 Smart Store. All rights reserved.
+        </p>
+    </div>
+</div>

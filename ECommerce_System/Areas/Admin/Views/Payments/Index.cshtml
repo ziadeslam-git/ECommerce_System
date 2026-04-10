@@ -62,10 +62,10 @@
             <div class="w-48">
                 <select name="statusFilter" class="w-full border border-outline-variant/30 rounded-lg py-2 pl-3 pr-8 text-sm focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all bg-surface" onchange="this.form.submit()">
                     <option value="">Status: All</option>
-                    @foreach (var s in new[] { "Paid", "Pending", "Failed", "Refunded" })
-                    {
-                        <option value="@s" selected="@(ViewBag.StatusFilter == s)">@s</option>
-                    }
+                    <option value="Paid" selected="@(ViewBag.StatusFilter != null && ViewBag.StatusFilter.ToString() == "Paid")">Paid</option>
+                    <option value="Pending" selected="@(ViewBag.StatusFilter != null && ViewBag.StatusFilter.ToString() == "Pending")">Pending</option>
+                    <option value="Failed" selected="@(ViewBag.StatusFilter != null && ViewBag.StatusFilter.ToString() == "Failed")">Failed</option>
+                    <option value="Refunded" selected="@(ViewBag.StatusFilter != null && ViewBag.StatusFilter.ToString() == "Refunded")">Refunded</option>
                 </select>
             </div>
             <a asp-action="Index" class="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-all border border-transparent hover:border-slate-200" title="Reset Filters">

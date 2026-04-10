@@ -28,5 +28,8 @@ public class CartItemConfiguration : IEntityTypeConfiguration<CartItem>
             .WithMany(v => v.CartItems)
             .HasForeignKey(ci => ci.ProductVariantId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Matching query filter: hide CartItems whose variant is inactive (mirrors ProductVariant filter)
+        builder.HasQueryFilter(ci => ci.ProductVariant!.IsActive);
     }
 }

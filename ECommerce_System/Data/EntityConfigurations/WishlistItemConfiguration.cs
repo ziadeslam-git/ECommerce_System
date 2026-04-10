@@ -22,5 +22,8 @@ public class WishlistItemConfiguration : IEntityTypeConfiguration<WishlistItem>
             .WithMany(u => u.WishlistItems)
             .HasForeignKey(w => w.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Matching query filter: hide wishlist items whose product is inactive (mirrors Product filter)
+        builder.HasQueryFilter(w => w.Product!.IsActive);
     }
 }

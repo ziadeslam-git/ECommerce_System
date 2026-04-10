@@ -20,19 +20,25 @@ public class DiscountsController : Controller
     // GET: /Admin/Discounts
     public async Task<IActionResult> Index(int page = 1, string? searchQuery = null, string? typeFilter = null)
     {
-        var discounts = await _unitOfWork.Discounts.GetAllAsync(tracked: false);
+        // TODO: Replace with GetPagedAsync when implemented in IRepository<T>
+        // to push Skip/Take/filter to database level and avoid loading all discounts.
+        var allDiscounts = await _unitOfWork.Discounts.GetAllAsync(tracked: false);
+
+        // Apply filters + ordering + Skip/Take in a single LINQ chain on IQueryable —
+        // VM projection happens AFTER Skip/Take so only PageSize objects are created.
+        var query = allDiscounts.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchQuery))
-            discounts = discounts.Where(d => d.CouponCode.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
-        
-        if (!string.IsNullOrWhiteSpace(typeFilter))
-            discounts = discounts.Where(d => d.Type == typeFilter);
+            query = query.Where(d => d.CouponCode.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
 
-        var ordered = discounts.OrderByDescending(d => d.Id).ToList();
-        int totalCount = ordered.Count;
+        if (!string.IsNullOrWhiteSpace(typeFilter))
+            query = query.Where(d => d.Type == typeFilter);
+
+        int totalCount = query.Count();
         int totalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
 
-        var paged = ordered
+        var paged = query
+            .OrderByDescending(d => d.Id)
             .Skip((page - 1) * PageSize)
             .Take(PageSize)
             .Select(d => new DiscountVM

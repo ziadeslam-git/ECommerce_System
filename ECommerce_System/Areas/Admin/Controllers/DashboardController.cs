@@ -27,31 +27,69 @@ public class DashboardController : Controller
         var products = await _unitOfWork.Products
             .FindAllAsync(p => p.IsActive, tracked: false);
 
-        // All orders
+        // All orders & recent orders
         var orders = await _unitOfWork.Orders.GetAllAsync(tracked: false);
-
-        // Recent 5 orders
         var recentOrders = await _unitOfWork.Orders
             .FindAllAsync(o => true, "User,Address", tracked: false);
+            
+        var allOrdersList = orders.ToList();
+        
+        // Accurate Revenue from Payments Table
+        var payments = await _unitOfWork.Payments.GetAllAsync(tracked: false);
+        var allPaymentsList = payments.ToList();
 
-        // Total revenue (paid orders only)
-        var allOrders = orders.ToList();
-        var revenue = allOrders
-            .Where(o => o.PaymentStatus == SD.Payment_Paid)
-            .Sum(o => o.TotalAmount);
+        // Total revenue (paid payments only)
+        var revenue = allPaymentsList
+            .Where(p => p.Status == SD.Payment_Paid)
+            .Sum(p => p.Amount);
 
         // Customer count
         var customers = await _userManager.GetUsersInRoleAsync(SD.Role_Customer);
 
         ViewBag.TotalProducts = products.Count();
-        ViewBag.TotalOrders   = allOrders.Count;
+        ViewBag.TotalOrders   = allOrdersList.Count;
         ViewBag.TotalRevenue  = revenue;
         ViewBag.TotalCustomers = customers.Count;
-        ViewBag.PendingOrders = allOrders.Count(o => o.Status == SD.Status_Pending);
+        ViewBag.PendingOrders = allOrdersList.Count(o => o.Status == SD.Status_Pending);
         
-        // Pass Recent orders to the view to dynamically populate the dashboard rather than hardcoded UI
+        // Pass Recent orders 
         ViewBag.RecentOrders = recentOrders.OrderByDescending(o => o.Id).Take(5).ToList();
 
+        // --- DYNAMIC DASHBOARD ADDITIONS ---
+
+        // 1. Monthly Revenue (Paid payments in the current year)
+        var currentYear = DateTime.UtcNow.Year;
+        var monthlyRevenue = new decimal[12];
+        foreach (var p in allPaymentsList.Where(p => p.Status == SD.Payment_Paid && p.CreatedAt.Year == currentYear))
+        {
+            monthlyRevenue[p.CreatedAt.Month - 1] += p.Amount;
+        }
+        ViewBag.MonthlyRevenue = monthlyRevenue; // Pass float array to view
+
+        // 2. Top Products (Most sold non-cancelled items)
+        var validOrderIds = allOrdersList
+            .Where(o => o.Status != SD.Status_Cancelled)
+            .Select(o => o.Id)
+            .ToHashSet();
+
+        var allOrderItems = await _unitOfWork.OrderItems
+            .GetAllAsync(includeProperties: "ProductVariant,ProductVariant.Product,ProductVariant.Product.Category,ProductVariant.Product.Images", tracked: false);
+
+        var topProducts = allOrderItems
+            .Where(oi => validOrderIds.Contains(oi.OrderId))
+            .GroupBy(oi => new { oi.ProductName, CategoryName = oi.ProductVariant?.Product?.Category?.Name ?? "General" })
+            .Select(g => new ECommerce_System.ViewModels.Admin.TopProductVM
+            {
+                ProductName = g.Key.ProductName,
+                CategoryName = g.Key.CategoryName,
+                TotalSold = g.Sum(x => x.Quantity),
+                ImageUrl = g.FirstOrDefault()?.ProductVariant?.Product?.Images?.FirstOrDefault(i => i.IsMain)?.ImageUrl ?? ""
+            })
+            .OrderByDescending(x => x.TotalSold)
+            .Take(5)
+            .ToList();
+
+        ViewBag.TopProducts = topProducts;
 
         return View();
     }

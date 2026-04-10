@@ -23,29 +23,49 @@ public class UsersController : Controller
         _userManager = userManager;
     }
 
-    // GET: /Admin/Users — FIX #10: N+1 eliminated, BUG #4: filter support
+    // GET: /Admin/Users — DB-level pagination: filters + Skip/Take pushed to SQL before materialization
     public async Task<IActionResult> Index(int page = 1, string? searchQuery = null, string? statusFilter = null)
     {
-        var users = await _userManager.Users
-            .AsNoTracking()
+        // 1. Build IQueryable with all filters applied at DB level
+        var query = _userManager.Users.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+            query = query.Where(u => u.FullName.Contains(searchQuery) || (u.Email != null && u.Email.Contains(searchQuery)));
+
+        if (statusFilter == "Active")
+            query = query.Where(u => u.IsActive);
+        else if (statusFilter == "Inactive")
+            query = query.Where(u => !u.IsActive);
+
+        // 2. Count at DB level (no data transferred)
+        int totalCount = await query.CountAsync();
+        int totalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
+
+        // 3. Fetch only the current page's users from DB
+        var pagedUsers = await query
             .OrderByDescending(u => u.CreatedAt)
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
             .ToListAsync();
 
-        // FIX #10: Single batch query for orders instead of one per user
-        var allOrders = await _unitOfWork.Orders.GetAllAsync(tracked: false);
-        var ordersByUser = allOrders
+        // 4. Batch-load orders + reviews only for the current page's user IDs
+        var pageUserIds = pagedUsers.Select(u => u.Id).ToHashSet();
+
+        var pageOrders = await _unitOfWork.Orders
+            .FindAllAsync(o => pageUserIds.Contains(o.UserId), tracked: false);
+        var ordersByUser = pageOrders
             .GroupBy(o => o.UserId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // BUG #2: Single batch for reviews
-        var allReviews = await _unitOfWork.Reviews.GetAllAsync(tracked: false);
-        var reviewsByUser = allReviews
+        var pageReviews = await _unitOfWork.Reviews
+            .FindAllAsync(r => pageUserIds.Contains(r.UserId), tracked: false);
+        var reviewsByUser = pageReviews
             .GroupBy(r => r.UserId)
             .ToDictionary(g => g.Key, g => g.Count());
 
-        // Build VMs with roles
+        // 5. Build VMs only for this page's users (max PageSize = 15 iterations)
         var vms = new List<UserAdminVM>();
-        foreach (var user in users)
+        foreach (var user in pagedUsers)
         {
             var roles      = await _userManager.GetRolesAsync(user);
             var userOrders = ordersByUser.TryGetValue(user.Id, out var ord) ? ord : new();
@@ -65,26 +85,12 @@ public class UsersController : Controller
             });
         }
 
-        // BUG #4: Apply search filter
-        if (!string.IsNullOrWhiteSpace(searchQuery))
-            vms = vms.Where(u => u.FullName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)
-                               || u.Email.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
-
-        // BUG #4: Apply status filter
-        if (statusFilter == "Active")
-            vms = vms.Where(u => u.IsActive).ToList();
-        else if (statusFilter == "Inactive")
-            vms = vms.Where(u => !u.IsActive).ToList();
-
-        int totalPages = (int)Math.Ceiling(vms.Count / (double)PageSize);
-        var paged = vms.Skip((page - 1) * PageSize).Take(PageSize).ToList();
-
         ViewBag.CurrentPage   = page;
         ViewBag.TotalPages    = totalPages;
         ViewBag.SearchQuery   = searchQuery;
         ViewBag.StatusFilter  = statusFilter;
         ViewData["Title"]     = "Users";
-        return View(paged);
+        return View(vms);
     }
 
     // GET: /Admin/Users/Details/{id} — BUG #2: populate stats + recent orders

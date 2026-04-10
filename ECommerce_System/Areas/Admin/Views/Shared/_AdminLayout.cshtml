@@ -114,7 +114,7 @@
             <!-- User Profile Area -->
             <div class="px-6 mb-6">
                 <div class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10">
-                    <div class="size-10 rounded-full bg-cover bg-center border-2 border-primary/50" data-alt="Admin user profile avatar" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD8Plyb79qdCQn6PXQlvvnJWXcWlaDSvvf8cLw0LdmSnOC8e0fLiwwvkM5EBVZxaTiKhvnMu01qJmX-zOI1m5orcEUejN4jFSqZ4pxIWv5TqM9uN66W70CyTwk_bs31_8pX2fDyrKD1fvE8ApcX_KIqPGLKAjnWcdteIfzceRwJA7O9rgj62ERi-Axxg0VS28CaQl-LvSj_q29uhC6vOHWsJOjCrtMeFTBqe_X_4-YEYOokYH9WISfcLr2rmjLuYQJNhXJJrhrcgP8S')"></div>
+                    <div class="size-10 rounded-full bg-cover bg-center border-2 border-primary/50" data-alt="Admin user profile avatar" style="background-image: url('https://ui-avatars.com/api/?name=@Uri.EscapeDataString(User.Identity?.Name ?? "Admin")&background=random&color=fff')"></div>
                     <div class="flex flex-col overflow-hidden">
                         <span class="text-white text-sm font-medium truncate">@User.Identity?.Name</span>
                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/20 text-primary w-fit">Super Admin</span>
@@ -191,7 +191,35 @@
                         <span class="material-symbols-outlined">notifications</span>
                         <span class="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
                     </button>
-                    <div class="size-8 rounded-full bg-cover bg-center border border-slate-200" data-alt="Header user avatar circle" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDEJIOBqf7ACuvbC3rBhOM-Bzdg2tssdeZb4ivDAbZVTfPF6RpilSm_ghcCzBBMID9Ln-Q1N6PUCP-kp18_4GARwtXiO7STkVarITLMN7j4qTyUJEy5W1xdKfJRTIcqLSmI6veC3dmut0mVJjiosEfA1G8LKsfdJZ1OYzkeZLs-icmYC_IiWug2pm5u92BqNhTLGcQcvzFqUA0n1BuLkHy_qV3yqUjak5rFZ2TfySfWgd_HyTYnwNuLwjbjthhe0oF388eS52ejyat9')"></div>
+                    <!-- User Profile Dropdown -->
+                    <div class="relative group cursor-pointer flex items-center gap-3">
+                        <div class="flex flex-col items-end hidden md:flex">
+                            <span class="text-sm font-bold text-slate-800 dark:text-slate-100">@User.Identity?.Name</span>
+                            <span class="text-[11px] text-slate-500">Super Admin</span>
+                        </div>
+                        <div class="size-9 rounded-full bg-cover bg-center border-2 border-slate-200 dark:border-slate-700" data-alt="Header user avatar circle" style="background-image: url('https://ui-avatars.com/api/?name=@Uri.EscapeDataString(User.Identity?.Name ?? "Admin")&background=random&color=fff')"></div>
+                        
+                        <!-- Dropdown Menu -->
+                        <div class="absolute right-0 top-[120%] w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            <div class="p-2 border-b border-slate-100 dark:border-slate-700 md:hidden">
+                                <span class="block text-sm font-bold text-slate-800 dark:text-slate-100 px-2 pt-1 truncate">@User.Identity?.Name</span>
+                                <span class="block text-[11px] text-slate-500 px-2 pb-1">Super Admin</span>
+                            </div>
+                            <div class="p-2">
+                                <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors">
+                                    <span class="material-symbols-outlined text-[18px]">person</span> Profile
+                                </a>
+                                <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors">
+                                    <span class="material-symbols-outlined text-[18px]">settings</span> Settings
+                                </a>
+                            </div>
+                            <div class="p-2 border-t border-slate-100 dark:border-slate-700">
+                                <button type="button" onclick="document.getElementById('logoutForm-admin').submit();" class="flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg w-full text-left transition-colors">
+                                    <span class="material-symbols-outlined text-[18px]">logout</span> Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </header>
             

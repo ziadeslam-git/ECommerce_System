@@ -34,5 +34,8 @@ public class ReviewConfiguration : IEntityTypeConfiguration<Review>
             .WithMany(u => u.Reviews)
             .HasForeignKey(r => r.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Matching query filter: hide reviews whose parent product is inactive (mirrors Product filter)
+        builder.HasQueryFilter(r => r.Product!.IsActive);
     }
 }

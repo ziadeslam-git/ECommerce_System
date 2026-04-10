@@ -38,5 +38,9 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
             .WithMany(v => v.OrderItems)
             .HasForeignKey(oi => oi.ProductVariantId)
             .OnDelete(DeleteBehavior.NoAction);
+
+        // Matching query filter: mirrors ProductVariant's IsActive filter to satisfy EF Core 10622
+        // Note: OrderItem queries that need inactive variants use .IgnoreQueryFilters()
+        builder.HasQueryFilter(oi => oi.ProductVariant!.IsActive);
     }
 }

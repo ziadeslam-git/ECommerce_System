@@ -25,5 +25,8 @@ public class ProductImageConfiguration : IEntityTypeConfiguration<ProductImage>
         builder.Property(i => i.DisplayOrder)
             .IsRequired()
             .HasDefaultValue(0);
+
+        // Matching query filter: hide images whose parent product is inactive (mirrors Product filter)
+        builder.HasQueryFilter(i => i.Product!.IsActive);
     }
 }

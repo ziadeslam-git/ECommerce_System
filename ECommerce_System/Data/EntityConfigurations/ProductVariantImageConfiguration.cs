@@ -27,5 +27,8 @@ public class ProductVariantImageConfiguration : IEntityTypeConfiguration<Product
             .WithMany(v => v.Images)
             .HasForeignKey(i => i.ProductVariantId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Matching query filter: hide variant images when their variant is inactive (mirrors ProductVariant filter)
+        builder.HasQueryFilter(i => i.ProductVariant!.IsActive);
     }
 }

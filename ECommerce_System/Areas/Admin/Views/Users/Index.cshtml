@@ -77,8 +77,8 @@
         <div class="w-48">
             <select name="statusFilter" class="w-full border border-outline-variant/30 rounded-lg py-2 text-sm focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all">
                 <option value="">All Statuses</option>
-                <option value="Active" selected="@(ViewBag.StatusFilter == "Active")">Active</option>
-                <option value="Inactive" selected="@(ViewBag.StatusFilter == "Inactive")">Inactive</option>
+                <option value="Active" selected="@(ViewBag.StatusFilter != null && ViewBag.StatusFilter.ToString() == "Active")">Active</option>
+                <option value="Inactive" selected="@(ViewBag.StatusFilter != null && ViewBag.StatusFilter.ToString() == "Inactive")">Inactive</option>
             </select>
         </div>
         <button type="submit" class="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-all border border-transparent hover:border-slate-200">

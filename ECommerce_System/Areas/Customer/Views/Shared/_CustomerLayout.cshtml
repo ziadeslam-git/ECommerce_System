@@ -1,92 +1,54 @@
+﻿@{
+    var cartCount = ViewBag.CartCount as int? ?? 0;
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - GiftPop!</title>
-    
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <script id="tailwind-config">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script>
         tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#6467f2",
-                        "background-light": "#f6f6f8",
-                        "background-dark": "#101122",
-                    },
-                    fontFamily: {
-                        "display": ["Inter", "sans-serif"]
-                    },
-                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
-                },
-            },
+            theme: { extend: { colors: { primary: '#6467f2' }, fontFamily: { sans: ['Inter','sans-serif'] } } }
         }
     </script>
-    <style>
-        .material-symbols-outlined { font-size: 24px; }
-    </style>
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
-    <div class="relative flex min-h-screen flex-col overflow-x-hidden">
-        
-        <!-- Top Navigation Bar -->
-        <header class="sticky top-0 z-50 w-full border-b border-primary/10 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md px-6 md:px-20 py-4">
-            <div class="mx-auto flex max-w-7xl items-center justify-between">
-                <div class="flex items-center gap-12">
-                    <a asp-area="Customer" asp-controller="Home" asp-action="Index" class="flex items-center gap-3 group">
-                        <div class="text-primary size-8 group-hover:scale-110 transition-transform">
-                            <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z" fill="currentColor"></path>
-                            </svg>
-                        </div>
-                        <h1 class="text-2xl font-black tracking-tighter text-primary">GiftPop!</h1>
+<body class="bg-slate-50 text-slate-900">
+    <div class="min-h-screen flex flex-col">
+        <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+                <a asp-area="Customer" asp-controller="Home" asp-action="Index" class="text-xl font-extrabold text-primary">GiftPop!</a>
+                <nav class="hidden md:flex items-center gap-5 text-sm font-medium">
+                    <a asp-area="Customer" asp-controller="Products" asp-action="Index" class="hover:text-primary">Shop</a>
+                    <a asp-area="Customer" asp-controller="Wishlist" asp-action="Index" class="hover:text-primary">Wishlist</a>
+                    <a asp-area="Customer" asp-controller="Orders" asp-action="Index" class="hover:text-primary">My Orders</a>
+                </nav>
+                <div class="flex items-center gap-2">
+                    <a asp-area="Customer" asp-controller="Wishlist" asp-action="Index" class="inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition" title="Wishlist">
+                        <span class="material-symbols-outlined">favorite</span>
                     </a>
-                    
-                    <nav class="hidden lg:flex items-center gap-8">
-                        <a class="text-sm font-bold uppercase tracking-wider hover:text-primary transition-colors" href="#">T-Shirts</a>
-                        <a class="text-sm font-bold uppercase tracking-wider hover:text-primary transition-colors" href="#">Gift Boxes</a>
-                        <a class="text-sm font-bold uppercase tracking-wider hover:text-primary transition-colors" href="#">New Arrivals</a>
-                        <a class="text-sm font-bold uppercase tracking-wider text-pink-500 transition-colors" href="#">Sale</a>
-                    </nav>
-                </div>
-                
-                <div class="flex items-center gap-4">
-                    <div class="hidden sm:flex bg-primary/5 rounded-full px-4 py-2 items-center border border-primary/10">
-                        <span class="material-symbols-outlined text-primary text-xl">search</span>
-                        <input class="bg-transparent border-none focus:ring-0 text-sm w-40 placeholder:text-slate-400 outline-none" placeholder="Search vibes..." type="text"/>
-                    </div>
-                    
-                    <a href="#" class="flex items-center justify-center rounded-full size-10 bg-primary text-white shadow-lg shadow-primary/30 hover:scale-105 transition-transform">
-                        <span class="material-symbols-outlined text-[20px]">shopping_cart</span>
+                    <a asp-area="Customer" asp-controller="Cart" asp-action="Index" class="relative inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition" title="Cart">
+                        <span class="material-symbols-outlined">shopping_cart</span>
+                        <span class="absolute -top-1 -right-1 text-[10px] min-w-5 h-5 px-1 rounded-full bg-primary text-white grid place-items-center">@cartCount</span>
                     </a>
-                    
-                    @if (User.Identity!.IsAuthenticated)
+                    @if (User.Identity?.IsAuthenticated == true && User.IsInRole("Admin"))
                     {
-                        <div class="flex items-center gap-2">
-                            @if (User.IsInRole("Admin"))
-                            {
-                                <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="flex items-center justify-center rounded-full size-10 bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 transition-colors" title="Admin Dashboard">
-                                    <span class="material-symbols-outlined text-[20px]">shield_person</span>
-                                </a>
-                            }
-                            <a asp-area="Identity" asp-controller="Profile" asp-action="Index" class="flex items-center justify-center rounded-full size-10 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="My Profile">
-                                <span class="material-symbols-outlined text-[20px]">person</span>
-                            </a>
-                            <form asp-area="Identity" asp-controller="Account" asp-action="Logout" method="post" class="inline m-0 p-0">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="flex items-center justify-center rounded-full size-10 bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-900/50 transition-colors" title="Logout">
-                                    <span class="material-symbols-outlined text-[20px]">logout</span>
-                                </button>
-                            </form>
-                        </div>
+                        <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="inline-flex items-center justify-center h-10 w-10 rounded-full border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition" title="Admin Dashboard">
+                            <span class="material-symbols-outlined">shield_person</span>
+                        </a>
+                    }
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <a asp-area="Identity" asp-controller="Profile" asp-action="Index" class="inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition" title="Profile">
+                            <span class="material-symbols-outlined">person</span>
+                        </a>
                     }
                     else
                     {
-                        <a asp-area="Identity" asp-controller="Account" asp-action="Login" class="flex items-center justify-center rounded-full px-5 h-10 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-[background-color,transform] hover:scale-105 hover:shadow-md text-sm font-bold text-slate-700 dark:text-slate-300 shadow-sm" title="Login">
+                        <a asp-area="Identity" asp-controller="Account" asp-action="Login" class="inline-flex items-center justify-center h-10 px-4 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition text-sm font-medium">
                             Login
                         </a>
                     }
@@ -94,61 +56,36 @@
             </div>
         </header>
 
-        <main class="flex-grow">
+        <main class="flex-1">
             @RenderBody()
         </main>
 
-        <!-- Footer -->
-        <footer class="bg-white dark:bg-background-dark border-t border-primary/10 px-6 md:px-20 py-12">
-            <div class="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-4 gap-12">
-                <div class="space-y-6">
-                    <div class="flex items-center gap-3">
-                        <div class="text-primary size-6">
-                            <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z" fill="currentColor"></path>
-                            </svg>
-                        </div>
-                        <h2 class="text-xl font-black text-primary">GiftPop!</h2>
-                    </div>
-                    <p class="text-slate-500 text-sm leading-relaxed">The only shop where you can curate your own happiness. Based in LA, shipping worldwide.</p>
-                    <div class="flex gap-4">
-                        <a class="size-10 rounded-full bg-primary/5 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all" href="#"><span class="material-symbols-outlined text-lg">public</span></a>
-                        <a class="size-10 rounded-full bg-primary/5 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all" href="#"><span class="material-symbols-outlined text-lg">diversity_3</span></a>
-                        <a class="size-10 rounded-full bg-primary/5 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all" href="#"><span class="material-symbols-outlined text-lg">chat</span></a>
-                    </div>
-                </div>
-                <div class="space-y-4">
-                    <h4 class="font-black uppercase text-xs tracking-widest text-slate-800 dark:text-slate-200">Shop</h4>
-                    <ul class="space-y-3 text-sm text-slate-500 font-medium">
-                        <li><a class="hover:text-primary" href="#">All T-Shirts</a></li>
-                        <li><a class="hover:text-primary" href="#">Gift Boxes</a></li>
-                        <li><a class="hover:text-primary" href="#">Stickers & Decals</a></li>
-                        <li><a class="hover:text-primary" href="#">Holiday Specials</a></li>
-                    </ul>
-                </div>
-                <div class="space-y-4">
-                    <h4 class="font-black uppercase text-xs tracking-widest text-slate-800 dark:text-slate-200">Support</h4>
-                    <ul class="space-y-3 text-sm text-slate-500 font-medium">
-                        <li><a class="hover:text-primary" href="#">Track Order</a></li>
-                        <li><a class="hover:text-primary" href="#">Shipping Policy</a></li>
-                        <li><a class="hover:text-primary" href="#">Returns</a></li>
-                        <li><a class="hover:text-primary" href="#">FAQs</a></li>
-                    </ul>
-                </div>
-                <div class="space-y-4">
-                    <h4 class="font-black uppercase text-xs tracking-widest text-slate-800 dark:text-slate-200">Contact</h4>
-                    <ul class="space-y-3 text-sm text-slate-500 font-medium">
-                        <li class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">mail</span> hello@giftpop.shop</li>
-                        <li class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">location_on</span> Los Angeles, CA</li>
-                    </ul>
-                </div>
-            </div>
-            <div class="mx-auto max-w-7xl pt-12 mt-12 border-t border-slate-100 dark:border-slate-800 text-center md:text-left">
-                <p class="text-xs text-slate-400 font-medium">© 2024 GiftPop! Inc. All rights reserved. Express yourself!</p>
-            </div>
+        <footer class="border-t border-slate-200 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-sm text-slate-500">© @DateTime.UtcNow.Year GiftPop!</div>
         </footer>
     </div>
-    <partial name="_ValidationScriptsPartial" />
+
+    @if (TempData["success"] is string success)
+    {
+        <div id="toast-success" class="fixed right-4 top-20 z-50 rounded-lg bg-emerald-600 px-4 py-3 text-white shadow-lg">@success</div>
+    }
+    @if (TempData["error"] is string error)
+    {
+        <div id="toast-error" class="fixed right-4 top-20 z-50 rounded-lg bg-rose-600 px-4 py-3 text-white shadow-lg">@error</div>
+    }
+
+    <script>
+        document.querySelectorAll('form[data-loading="true"] button[type="submit"]').forEach(btn => {
+            btn.addEventListener('click', function () {
+                if (this.form && this.form.checkValidity()) {
+                    this.disabled = true;
+                    this.dataset.original = this.innerHTML;
+                    this.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".3"></circle><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3"></path></svg>Loading...</span>';
+                }
+            });
+        });
+        setTimeout(() => { document.getElementById('toast-success')?.remove(); document.getElementById('toast-error')?.remove(); }, 2800);
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

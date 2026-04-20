@@ -1,0 +1,69 @@
+﻿@model ECommerce_System.Models.Product
+@{
+    ViewData["Title"] = "Product Details";
+    var product = Model;
+}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+    <a asp-area="Customer" asp-controller="Products" asp-action="Index" class="inline-flex items-center gap-1 text-sm text-primary hover:underline"><span class="material-symbols-outlined text-base">arrow_back</span>Back to Products</a>
+    <div class="grid lg:grid-cols-2 gap-8">
+        <div class="space-y-3">
+            <div class="aspect-square bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <img src="@(product?.Images?.FirstOrDefault(i => i.IsMain)?.ImageUrl ?? product?.Images?.FirstOrDefault()?.ImageUrl ?? "https://placehold.co/900x900")" class="w-full h-full object-cover" alt="@(product?.Name ?? "Product")" />
+            </div>
+            <div class="grid grid-cols-4 gap-2">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <div class="aspect-square rounded-xl border border-slate-200 bg-white"></div>
+                }
+            </div>
+        </div>
+        <div class="space-y-5">
+            <h1 class="text-3xl font-bold">@(product?.Name ?? "Product Name")</h1>
+            <div class="text-amber-500">★★★★★ <span class="text-slate-500 text-sm">(24 reviews)</span></div>
+            <p class="text-2xl font-extrabold text-primary">@((product?.BasePrice ?? 0m).ToString("0.00")) EGP</p>
+
+            <div>
+                <p class="font-medium mb-2">Size</p>
+                <div class="flex flex-wrap gap-2">@foreach (var s in new[] { "XS", "S", "M", "L", "XL" }) {<button type="button" class="px-3 py-2 rounded-lg border border-slate-300 text-sm hover:border-primary">@s</button>}</div>
+            </div>
+            <div>
+                <p class="font-medium mb-2">Color</p>
+                <div class="flex gap-2"><button type="button" class="size-7 rounded-full bg-black border-2 border-primary"></button><button type="button" class="size-7 rounded-full bg-red-500"></button><button type="button" class="size-7 rounded-full bg-sky-500"></button></div>
+            </div>
+
+            <form asp-area="Customer" asp-controller="Cart" asp-action="Add" method="post" data-loading="true" class="space-y-3">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="productId" value="@(product?.Id ?? 0)" />
+                <div class="flex items-center gap-2">
+                    <button type="button" class="qty-btn h-10 w-10 rounded-lg border border-slate-300" data-dir="minus">-</button>
+                    <input id="qty" name="quantity" value="1" class="w-16 text-center rounded-lg border-slate-300" />
+                    <button type="button" class="qty-btn h-10 w-10 rounded-lg border border-slate-300" data-dir="plus">+</button>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button type="submit" class="px-5 py-3 rounded-lg bg-primary text-white font-semibold">Add to Cart</button>
+                    <button formaction="/Customer/Wishlist/Add" class="px-5 py-3 rounded-lg border border-slate-300 font-semibold">Add to Wishlist</button>
+                </div>
+            </form>
+
+            <div class="border-t border-slate-200 pt-4">
+                <div class="flex gap-5 text-sm font-medium"><button class="text-primary">Description</button><button class="text-slate-500">Reviews</button></div>
+                <p class="text-slate-600 mt-3">@(product?.Description ?? "Product description will appear here.")</p>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <h2 class="text-xl font-bold mb-4">Related Products</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            @for (var i = 0; i < 4; i++)
+            {
+                <div class="bg-white border border-slate-200 rounded-xl p-3"><div class="aspect-square bg-slate-100 rounded-lg mb-2"></div><p class="font-medium text-sm">Related Product</p></div>
+            }
+        </div>
+    </div>
+</section>
+@section Scripts {
+<script>
+document.querySelectorAll('.qty-btn').forEach(b=>b.addEventListener('click',()=>{const i=document.getElementById('qty');let v=parseInt(i.value||'1');v=b.dataset.dir==='plus'?v+1:Math.max(1,v-1);i.value=v;}));
+</script>
+}

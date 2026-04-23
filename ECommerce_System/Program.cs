@@ -4,6 +4,7 @@ using ECommerce_System.Repositories;
 using ECommerce_System.Repositories.IRepositories;
 using ECommerce_System.Utilities;
 using ECommerce_System.Utilities.DBInitializer;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Stripe;
@@ -44,6 +45,13 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.SlidingExpiration = true;
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+});
+
+// Customer-only middleware — redirect inactive users
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    // Inactive user check is already in AccountController.Login
+    // Security stamp invalidation is in UsersController.ToggleActive
 });
 
 // ──────────────────────────────────────────────────────────────────
@@ -126,7 +134,18 @@ else
 // 8. MVC with Views
 // ──────────────────────────────────────────────────────────────────
 builder.Services.AddMemoryCache();
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddViewLocalization();
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    var supportedCultures = new[] { "ar-EG", "en-US" };
+    options
+        .SetDefaultCulture("en-US")
+        .AddSupportedCultures(supportedCultures)
+        .AddSupportedUICultures(supportedCultures);
+    options.RequestCultureProviders.Insert(0, new CookieRequestCultureProvider());
+});
 builder.Services.AddRazorPages();
 
 // ──────────────────────────────────────────────────────────────────
@@ -141,9 +160,26 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+app.UseRequestLocalization();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true)
+    {
+        var userManager = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.GetUserAsync(context.User);
+        if (user != null && !user.IsActive)
+        {
+            var signInManager = context.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
+            await signInManager.SignOutAsync();
+            context.Response.Redirect("/Identity/Account/Login?deactivated=true");
+            return;
+        }
+    }
+    await next();
+});
 
 using (var scope = app.Services.CreateScope())
 {

@@ -1,34 +1,48 @@
-﻿@model ECommerce_System.Models.Product
+@model ECommerce_System.Models.Product
+@inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @{
-    ViewData["Title"] = "Product Details";
+    ViewData["Title"] = SR["ProductDetails"];
     var product = Model;
+    var reviews = product?.Reviews?.Where(r => r.IsApproved).OrderByDescending(r => r.CreatedAt).ToList() ?? [];
+    var sizes = product?.Variants?.Where(v => v.IsActive).Select(v => v.Size).Distinct().OrderBy(s => s).ToList() ?? [];
+    var colors = product?.Variants?.Where(v => v.IsActive).Select(v => v.Color).Distinct().OrderBy(c => c).ToList() ?? [];
 }
 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
-    <a asp-area="Customer" asp-controller="Products" asp-action="Index" class="inline-flex items-center gap-1 text-sm text-primary hover:underline"><span class="material-symbols-outlined text-base">arrow_back</span>Back to Products</a>
+    <a asp-area="Customer" asp-controller="Products" asp-action="Index" class="inline-flex items-center gap-1 text-sm text-primary hover:underline"><span class="material-symbols-outlined text-base">arrow_back</span>@SR["Products"]</a>
     <div class="grid lg:grid-cols-2 gap-8">
         <div class="space-y-3">
             <div class="aspect-square bg-white border border-slate-200 rounded-2xl overflow-hidden">
                 <img src="@(product?.Images?.FirstOrDefault(i => i.IsMain)?.ImageUrl ?? product?.Images?.FirstOrDefault()?.ImageUrl ?? "https://placehold.co/900x900")" class="w-full h-full object-cover" alt="@(product?.Name ?? "Product")" />
             </div>
             <div class="grid grid-cols-4 gap-2">
-                @for (var i = 0; i < 4; i++)
+                @foreach (var img in product?.Images?.OrderBy(i => i.DisplayOrder).Take(4) ?? [])
                 {
-                    <div class="aspect-square rounded-xl border border-slate-200 bg-white"></div>
+                    <img src="@img.ImageUrl" alt="@product?.Name" class="aspect-square rounded-xl border border-slate-200 bg-white object-cover" />
                 }
             </div>
         </div>
         <div class="space-y-5">
             <h1 class="text-3xl font-bold">@(product?.Name ?? "Product Name")</h1>
-            <div class="text-amber-500">★★★★★ <span class="text-slate-500 text-sm">(24 reviews)</span></div>
+            <div class="text-amber-500">★★★★★ <span class="text-slate-500 text-sm">(@reviews.Count review(s))</span></div>
             <p class="text-2xl font-extrabold text-primary">@((product?.BasePrice ?? 0m).ToString("0.00")) EGP</p>
 
             <div>
-                <p class="font-medium mb-2">Size</p>
-                <div class="flex flex-wrap gap-2">@foreach (var s in new[] { "XS", "S", "M", "L", "XL" }) {<button type="button" class="px-3 py-2 rounded-lg border border-slate-300 text-sm hover:border-primary">@s</button>}</div>
+                <p class="font-medium mb-2">@SR["Size"]</p>
+                <div class="flex flex-wrap gap-2">
+                    @foreach (var s in sizes.DefaultIfEmpty("M"))
+                    {
+                        <button type="button" class="px-3 py-2 rounded-lg border border-slate-300 text-sm hover:border-primary">@s</button>
+                    }
+                </div>
             </div>
             <div>
-                <p class="font-medium mb-2">Color</p>
-                <div class="flex gap-2"><button type="button" class="size-7 rounded-full bg-black border-2 border-primary"></button><button type="button" class="size-7 rounded-full bg-red-500"></button><button type="button" class="size-7 rounded-full bg-sky-500"></button></div>
+                <p class="font-medium mb-2">@SR["Color"]</p>
+                <div class="flex gap-2">
+                    @foreach (var c in colors.DefaultIfEmpty("Default"))
+                    {
+                        <span class="px-2 py-1 rounded border border-slate-300 text-xs">@c</span>
+                    }
+                </div>
             </div>
 
             <form asp-area="Customer" asp-controller="Cart" asp-action="Add" method="post" data-loading="true" class="space-y-3">
@@ -40,24 +54,72 @@
                     <button type="button" class="qty-btn h-10 w-10 rounded-lg border border-slate-300" data-dir="plus">+</button>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3">
-                    <button type="submit" class="px-5 py-3 rounded-lg bg-primary text-white font-semibold">Add to Cart</button>
-                    <button formaction="/Customer/Wishlist/Add" class="px-5 py-3 rounded-lg border border-slate-300 font-semibold">Add to Wishlist</button>
+                    <button type="submit" class="px-5 py-3 rounded-lg bg-primary text-white font-semibold">@SR["AddToCart"]</button>
+                    <button formaction="/Customer/Wishlist/Add" class="px-5 py-3 rounded-lg border border-slate-300 font-semibold">@SR["AddToWishlist"]</button>
                 </div>
             </form>
 
             <div class="border-t border-slate-200 pt-4">
-                <div class="flex gap-5 text-sm font-medium"><button class="text-primary">Description</button><button class="text-slate-500">Reviews</button></div>
+                <div class="flex gap-5 text-sm font-medium"><button class="text-primary">@SR["Description"]</button><button class="text-slate-500">@SR["Reviews"]</button></div>
                 <p class="text-slate-600 mt-3">@(product?.Description ?? "Product description will appear here.")</p>
             </div>
         </div>
     </div>
 
-    <div>
-        <h2 class="text-xl font-bold mb-4">Related Products</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            @for (var i = 0; i < 4; i++)
+    <div class="grid lg:grid-cols-2 gap-6">
+        <div class="bg-white border border-slate-200 rounded-2xl p-5">
+            <h2 class="text-xl font-bold mb-4">@SR["Reviews"]</h2>
+            @if (!reviews.Any())
             {
-                <div class="bg-white border border-slate-200 rounded-xl p-3"><div class="aspect-square bg-slate-100 rounded-lg mb-2"></div><p class="font-medium text-sm">Related Product</p></div>
+                <p class="text-slate-500 text-sm">@SR["NoReviews"]</p>
+            }
+            else
+            {
+                <div class="space-y-3">
+                    @foreach (var review in reviews)
+                    {
+                        <div class="border border-slate-200 rounded-lg p-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-amber-500 text-sm">@(new string('★', review.Rating))</span>
+                                <span class="text-xs text-slate-500">@review.CreatedAt.ToString("dd MMM yyyy")</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(review.Comment))
+                            {
+                                <p class="text-sm text-slate-700 mt-2">@review.Comment</p>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-2xl p-5">
+            <h2 class="text-xl font-bold mb-4">@SR["SubmitReview"]</h2>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <form asp-area="Customer" asp-controller="Reviews" asp-action="Submit" method="post" data-loading="true" class="space-y-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="productId" value="@product?.Id" />
+                    <div>
+                        <label class="text-sm font-medium">@SR["Rating"]</label>
+                        <select name="rating" class="mt-1 w-full rounded-lg border-slate-300">
+                            <option value="5">5</option>
+                            <option value="4">4</option>
+                            <option value="3">3</option>
+                            <option value="2">2</option>
+                            <option value="1">1</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium">@SR["Comment"]</label>
+                        <textarea name="comment" rows="4" class="mt-1 w-full rounded-lg border-slate-300" placeholder="Write your feedback..."></textarea>
+                    </div>
+                    <button type="submit" class="px-5 py-3 rounded-lg bg-primary text-white font-semibold">@SR["SubmitReview"]</button>
+                </form>
+            }
+            else
+            {
+                <p class="text-sm text-slate-600">Please <a asp-area="Identity" asp-controller="Account" asp-action="Login" class="text-primary underline">login</a> to submit a review.</p>
             }
         </div>
     </div>

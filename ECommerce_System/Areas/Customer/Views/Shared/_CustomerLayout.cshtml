@@ -1,12 +1,17 @@
-﻿@{
+@inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
+@{
     var cartCount = ViewBag.CartCount as int? ?? 0;
+    var culture = System.Globalization.CultureInfo.CurrentUICulture.Name;
+    var isRtl = culture.StartsWith("ar", StringComparison.OrdinalIgnoreCase);
+    string T(string en, string ar) => isRtl ? ar : en;
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
 }
 <!DOCTYPE html>
-<html lang="en">
+<html lang="@culture" dir="@(isRtl ? "rtl" : "ltr")">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - GiftPop!</title>
+    <title>@ViewData["Title"] - Smart Store</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <script>
@@ -20,17 +25,31 @@
     <div class="min-h-screen flex flex-col">
         <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-                <a asp-area="Customer" asp-controller="Home" asp-action="Index" class="text-xl font-extrabold text-primary">GiftPop!</a>
+                <a asp-area="Customer" asp-controller="Home" asp-action="Index" class="text-xl font-extrabold text-primary">Smart Store</a>
                 <nav class="hidden md:flex items-center gap-5 text-sm font-medium">
-                    <a asp-area="Customer" asp-controller="Products" asp-action="Index" class="hover:text-primary">Shop</a>
-                    <a asp-area="Customer" asp-controller="Wishlist" asp-action="Index" class="hover:text-primary">Wishlist</a>
-                    <a asp-area="Customer" asp-controller="Orders" asp-action="Index" class="hover:text-primary">My Orders</a>
+                    <a asp-area="Customer" asp-controller="Products" asp-action="Index" class="hover:text-primary">@T("Products","المنتجات")</a>
+                    <a asp-area="Customer" asp-controller="Wishlist" asp-action="Index" class="hover:text-primary">@T("Wishlist","المفضلة")</a>
+                    <a asp-area="Customer" asp-controller="Orders" asp-action="Index" class="hover:text-primary">@T("My Orders","طلباتي")</a>
                 </nav>
                 <div class="flex items-center gap-2">
-                    <a asp-area="Customer" asp-controller="Wishlist" asp-action="Index" class="inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition" title="Wishlist">
+                    <div class="hidden sm:flex items-center rounded-full border border-slate-200 p-1">
+                        <form asp-area="Customer" asp-controller="Home" asp-action="SetLanguage" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="culture" value="en-US" />
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <button class="px-2 py-1 text-xs rounded-full @(culture == "en-US" ? "bg-primary text-white" : "text-slate-600")" type="submit">EN</button>
+                        </form>
+                        <form asp-area="Customer" asp-controller="Home" asp-action="SetLanguage" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="culture" value="ar-EG" />
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <button class="px-2 py-1 text-xs rounded-full @(culture == "ar-EG" ? "bg-primary text-white" : "text-slate-600")" type="submit">AR</button>
+                        </form>
+                    </div>
+                    <a asp-area="Customer" asp-controller="Wishlist" asp-action="Index" class="inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition" title="@T("Wishlist","المفضلة")">
                         <span class="material-symbols-outlined">favorite</span>
                     </a>
-                    <a asp-area="Customer" asp-controller="Cart" asp-action="Index" class="relative inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition" title="Cart">
+                    <a asp-area="Customer" asp-controller="Cart" asp-action="Index" class="relative inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition" title="@T("Cart","سلة التسوق")">
                         <span class="material-symbols-outlined">shopping_cart</span>
                         <span class="absolute -top-1 -right-1 text-[10px] min-w-5 h-5 px-1 rounded-full bg-primary text-white grid place-items-center">@cartCount</span>
                     </a>
@@ -49,7 +68,7 @@
                     else
                     {
                         <a asp-area="Identity" asp-controller="Account" asp-action="Login" class="inline-flex items-center justify-center h-10 px-4 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition text-sm font-medium">
-                            Login
+                            @T("Login","تسجيل الدخول")
                         </a>
                     }
                 </div>
@@ -61,7 +80,7 @@
         </main>
 
         <footer class="border-t border-slate-200 bg-white">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-sm text-slate-500">© @DateTime.UtcNow.Year GiftPop!</div>
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-sm text-slate-500">© @DateTime.UtcNow.Year Smart Store</div>
         </footer>
     </div>
 

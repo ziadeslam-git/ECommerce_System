@@ -1,0 +1,204 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="WelcomeMessage" xml:space="preserve">
+    <value>مرحباً بك في سمارت ستور</value>
+  </data>
+  <data name="Home" xml:space="preserve">
+    <value>الرئيسية</value>
+  </data>
+  <data name="HomeIntro" xml:space="preserve">
+    <value>اكتشف منتجات وهدايا مختارة خصيصاً لك.</value>
+  </data>
+  <data name="Products" xml:space="preserve">
+    <value>المنتجات</value>
+  </data>
+  <data name="FeaturedProducts" xml:space="preserve">
+    <value>المنتجات الحديثة</value>
+  </data>
+  <data name="Categories" xml:space="preserve">
+    <value>الفئات</value>
+  </data>
+  <data name="ViewAll" xml:space="preserve">
+    <value>عرض الكل</value>
+  </data>
+  <data name="NoFeaturedProducts" xml:space="preserve">
+    <value>لا توجد منتجات مميزة حالياً.</value>
+  </data>
+  <data name="NoCategories" xml:space="preserve">
+    <value>لا توجد فئات متاحة.</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>بحث</value>
+  </data>
+  <data name="Filters" xml:space="preserve">
+    <value>الفلاتر</value>
+  </data>
+  <data name="ApplyFilters" xml:space="preserve">
+    <value>تطبيق الفلاتر</value>
+  </data>
+  <data name="Price" xml:space="preserve">
+    <value>السعر</value>
+  </data>
+  <data name="Category" xml:space="preserve">
+    <value>الفئة</value>
+  </data>
+  <data name="Rating" xml:space="preserve">
+    <value>التقييم</value>
+  </data>
+  <data name="NoProductsFound" xml:space="preserve">
+    <value>لا توجد منتجات مطابقة.</value>
+  </data>
+  <data name="ProductDetails" xml:space="preserve">
+    <value>تفاصيل المنتج</value>
+  </data>
+  <data name="Size" xml:space="preserve">
+    <value>المقاس</value>
+  </data>
+  <data name="Color" xml:space="preserve">
+    <value>اللون</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Reviews" xml:space="preserve">
+    <value>التقييمات</value>
+  </data>
+  <data name="NoReviews" xml:space="preserve">
+    <value>لا توجد تقييمات معتمدة بعد.</value>
+  </data>
+  <data name="SubmitReview" xml:space="preserve">
+    <value>إرسال تقييم</value>
+  </data>
+  <data name="Comment" xml:space="preserve">
+    <value>تعليق</value>
+  </data>
+  <data name="AddToCart" xml:space="preserve">
+    <value>أضف للسلة</value>
+  </data>
+  <data name="AddToWishlist" xml:space="preserve">
+    <value>أضف للمفضلة</value>
+  </data>
+  <data name="Wishlist" xml:space="preserve">
+    <value>المفضلة</value>
+  </data>
+  <data name="WishlistEmpty" xml:space="preserve">
+    <value>المفضلة فارغة.</value>
+  </data>
+  <data name="MoveToCart" xml:space="preserve">
+    <value>انقل للسلة</value>
+  </data>
+  <data name="Remove" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Cart" xml:space="preserve">
+    <value>سلة التسوق</value>
+  </data>
+  <data name="CartEmpty" xml:space="preserve">
+    <value>سلتك فارغة</value>
+  </data>
+  <data name="ContinueShopping" xml:space="preserve">
+    <value>متابعة التسوق</value>
+  </data>
+  <data name="BrowseProducts" xml:space="preserve">
+    <value>تصفح المنتجات</value>
+  </data>
+  <data name="Update" xml:space="preserve">
+    <value>تحديث</value>
+  </data>
+  <data name="OrderSummary" xml:space="preserve">
+    <value>ملخص الطلب</value>
+  </data>
+  <data name="Subtotal" xml:space="preserve">
+    <value>الإجمالي الفرعي</value>
+  </data>
+  <data name="Discount" xml:space="preserve">
+    <value>الخصم</value>
+  </data>
+  <data name="Total" xml:space="preserve">
+    <value>الإجمالي</value>
+  </data>
+  <data name="CouponCode" xml:space="preserve">
+    <value>كود الخصم</value>
+  </data>
+  <data name="Apply" xml:space="preserve">
+    <value>تطبيق</value>
+  </data>
+  <data name="Checkout" xml:space="preserve">
+    <value>إتمام الشراء</value>
+  </data>
+  <data name="BackToCart" xml:space="preserve">
+    <value>العودة للسلة</value>
+  </data>
+  <data name="ShippingAddress" xml:space="preserve">
+    <value>عنوان الشحن</value>
+  </data>
+  <data name="AddNewAddress" xml:space="preserve">
+    <value>إضافة عنوان جديد</value>
+  </data>
+  <data name="CashOnDelivery" xml:space="preserve">
+    <value>الدفع عند الاستلام</value>
+  </data>
+  <data name="ItemsCount" xml:space="preserve">
+    <value>عدد المنتجات</value>
+  </data>
+  <data name="PlaceOrder" xml:space="preserve">
+    <value>تأكيد الطلب</value>
+  </data>
+  <data name="MyOrders" xml:space="preserve">
+    <value>طلباتي</value>
+  </data>
+  <data name="NoOrdersYet" xml:space="preserve">
+    <value>لا توجد طلبات بعد.</value>
+  </data>
+  <data name="StartShopping" xml:space="preserve">
+    <value>ابدأ التسوق</value>
+  </data>
+  <data name="View" xml:space="preserve">
+    <value>عرض</value>
+  </data>
+  <data name="OrderDetails" xml:space="preserve">
+    <value>تفاصيل الطلب</value>
+  </data>
+  <data name="CancelOrder" xml:space="preserve">
+    <value>إلغاء الطلب</value>
+  </data>
+  <data name="OrderStatus_Pending" xml:space="preserve">
+    <value>قيد الانتظار</value>
+  </data>
+  <data name="OrderStatus_Confirmed" xml:space="preserve">
+    <value>تم التأكيد</value>
+  </data>
+  <data name="OrderStatus_Shipped" xml:space="preserve">
+    <value>تم الشحن</value>
+  </data>
+  <data name="OrderStatus_Delivered" xml:space="preserve">
+    <value>تم التسليم</value>
+  </data>
+  <data name="OrderStatus_Cancelled" xml:space="preserve">
+    <value>ملغى</value>
+  </data>
+  <data name="OutOfStock" xml:space="preserve">
+    <value>نفذ المخزون</value>
+  </data>
+  <data name="Login" xml:space="preserve">
+    <value>تسجيل الدخول</value>
+  </data>
+  <data name="Register" xml:space="preserve">
+    <value>إنشاء حساب</value>
+  </data>
+  <data name="Logout" xml:space="preserve">
+    <value>تسجيل الخروج</value>
+  </data>
+</root>

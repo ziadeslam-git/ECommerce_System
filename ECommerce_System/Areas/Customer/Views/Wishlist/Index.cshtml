@@ -1,17 +1,18 @@
 ﻿@model IEnumerable<ECommerce_System.Models.WishlistItem>
+@inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @{
-    ViewData["Title"] = "Wishlist";
+    ViewData["Title"] = SR["Wishlist"];
     var items = Model ?? Enumerable.Empty<ECommerce_System.Models.WishlistItem>();
 }
 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
     <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold">My Wishlist</h1>
-        <a asp-area="Customer" asp-controller="Products" asp-action="Index" class="text-sm text-primary hover:underline">Browse Products</a>
+        <h1 class="text-2xl font-bold">@SR["Wishlist"]</h1>
+        <a asp-area="Customer" asp-controller="Products" asp-action="Index" class="text-sm text-primary hover:underline">@SR["BrowseProducts"]</a>
     </div>
 
     @if (!items.Any())
     {
-        <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center"><p class="mb-3 text-slate-600">Your wishlist is empty.</p><a asp-area="Customer" asp-controller="Products" asp-action="Index" class="inline-flex px-4 py-2 rounded-lg bg-primary text-white">Start Adding Products</a></div>
+        <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center"><p class="mb-3 text-slate-600">@SR["WishlistEmpty"]</p><a asp-area="Customer" asp-controller="Products" asp-action="Index" class="inline-flex px-4 py-2 rounded-lg bg-primary text-white">@SR["StartShopping"]</a></div>
     }
     else
     {
@@ -24,8 +25,8 @@
                         <p class="font-semibold line-clamp-1">@w.Product?.Name</p>
                         <p class="text-primary font-bold">@((w.Product?.BasePrice ?? 0m).ToString("0.00")) EGP</p>
                         <div class="flex gap-2">
-                            <form asp-area="Customer" asp-controller="Wishlist" asp-action="Remove" method="post" class="flex-1" data-loading="true">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@w.Id" /><button class="w-full rounded-lg border border-rose-200 text-rose-700 py-2 text-sm">Remove</button></form>
-                            <form asp-area="Customer" asp-controller="Cart" asp-action="Add" method="post" class="flex-1" data-loading="true">@Html.AntiForgeryToken()<input type="hidden" name="productId" value="@w.ProductId" /><button class="w-full rounded-lg bg-primary text-white py-2 text-sm">Move to Cart</button></form>
+                            <form asp-area="Customer" asp-controller="Wishlist" asp-action="Remove" method="post" class="flex-1" data-loading="true">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@w.Id" /><button class="w-full rounded-lg border border-rose-200 text-rose-700 py-2 text-sm">@SR["Remove"]</button></form>
+                            <form asp-area="Customer" asp-controller="Cart" asp-action="Add" method="post" class="flex-1" data-loading="true">@Html.AntiForgeryToken()<input type="hidden" name="productId" value="@w.ProductId" /><button class="w-full rounded-lg bg-primary text-white py-2 text-sm">@SR["MoveToCart"]</button></form>
                         </div>
                     </div>
                 </article>

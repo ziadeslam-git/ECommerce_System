@@ -6,6 +6,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>0f09939c-205b-434b-9129-3fc76c17e3d9</UserSecretsId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Validations\**" />
+    <Content Remove="Validations\**" />
+    <EmbeddedResource Remove="Validations\**" />
+    <None Remove="Validations\**" />
+  </ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="CloudinaryDotNet" Version="1.28.0" />
 		<PackageReference Include="MailKit" Version="4.16.0" />
@@ -38,7 +45,6 @@
 	  <Folder Include="Data\EntityConfigurations\" />
 	  <Folder Include="Repositories\" />
 	  <Folder Include="Utilities\" />
-	  <Folder Include="Validations\" />
 	  <Folder Include="Utilities\DBInitializer\" />
 	  <Folder Include="Repositories\IRepositories\" />
 	</ItemGroup>

@@ -28,7 +28,6 @@
 		<PackageReference Include="Stripe.net" Version="51.0.0" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Folder Include="Areas\Customer\Controllers\" />
 	  <Folder Include="Areas\Customer\Views\" />
 	  <Folder Include="Areas\ChatApp\Controllers\" />
 	  <Folder Include="Areas\ChatApp\Views\" />

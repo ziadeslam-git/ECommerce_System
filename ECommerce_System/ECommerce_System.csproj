@@ -37,7 +37,6 @@
 		<PackageReference Include="NuGet.Protocol" Version="7.3.1" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Folder Include="Areas\Customer\Controllers\" />
 	  <Folder Include="Areas\Customer\Views\" />
 	  <Folder Include="Areas\ChatApp\Controllers\" />
 	  <Folder Include="Areas\ChatApp\Views\" />

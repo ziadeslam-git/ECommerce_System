@@ -5,6 +5,9 @@ namespace ECommerce_System.Repositories.IRepositories;
 
 public interface IRepository<T> where T : class
 {
+    /// <summary>Allows composing custom queries using IQueryable.</summary>
+    IQueryable<T> Query();
+
     /// <summary>Returns all entities, optionally including related data.</summary>
     Task<IEnumerable<T>> GetAllAsync(string? includeProperties = null, bool tracked = true, bool ignoreQueryFilters = false);
 

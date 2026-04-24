@@ -16,6 +16,8 @@ public class Repository<T> : IRepository<T> where T : class
         _dbSet = context.Set<T>();
     }
 
+    public IQueryable<T> Query() => _dbSet;
+
     public async Task<IEnumerable<T>> GetAllAsync(string? includeProperties = null, bool tracked = true, bool ignoreQueryFilters = false)
     {
         IQueryable<T> query = _dbSet;

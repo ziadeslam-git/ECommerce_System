@@ -44,7 +44,7 @@ public class EmailSender : IEmailSender
             _logger.LogWarning("DEBUG — Host: smtp.gmail.com | Port: 587 | User: {User} | PassLength: {Len} | SenderEmail: {Sender}",
                 _settings.Username, _settings.Password?.Length ?? 0, _settings.SenderEmail);
             await client.ConnectAsync("smtp.gmail.com", 587, SecureSocketOptions.StartTls);
-            await client.AuthenticateAsync(_settings.Username, _settings.Password);
+            await client.AuthenticateAsync(_settings.Username, _settings.Password!);
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
 

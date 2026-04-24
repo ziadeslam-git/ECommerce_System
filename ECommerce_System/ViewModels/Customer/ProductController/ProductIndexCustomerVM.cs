@@ -1,4 +1,6 @@
-﻿namespace ECommerce_System.ViewModels.Customer.ProductController
+using Microsoft.AspNetCore.Mvc.Rendering;
+
+namespace ECommerce_System.ViewModels.Customer.ProductController
 {
     public class ProductIndexCustomerVM
     {

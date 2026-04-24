@@ -1,14 +1,10 @@
-﻿using ECommerce_System.Models;
+using ECommerce_System.Models;
 
-namespace ECommerce_System.ViewModels.Customer.ProductController
+namespace ECommerce_System.ViewModels.Customer.ProductController;
+
+public class ProductDetailsVM
 {
-   
-    
-        public class ProductDetailsVM
-        {
-            public Product Product { get; set; }
-            public List<Review> Reviews { get; set; }
-            public List<Product> RelatedProducts { get; set; }
-        }
-    }
-
+    public Product Product { get; set; } = default!;
+    public List<Review> Reviews { get; set; } = [];
+    public List<Product> RelatedProducts { get; set; } = [];
+}

@@ -1,79 +1,162 @@
-﻿@model IEnumerable<ECommerce_System.Models.Product>
+@model ECommerce_System.ViewModels.Customer.ProductController.ProductIndexCustomerVM
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @{
     var isAr = System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("ar", StringComparison.OrdinalIgnoreCase);
     string T(string en, string ar) => isAr ? ar : en;
-    ViewData["Title"] = T("Products","المنتجات");
-    var products = Model ?? Enumerable.Empty<ECommerce_System.Models.Product>();
+    ViewData["Title"] = T("Products", "المنتجات");
+    var products = Model?.Products ?? [];
 }
+
 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold">@T("Products","المنتجات")</h1>
-        <a asp-area="Customer" asp-controller="Home" asp-action="Index" class="text-sm text-primary hover:underline inline-flex items-center gap-1"><span class="material-symbols-outlined text-base">arrow_back</span>@T("Home","الرئيسية")</a>
+        <h1 class="text-2xl font-bold">@T("Products", "المنتجات")</h1>
+        <a asp-area="Customer" asp-controller="Home" asp-action="Index"
+           class="text-sm text-primary hover:underline inline-flex items-center gap-1">
+            <span class="material-symbols-outlined text-base">arrow_back</span>@T("Home", "الرئيسية")
+        </a>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
         <aside class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-4 space-y-5 h-fit">
-            <h2 class="font-semibold">@T("Filters","الفلاتر")</h2>
+            <h2 class="font-semibold">@T("Filters", "الفلاتر")</h2>
             <form asp-area="Customer" asp-controller="Products" asp-action="Index" method="get" class="space-y-4">
-                <input type="search" name="search" placeholder="@(T("Search","بحث"))..." class="w-full rounded-lg border-slate-300" />
+                <input type="search" name="search" value="@Model?.SearchQuery"
+                       placeholder="@(T("Search", "بحث"))..."
+                       class="w-full rounded-lg border-slate-300" />
+
                 <div>
-                    <p class="text-sm font-medium mb-2">@T("Category","الفئة")</p>
-                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="category" value="T-Shirts" />T-Shirts</label>
-                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="category" value="Gifts" />Gifts</label>
+                    <p class="text-sm font-medium mb-2">@T("Category", "الفئة")</p>
+                    @if (Model?.Categories != null)
+                    {
+                        <select name="categoryId" class="w-full rounded-lg border-slate-300 text-sm">
+                            <option value="">@T("All Categories", "كل الفئات")</option>
+                            @foreach (var cat in Model.Categories)
+                            {
+                                <option value="@cat.Value"
+                                        selected="@(Model.SelectedCategoryId?.ToString() == cat.Value)">
+                                    @cat.Text
+                                </option>
+                            }
+                        </select>
+                    }
                 </div>
+
                 <div>
-                    <p class="text-sm font-medium mb-2">@T("Price","السعر")</p>
-                    <input type="range" min="0" max="500" name="maxPrice" class="w-full" />
+                    <p class="text-sm font-medium mb-2">@T("Price", "السعر")</p>
+                    <div class="flex gap-2">
+                        <input type="number" name="minPrice" value="@Model?.MinPrice" placeholder="Min"
+                               class="w-full rounded-lg border-slate-300 text-sm" min="0" />
+                        <input type="number" name="maxPrice" value="@Model?.MaxPrice" placeholder="Max"
+                               class="w-full rounded-lg border-slate-300 text-sm" min="0" />
+                    </div>
                 </div>
-                <div>
-                    <p class="text-sm font-medium mb-2">@T("Rating","التقييم")</p>
-                    <select name="minRating" class="w-full rounded-lg border-slate-300"><option value="">All</option><option value="4">4+ Stars</option><option value="3">3+ Stars</option></select>
-                </div>
-                <button class="w-full rounded-lg bg-primary text-white py-2 font-semibold">@T("Apply Filters","تطبيق الفلاتر")</button>
+
+                <button class="w-full rounded-lg bg-primary text-white py-2 font-semibold">
+                    @T("Apply Filters", "تطبيق الفلاتر")
+                </button>
             </form>
         </aside>
 
         <div class="lg:col-span-9 space-y-5">
-            <form asp-area="Customer" asp-controller="Products" asp-action="Index" method="get" class="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-                <div class="flex-1"><input type="search" name="q" placeholder="@(T("Search","بحث"))..." class="w-full rounded-lg border-slate-300" /></div>
+            <form asp-area="Customer" asp-controller="Products" asp-action="Index" method="get"
+                  class="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                <div class="flex-1">
+                    <input type="search" name="search" value="@Model?.SearchQuery"
+                           placeholder="@(T("Search", "بحث"))..."
+                           class="w-full rounded-lg border-slate-300" />
+                </div>
                 <div class="flex items-center gap-2">
-                    <select name="sort" class="rounded-lg border-slate-300 text-sm"><option value="newest">Newest</option><option value="priceAsc">Price ↑</option><option value="priceDesc">Price ↓</option><option value="rating">Rating</option></select>
-                    <button class="px-4 py-2 rounded-lg border border-slate-300 text-sm">Grid</button>
+                    <select name="sort" class="rounded-lg border-slate-300 text-sm">
+                        <option value="newest"     selected="@(Model?.Sort == "newest")">@T("Newest", "الأحدث")</option>
+                        <option value="price_asc"  selected="@(Model?.Sort == "price_asc")">@T("Price ↑", "السعر ↑")</option>
+                        <option value="price_desc" selected="@(Model?.Sort == "price_desc")">@T("Price ↓", "السعر ↓")</option>
+                        <option value="rating"     selected="@(Model?.Sort == "rating")">@T("Rating", "التقييم")</option>
+                    </select>
                 </div>
             </form>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                @foreach (var p in products)
-                {
-                    <article class="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition">
-                        <a asp-area="Customer" asp-controller="Products" asp-action="Details" asp-route-id="@p.Id" class="block aspect-[4/5] bg-slate-100">
-                            <img src="@(p.Images.FirstOrDefault(i => i.IsMain)?.ImageUrl ?? p.Images.FirstOrDefault()?.ImageUrl ?? "https://placehold.co/600x700")" class="w-full h-full object-cover" alt="@p.Name" />
-                        </a>
-                        <div class="p-3 space-y-2">
-                            <a asp-area="Customer" asp-controller="Products" asp-action="Details" asp-route-id="@p.Id" class="font-semibold line-clamp-1 hover:text-primary">@p.Name</a>
-                            <p class="font-bold text-primary">@((p.BasePrice).ToString("0.00")) EGP</p>
-                            <div class="text-amber-500 text-sm">★★★★★</div>
-                            <form asp-area="Customer" asp-controller="Wishlist" asp-action="Add" method="post" data-loading="true">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="productId" value="@p.Id" />
-                                <button type="submit" class="w-full rounded-lg border border-slate-300 py-2 text-sm font-medium hover:border-primary hover:text-primary">@T("Add to Wishlist","أضف للمفضلة")</button>
-                            </form>
-                        </div>
-                    </article>
-                }
-            </div>
-
             @if (!products.Any())
             {
-                <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center text-slate-500">@T("No products found.","لا توجد منتجات مطابقة.")</div>
+                <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center text-slate-500">
+                    @T("No products found.", "لا توجد منتجات مطابقة.")
+                </div>
+            }
+            else
+            {
+                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                    @foreach (var p in products)
+                    {
+                        <article class="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition">
+                            <a asp-area="Customer" asp-controller="Products" asp-action="Details"
+                               asp-route-id="@p.Id" class="block aspect-[4/5] bg-slate-100">
+                                <img src="@(p.MainImageUrl ?? "https://placehold.co/600x700")"
+                                     class="w-full h-full object-cover" alt="@p.Name" loading="lazy" />
+                            </a>
+                            <div class="p-3 space-y-2">
+                                <a asp-area="Customer" asp-controller="Products" asp-action="Details"
+                                   asp-route-id="@p.Id"
+                                   class="font-semibold line-clamp-1 hover:text-primary block">@p.Name</a>
+
+                                @if (p.MinVariantPrice.HasValue && p.MinVariantPrice < p.BasePrice)
+                                {
+                                    <p class="font-bold text-primary">@p.MinVariantPrice.Value.ToString("0.00") EGP</p>
+                                }
+                                else
+                                {
+                                    <p class="font-bold text-primary">@p.BasePrice.ToString("0.00") EGP</p>
+                                }
+
+                                <div class="text-amber-500 text-sm">
+                                    @{
+                                        int stars = (int)Math.Round(p.AverageRating);
+                                        for (int s = 1; s <= 5; s++) { <text>@(s <= stars ? "★" : "☆")</text> }
+                                    }
+                                </div>
+
+                                @if (!p.HasStock)
+                                {
+                                    <span class="text-xs text-red-500 font-medium">@T("Out of stock", "نفذ المخزون")</span>
+                                }
+
+                                <form asp-area="Customer" asp-controller="Wishlist" asp-action="Add"
+                                      method="post" data-loading="true">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="productId" value="@p.Id" />
+                                    <button type="submit"
+                                            class="w-full rounded-lg border border-slate-300 py-2 text-sm font-medium hover:border-primary hover:text-primary">
+                                        @(p.IsInWishlist ? T("♥ In Wishlist", "♥ في المفضلة") : T("Add to Wishlist", "أضف للمفضلة"))
+                                    </button>
+                                </form>
+                            </div>
+                        </article>
+                    }
+                </div>
             }
 
-            <div class="flex justify-center gap-2 pt-3">
-                <a href="#" class="h-9 w-9 rounded-lg border border-slate-300 grid place-items-center">1</a>
-                <a href="#" class="h-9 w-9 rounded-lg border border-slate-300 grid place-items-center">2</a>
-                <a href="#" class="h-9 w-9 rounded-lg border border-slate-300 grid place-items-center">3</a>
-            </div>
+            @if (Model != null && Model.TotalPages > 1)
+            {
+                <div class="flex justify-center gap-2 pt-3">
+                    @if (Model.CurrentPage > 1)
+                    {
+                        <a asp-action="Index" asp-route-page="@(Model.CurrentPage - 1)"
+                           asp-route-search="@Model.SearchQuery" asp-route-sort="@Model.Sort"
+                           class="h-9 px-3 rounded-lg border border-slate-300 grid place-items-center text-sm hover:border-primary">←</a>
+                    }
+                    @for (int i = 1; i <= Model.TotalPages; i++)
+                    {
+                        <a asp-action="Index" asp-route-page="@i"
+                           asp-route-search="@Model.SearchQuery" asp-route-sort="@Model.Sort"
+                           class="h-9 w-9 rounded-lg border @(i == Model.CurrentPage ? "bg-primary text-white border-primary" : "border-slate-300 hover:border-primary") grid place-items-center text-sm">@i</a>
+                    }
+                    @if (Model.CurrentPage < Model.TotalPages)
+                    {
+                        <a asp-action="Index" asp-route-page="@(Model.CurrentPage + 1)"
+                           asp-route-search="@Model.SearchQuery" asp-route-sort="@Model.Sort"
+                           class="h-9 px-3 rounded-lg border border-slate-300 grid place-items-center text-sm hover:border-primary">→</a>
+                    }
+                </div>
+            }
         </div>
     </div>
 </section>

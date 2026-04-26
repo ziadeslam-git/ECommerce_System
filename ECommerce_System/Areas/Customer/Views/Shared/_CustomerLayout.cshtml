@@ -94,12 +94,15 @@
     }
 
     <script>
-        document.querySelectorAll('form[data-loading="true"] button[type="submit"]').forEach(btn => {
-            btn.addEventListener('click', function () {
-                if (this.form && this.form.checkValidity()) {
-                    this.disabled = true;
-                    this.dataset.original = this.innerHTML;
-                    this.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".3"></circle><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3"></path></svg>Loading...</span>';
+        document.querySelectorAll('form[data-loading="true"]').forEach(form => {
+            form.addEventListener('submit', function () {
+                const btn = this.querySelector('button[type="submit"]');
+                if (btn && this.checkValidity()) {
+                    setTimeout(() => {
+                        btn.disabled = true;
+                        btn.dataset.original = btn.innerHTML;
+                        btn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".3"></circle><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3"></path></svg>Loading...</span>';
+                    }, 0);
                 }
             });
         });

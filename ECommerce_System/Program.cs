@@ -47,11 +47,12 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.IsEssential = true;
 });
 
-// Customer-only middleware — redirect inactive users
-builder.Services.ConfigureApplicationCookie(options =>
+// SecurityStamp validator: ASP.NET Identity re-validates the user's security stamp
+// at this interval. When an admin calls UpdateSecurityStampAsync(user) on deactivation,
+// the user will be signed out automatically within this window — NO per-request DB hit.
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
 {
-    // Inactive user check is already in AccountController.Login
-    // Security stamp invalidation is in UsersController.ToggleActive
+    options.ValidationInterval = TimeSpan.FromMinutes(30);
 });
 
 // ──────────────────────────────────────────────────────────────────
@@ -164,22 +165,19 @@ app.UseRequestLocalization();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-app.Use(async (context, next) =>
-{
-    if (context.User.Identity?.IsAuthenticated == true)
-    {
-        var userManager = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
-        var user = await userManager.GetUserAsync(context.User);
-        if (user != null && !user.IsActive)
-        {
-            var signInManager = context.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
-            await signInManager.SignOutAsync();
-            context.Response.Redirect("/Identity/Account/Login?deactivated=true");
-            return;
-        }
-    }
-    await next();
-});
+// ── Deactivated-user check ─────────────────────────────────────────────────
+// IMPORTANT: The previous implementation called userManager.GetUserAsync() on
+// EVERY request (including static files and AJAX calls), causing a DB round-trip
+// per request and making the entire app feel slow.
+//
+// Fix: Use SecurityStamp validation instead.
+// When an admin deactivates a user (UsersController.ToggleActive), call
+//   await userManager.UpdateSecurityStampAsync(user)
+// ASP.NET Identity's cookie middleware will then invalidate the session
+// automatically on the NEXT request — without a DB hit on every request.
+//
+// The interval below (30 min) matches the Identity default. You can lower it
+// (e.g. TimeSpan.FromMinutes(5)) if faster propagation is needed.
 
 using (var scope = app.Services.CreateScope())
 {

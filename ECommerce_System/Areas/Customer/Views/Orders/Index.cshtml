@@ -1,8 +1,8 @@
-﻿@model IEnumerable<ECommerce_System.Models.Order>
+@model OrderIndexPagedVM
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @{
     ViewData["Title"] = SR["MyOrders"];
-    var orders = Model ?? Enumerable.Empty<ECommerce_System.Models.Order>();
+    var orders = Model?.Orders ?? [];
     string Badge(string? s) => s switch { "Pending" => "bg-amber-100 text-amber-700", "Confirmed" => "bg-blue-100 text-blue-700", "Shipped" => "bg-sky-100 text-sky-700", "Delivered" => "bg-emerald-100 text-emerald-700", "Cancelled" => "bg-rose-100 text-rose-700", _ => "bg-slate-100 text-slate-700" };
     string LocStatus(string? s) => s switch { "Pending" => SR["OrderStatus_Pending"], "Confirmed" => SR["OrderStatus_Confirmed"], "Shipped" => SR["OrderStatus_Shipped"], "Delivered" => SR["OrderStatus_Delivered"], "Cancelled" => SR["OrderStatus_Cancelled"], _ => s ?? "-" };
 }
@@ -14,27 +14,70 @@
 
     @if (!orders.Any())
     {
-        <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center"><p class="text-slate-600 mb-3">@SR["NoOrdersYet"]</p><a asp-area="Customer" asp-controller="Products" asp-action="Index" class="inline-flex px-4 py-2 rounded-lg bg-primary text-white">@SR["StartShopping"]</a></div>
+        <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+            <p class="mb-3 text-slate-600">@SR["NoOrdersYet"]</p>
+            <a asp-area="Customer" asp-controller="Products" asp-action="Index" class="inline-flex rounded-lg bg-primary px-4 py-2 text-white">@SR["StartShopping"]</a>
+        </div>
     }
     else
     {
-        <div class="overflow-auto bg-white border border-slate-200 rounded-2xl">
+        <div class="overflow-auto rounded-2xl border border-slate-200 bg-white">
             <table class="w-full text-sm">
-                <thead class="bg-slate-50"><tr class="text-left"><th class="p-3">Order #</th><th class="p-3">Date</th><th class="p-3">Items</th><th class="p-3">@SR["Total"]</th><th class="p-3">Status</th><th class="p-3">Payment</th><th class="p-3">Actions</th></tr></thead>
+                <thead class="bg-slate-50">
+                    <tr class="text-left">
+                        <th class="p-3">Order #</th>
+                        <th class="p-3">Date</th>
+                        <th class="p-3">Items</th>
+                        <th class="p-3">@SR["Total"]</th>
+                        <th class="p-3">Status</th>
+                        <th class="p-3">Payment</th>
+                        <th class="p-3">Actions</th>
+                    </tr>
+                </thead>
                 <tbody>
-                @foreach (var o in orders)
+                @foreach (var order in orders)
                 {
                     <tr class="border-t border-slate-100">
-                        <td class="p-3">#@o.Id</td><td class="p-3">@o.CreatedAt.ToString("dd MMM yyyy")</td><td class="p-3">@(o.OrderItems?.Count ?? 0)</td><td class="p-3">@o.TotalAmount.ToString("0.00") EGP</td>
-                        <td class="p-3"><span class="px-2 py-1 rounded-full text-xs @Badge(o.Status)">@LocStatus(o.Status)</span></td>
-                        <td class="p-3"><span class="px-2 py-1 rounded-full text-xs @Badge(o.PaymentStatus)">@o.PaymentStatus</span></td>
-                        <td class="p-3"><div class="flex items-center gap-2"><a asp-area="Customer" asp-controller="Orders" asp-action="Details" asp-route-id="@o.Id" class="text-primary hover:underline">@SR["View"]</a>
-                        @if (o.Status == "Pending") { <form asp-area="Customer" asp-controller="Orders" asp-action="Cancel" method="post" data-loading="true" class="inline">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@o.Id" /><button class="text-rose-600">@SR["CancelOrder"]</button></form> }
-                        </div></td>
+                        <td class="p-3">#@order.Id</td>
+                        <td class="p-3">@order.CreatedAt.ToString("dd MMM yyyy")</td>
+                        <td class="p-3">@order.ItemCount</td>
+                        <td class="p-3">@order.TotalAmount.ToString("0.00") EGP</td>
+                        <td class="p-3"><span class="rounded-full px-2 py-1 text-xs @Badge(order.Status)">@LocStatus(order.Status)</span></td>
+                        <td class="p-3"><span class="rounded-full px-2 py-1 text-xs @Badge(order.PaymentStatus)">@order.PaymentStatus</span></td>
+                        <td class="p-3">
+                            <div class="flex items-center gap-2">
+                                <a asp-area="Customer" asp-controller="Orders" asp-action="Details" asp-route-id="@order.Id" class="text-primary hover:underline">@SR["View"]</a>
+                                @if (order.Status == "Pending")
+                                {
+                                    <form asp-area="Customer" asp-controller="Orders" asp-action="Cancel" method="post" data-loading="true" class="inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@order.Id" />
+                                        <button class="text-rose-600">@SR["CancelOrder"]</button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
                     </tr>
                 }
                 </tbody>
             </table>
         </div>
+
+        @if ((Model?.TotalPages ?? 0) > 1)
+        {
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-500">Page @(Model?.CurrentPage ?? 1) of @(Model?.TotalPages ?? 1)</span>
+                <div class="flex items-center gap-2">
+                    @if (Model?.HasPreviousPage ?? false)
+                    {
+                        <a asp-area="Customer" asp-controller="Orders" asp-action="Index" asp-route-page="@((Model?.CurrentPage ?? 1) - 1)" class="rounded-lg border border-slate-300 px-3 py-2 hover:border-primary hover:text-primary">Previous</a>
+                    }
+                    @if (Model?.HasNextPage ?? false)
+                    {
+                        <a asp-area="Customer" asp-controller="Orders" asp-action="Index" asp-route-page="@((Model?.CurrentPage ?? 1) + 1)" class="rounded-lg border border-slate-300 px-3 py-2 hover:border-primary hover:text-primary">Next</a>
+                    }
+                </div>
+            </div>
+        }
     }
 </section>

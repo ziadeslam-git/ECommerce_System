@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace ECommerce_System.ViewModels.Identity;
 
@@ -15,4 +16,11 @@ public class ProfileVM
     [Phone]
     [Display(Name = "Phone Number")]
     public string? PhoneNumber { get; set; }
+
+    public string? ProfileImageUrl { get; set; }
+
+    public string? CroppedProfileImageDataUrl { get; set; }
+
+    [Display(Name = "Profile Photo")]
+    public IFormFile? ProfileImage { get; set; }
 }

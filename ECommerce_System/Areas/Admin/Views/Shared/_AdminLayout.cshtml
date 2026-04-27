@@ -1,3 +1,75 @@
+@using ECommerce_System.Models
+@using ECommerce_System.Repositories.IRepositories
+@using ECommerce_System.Utilities
+@using Microsoft.AspNetCore.Identity
+@inject IUnitOfWork UnitOfWork
+@inject UserManager<ApplicationUser> UserManager
+@{
+    var currentAdminUser = User.Identity?.IsAuthenticated == true ? await UserManager.GetUserAsync(User) : null;
+    var displayName = currentAdminUser?.FullName;
+
+    if (string.IsNullOrWhiteSpace(displayName))
+    {
+        var identityName = User.Identity?.Name;
+        displayName = string.IsNullOrWhiteSpace(identityName)
+            ? "Admin"
+            : identityName.Contains('@')
+                ? identityName.Split('@')[0]
+                : identityName;
+    }
+
+    var notificationFeedCutoff = DateTime.UtcNow.AddDays(-7);
+    var newOrdersCutoff = DateTime.UtcNow.AddHours(-24);
+    var adminNotificationOrders = User.Identity?.IsAuthenticated == true
+        ? (await UnitOfWork.Orders.FindAllAsync(
+                o => o.CreatedAt >= notificationFeedCutoff || o.Status == SD.Status_Pending,
+                includeProperties: "User,Address",
+                tracked: false))
+            .OrderByDescending(o => o.CreatedAt)
+            .Take(6)
+            .ToList()
+        : new List<Order>();
+    var adminNotificationCount = adminNotificationOrders.Count(o => o.CreatedAt >= newOrdersCutoff || o.Status == SD.Status_Pending);
+
+    Func<DateTime, string> formatNotificationTime = createdAt =>
+    {
+        var elapsed = DateTime.UtcNow - createdAt;
+
+        if (elapsed.TotalMinutes < 1)
+        {
+            return "Just now";
+        }
+
+        if (elapsed.TotalHours < 1)
+        {
+            return $"{Math.Max(1, (int)elapsed.TotalMinutes)} min ago";
+        }
+
+        if (elapsed.TotalDays < 1)
+        {
+            return $"{Math.Max(1, (int)elapsed.TotalHours)} hr ago";
+        }
+
+        if (elapsed.TotalDays < 7)
+        {
+            var days = Math.Max(1, (int)elapsed.TotalDays);
+            return $"{days} day{(days == 1 ? string.Empty : "s")} ago";
+        }
+
+        return createdAt.ToString("dd MMM");
+    };
+
+    Func<string, string> notificationStatusClasses = status => status switch
+    {
+        SD.Status_Pending => "bg-amber-100 text-amber-700",
+        SD.Status_Confirmed => "bg-blue-100 text-blue-700",
+        SD.Status_Processing => "bg-violet-100 text-violet-700",
+        SD.Status_Shipped => "bg-sky-100 text-sky-700",
+        SD.Status_Delivered => "bg-emerald-100 text-emerald-700",
+        SD.Status_Cancelled => "bg-rose-100 text-rose-700",
+        _ => "bg-slate-100 text-slate-700"
+    };
+}
 <!DOCTYPE html>
 <html lang="en" class="light">
 <head>
@@ -104,22 +176,24 @@
         <!-- Persistent Left Sidebar -->
         <aside class="w-[240px] bg-sidebar-dark flex flex-col fixed inset-y-0 left-0 z-50">
             <!-- Top: Logo Area -->
-            <div class="p-6 flex items-center gap-3">
+            <a asp-area="Customer" asp-controller="Home" asp-action="Index" class="p-6 flex items-center gap-3 transition-opacity hover:opacity-90">
                 <div class="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
                     <span class="material-symbols-outlined">shopping_bag</span>
                 </div>
                 <h1 class="text-white text-base font-bold">Smart Store</h1>
-            </div>
+            </a>
             
             <!-- User Profile Area -->
             <div class="px-6 mb-6">
-                <div class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10">
-                    <div class="size-10 rounded-full bg-cover bg-center border-2 border-primary/50" data-alt="Admin user profile avatar" style="background-image: url('https://ui-avatars.com/api/?name=@Uri.EscapeDataString(User.Identity?.Name ?? "Admin")&background=random&color=fff')"></div>
+                <a asp-area="Identity" asp-controller="Profile" asp-action="Index" class="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3 transition-colors hover:bg-white/10">
+                    <div class="flex size-10 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary">
+                        <span class="material-symbols-outlined text-[22px]">person</span>
+                    </div>
                     <div class="flex flex-col overflow-hidden">
-                        <span class="text-white text-sm font-medium truncate">@User.Identity?.Name</span>
+                        <span class="text-white text-sm font-medium truncate">@displayName</span>
                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/20 text-primary w-fit">Super Admin</span>
                     </div>
-                </div>
+                </a>
             </div>
             
             <!-- Navigation -->
@@ -160,10 +234,6 @@
                     <span class="material-symbols-outlined @(controller == "Payments" ? "text-white" : "text-slate-400 group-hover:text-white")">payments</span>
                     <span class="text-sm font-medium">Payments</span>
                 </a>
-                <a href="#" class="flex items-center gap-3 px-3 py-2.5 group transition-colors text-slate-400 hover:text-white hover:bg-white/5 rounded-lg">
-                    <span class="material-symbols-outlined text-slate-400 group-hover:text-white">settings</span>
-                    <span class="text-sm font-medium">Settings</span>
-                </a>
             </nav>
             
             <!-- Bottom: Logout -->
@@ -180,37 +250,137 @@
         <div class="flex-1 ml-[240px]">
             
             <!-- Top Header -->
-            <header class="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 sticky top-0 z-40">
-                <h2 class="text-slate-800 dark:text-slate-100 text-xl font-bold">@ViewData["Title"]</h2>
-                <div class="flex items-center gap-6">
-                    <div class="relative w-64 hidden md:block">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                        <input class="w-full pl-10 pr-4 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 text-slate-900 dark:text-white" placeholder="Search orders, items..." type="text"/>
+            <header class="sticky top-0 z-40 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 md:px-6 xl:px-8">
+                <div class="flex flex-wrap items-center gap-4 py-3 lg:grid lg:h-16 lg:grid-cols-[minmax(180px,1fr)_minmax(300px,520px)_minmax(220px,1fr)] lg:gap-6 lg:py-0">
+                    <div class="min-w-0 shrink-0 lg:min-w-0">
+                        <h2 class="truncate text-xl font-bold text-slate-800 dark:text-slate-100">@ViewData["Title"]</h2>
                     </div>
-                    <button class="relative p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-                        <span class="material-symbols-outlined">notifications</span>
-                        <span class="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
-                    </button>
-                    <!-- User Profile Dropdown -->
-                    <div class="relative group cursor-pointer flex items-center gap-3">
-                        <div class="flex flex-col items-end hidden md:flex">
-                            <span class="text-sm font-bold text-slate-800 dark:text-slate-100">@User.Identity?.Name</span>
-                            <span class="text-[11px] text-slate-500">Super Admin</span>
+
+                    <div class="order-3 basis-full lg:order-none lg:basis-auto lg:w-full">
+                        <div class="relative mx-auto w-full max-w-xl lg:max-w-none">
+                            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                            <input class="w-full rounded-2xl border border-indigo-100 bg-gradient-to-r from-slate-50 via-white to-indigo-50/70 py-2 pl-10 pr-4 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary/30 focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-400" placeholder="Search orders, items..." type="text"/>
                         </div>
-                        <div class="size-9 rounded-full bg-cover bg-center border-2 border-slate-200 dark:border-slate-700" data-alt="Header user avatar circle" style="background-image: url('https://ui-avatars.com/api/?name=@Uri.EscapeDataString(User.Identity?.Name ?? "Admin")&background=random&color=fff')"></div>
+                    </div>
+
+                    <div class="order-2 ml-auto flex shrink-0 items-center gap-3 lg:order-none lg:ml-0 lg:justify-self-end xl:gap-4">
+                    <div class="relative">
+                        <button type="button" data-admin-notification-toggle aria-expanded="false" class="relative rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-2.5 text-slate-600 shadow-sm transition hover:border-primary/20 hover:text-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            <span class="material-symbols-outlined">notifications</span>
+                            @if (adminNotificationCount > 0)
+                            {
+                                <span class="absolute -right-0.5 -top-0.5 inline-flex min-w-[1.2rem] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white ring-2 ring-white dark:ring-slate-900">
+                                    @(adminNotificationCount > 9 ? "9+" : adminNotificationCount)
+                                </span>
+                            }
+                        </button>
+
+                        <div data-admin-notification-menu class="absolute right-0 top-[120%] z-50 hidden w-[360px] overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800">
+                            <div class="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 via-white to-violet-50 px-4 py-4 dark:border-slate-700 dark:from-slate-800 dark:via-slate-800 dark:to-slate-700/80">
+                                <div>
+                                    <p class="text-sm font-bold text-slate-800 dark:text-slate-100">Order Notifications</p>
+                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Latest customer orders and pending requests.</p>
+                                </div>
+                                <span class="inline-flex shrink-0 items-center rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                                    @adminNotificationCount active
+                                </span>
+                            </div>
+
+                            <div class="max-h-[360px] overflow-y-auto p-2">
+                                @if (adminNotificationOrders.Any())
+                                {
+                                    foreach (var order in adminNotificationOrders)
+                                    {
+                                        var customerName = order.User?.FullName ?? order.Address?.FullName ?? "Unknown customer";
+                                        var isFreshOrder = order.CreatedAt >= newOrdersCutoff;
+
+                                        <a asp-area="Admin"
+                                           asp-controller="Orders"
+                                           asp-action="Details"
+                                           asp-route-id="@order.Id"
+                                           class="flex gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                            <div class="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                                <span class="material-symbols-outlined text-[20px]">receipt_long</span>
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-start justify-between gap-3">
+                                                    <div class="min-w-0">
+                                                        <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">Order #@order.Id</p>
+                                                        <p class="truncate text-xs text-slate-500 dark:text-slate-400">@customerName</p>
+                                                    </div>
+                                                    <span class="shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold @notificationStatusClasses(order.Status)">
+                                                        @order.Status
+                                                    </span>
+                                                </div>
+                                                <div class="mt-2 flex items-center justify-between gap-3 text-xs">
+                                                    <span class="font-semibold text-slate-700 dark:text-slate-200">@order.TotalAmount.ToString("C")</span>
+                                                    <div class="flex items-center gap-2 text-slate-400 dark:text-slate-500">
+                                                        @if (isFreshOrder)
+                                                        {
+                                                            <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                                                New
+                                                            </span>
+                                                        }
+                                                        <span>@formatNotificationTime(order.CreatedAt)</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="px-3 py-8 text-center">
+                                        <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-300">
+                                            <span class="material-symbols-outlined">notifications_none</span>
+                                        </div>
+                                        <p class="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">No order notifications yet</p>
+                                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">New customer orders will appear here automatically.</p>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="border-t border-slate-100 p-2 dark:border-slate-700">
+                                <a asp-area="Admin"
+                                   asp-controller="Orders"
+                                   asp-action="Index"
+                                   class="flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/5">
+                                    Open Orders Center
+                                    <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <a asp-area="Customer" asp-controller="Home" asp-action="Index" class="group relative flex size-11 items-center justify-center rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 text-sky-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:from-primary hover:to-sky-500 hover:text-white hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:text-sky-300 dark:hover:border-primary/30 dark:hover:bg-gradient-to-br dark:hover:from-primary dark:hover:to-sky-500 dark:hover:text-white" title="Store Home" aria-label="Store Home">
+                        <span class="material-symbols-outlined">home</span>
+                    </a>
+                    <!-- User Profile Dropdown -->
+                    <div class="relative">
+                        <button type="button" data-admin-profile-toggle aria-expanded="false" class="flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
+                            <div class="hidden flex-col items-end xl:flex">
+                                <span class="text-sm font-bold text-slate-800 dark:text-slate-100">@displayName</span>
+                                <span class="text-[11px] text-slate-500">Super Admin</span>
+                            </div>
+                            <div class="flex size-9 items-center justify-center rounded-full border-2 border-slate-200 bg-primary/10 text-primary dark:border-slate-700">
+                                <span class="material-symbols-outlined text-[20px]">person</span>
+                            </div>
+                        </button>
                         
                         <!-- Dropdown Menu -->
-                        <div class="absolute right-0 top-[120%] w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div data-admin-profile-menu class="absolute right-0 top-[120%] z-50 hidden w-56 rounded-xl border border-slate-100 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
                             <div class="p-2 border-b border-slate-100 dark:border-slate-700 md:hidden">
-                                <span class="block text-sm font-bold text-slate-800 dark:text-slate-100 px-2 pt-1 truncate">@User.Identity?.Name</span>
+                                <span class="block text-sm font-bold text-slate-800 dark:text-slate-100 px-2 pt-1 truncate">@displayName</span>
                                 <span class="block text-[11px] text-slate-500 px-2 pb-1">Super Admin</span>
                             </div>
                             <div class="p-2">
-                                <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors">
+                                <a asp-area="Identity" asp-controller="Profile" asp-action="Index" class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50">
                                     <span class="material-symbols-outlined text-[18px]">person</span> Profile
                                 </a>
-                                <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors">
-                                    <span class="material-symbols-outlined text-[18px]">settings</span> Settings
+                                <a asp-area="Identity" asp-controller="Profile" asp-action="ChangePassword" class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50">
+                                    <span class="material-symbols-outlined text-[18px]">lock</span> Change Password
+                                </a>
+                                <a asp-area="Identity" asp-controller="Profile" asp-action="Addresses" class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50">
+                                    <span class="material-symbols-outlined text-[18px]">location_on</span> My Addresses
                                 </a>
                             </div>
                             <div class="p-2 border-t border-slate-100 dark:border-slate-700">
@@ -259,6 +429,64 @@
       Fancybox.bind('[data-fancybox]', {
         // Options available
       });
+
+      (function () {
+        const profileToggle = document.querySelector('[data-admin-profile-toggle]');
+        const profileMenu = document.querySelector('[data-admin-profile-menu]');
+        const notificationToggle = document.querySelector('[data-admin-notification-toggle]');
+        const notificationMenu = document.querySelector('[data-admin-notification-menu]');
+
+        const closeMenu = function (toggle, menu) {
+          if (!toggle || !menu) {
+            return;
+          }
+
+          menu.classList.add('hidden');
+          toggle.setAttribute('aria-expanded', 'false');
+        };
+
+        const toggleMenu = function (toggle, menu, otherToggle, otherMenu, event) {
+          if (!toggle || !menu) {
+            return;
+          }
+
+          event.stopPropagation();
+          const willOpen = menu.classList.contains('hidden');
+
+          closeMenu(otherToggle, otherMenu);
+          menu.classList.toggle('hidden', !willOpen);
+          toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        };
+
+        if (profileToggle && profileMenu) {
+          profileToggle.addEventListener('click', function (event) {
+            toggleMenu(profileToggle, profileMenu, notificationToggle, notificationMenu, event);
+          });
+        }
+
+        if (notificationToggle && notificationMenu) {
+          notificationToggle.addEventListener('click', function (event) {
+            toggleMenu(notificationToggle, notificationMenu, profileToggle, profileMenu, event);
+          });
+        }
+
+        document.addEventListener('click', function (event) {
+          if (profileMenu && profileToggle && !profileMenu.contains(event.target) && !profileToggle.contains(event.target)) {
+            closeMenu(profileToggle, profileMenu);
+          }
+
+          if (notificationMenu && notificationToggle && !notificationMenu.contains(event.target) && !notificationToggle.contains(event.target)) {
+            closeMenu(notificationToggle, notificationMenu);
+          }
+        });
+
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape') {
+            closeMenu(profileToggle, profileMenu);
+            closeMenu(notificationToggle, notificationMenu);
+          }
+        });
+      })();
     </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

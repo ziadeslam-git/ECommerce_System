@@ -12,6 +12,12 @@ public class ApplicationUserConfiguration : IEntityTypeConfiguration<Application
             .IsRequired()
             .HasMaxLength(100);
 
+        builder.Property(u => u.ProfileImageUrl)
+            .HasMaxLength(500);
+
+        builder.Property(u => u.ProfileImagePublicId)
+            .HasMaxLength(200);
+
         builder.Property(u => u.IsActive)
             .IsRequired()
             .HasDefaultValue(true);

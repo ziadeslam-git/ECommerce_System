@@ -87,47 +87,51 @@
                 <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
                     @foreach (var p in products)
                     {
-                        <article class="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition">
+                        <article class="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition flex flex-col h-full">
                             <a asp-area="Customer" asp-controller="Products" asp-action="Details"
                                asp-route-id="@p.Id" class="block aspect-[4/5] bg-slate-100">
                                 <img src="@(p.MainImageUrl ?? "https://placehold.co/600x700")"
                                      class="w-full h-full object-cover" alt="@p.Name" loading="lazy" />
                             </a>
-                            <div class="p-3 space-y-2">
-                                <a asp-area="Customer" asp-controller="Products" asp-action="Details"
-                                   asp-route-id="@p.Id"
-                                   class="font-semibold line-clamp-1 hover:text-primary block">@p.Name</a>
+                            <div class="p-3 flex flex-col flex-grow">
+                                <div class="space-y-2 flex-grow">
+                                    <a asp-area="Customer" asp-controller="Products" asp-action="Details"
+                                       asp-route-id="@p.Id"
+                                       class="font-semibold line-clamp-1 hover:text-primary block">@p.Name</a>
 
-                                @if (p.MinVariantPrice.HasValue && p.MinVariantPrice < p.BasePrice)
-                                {
-                                    <p class="font-bold text-primary">@p.MinVariantPrice.Value.ToString("0.00") EGP</p>
-                                }
-                                else
-                                {
-                                    <p class="font-bold text-primary">@p.BasePrice.ToString("0.00") EGP</p>
-                                }
+                                    @if (p.MinVariantPrice.HasValue && p.MinVariantPrice < p.BasePrice)
+                                    {
+                                        <p class="font-bold text-primary">@p.MinVariantPrice.Value.ToString("0.00") EGP</p>
+                                    }
+                                    else
+                                    {
+                                        <p class="font-bold text-primary">@p.BasePrice.ToString("0.00") EGP</p>
+                                    }
 
-                                <div class="text-amber-500 text-sm">
-                                    @{
-                                        int stars = (int)Math.Round(p.AverageRating);
-                                        for (int s = 1; s <= 5; s++) { <text>@(s <= stars ? "★" : "☆")</text> }
+                                    <div class="text-amber-500 text-sm">
+                                        @{
+                                            int stars = (int)Math.Round(p.AverageRating);
+                                            for (int s = 1; s <= 5; s++) { <text>@(s <= stars ? "★" : "☆")</text> }
+                                        }
+                                    </div>
+
+                                    @if (!p.HasStock)
+                                    {
+                                        <span class="text-xs text-red-500 font-medium block">@T("Out of stock", "نفذ المخزون")</span>
                                     }
                                 </div>
 
-                                @if (!p.HasStock)
-                                {
-                                    <span class="text-xs text-red-500 font-medium">@T("Out of stock", "نفذ المخزون")</span>
-                                }
-
-                                <form asp-area="Customer" asp-controller="Wishlist" asp-action="Add"
-                                      method="post" data-loading="true">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="productId" value="@p.Id" />
-                                    <button type="submit"
-                                            class="w-full rounded-lg border border-slate-300 py-2 text-sm font-medium hover:border-primary hover:text-primary">
-                                        @(p.IsInWishlist ? T("♥ In Wishlist", "♥ في المفضلة") : T("Add to Wishlist", "أضف للمفضلة"))
-                                    </button>
-                                </form>
+                                <div class="mt-4 pt-2 border-t border-slate-100">
+                                    <form asp-area="Customer" asp-controller="Wishlist" asp-action="Toggle"
+                                          method="post" data-loading="true">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="productId" value="@p.Id" />
+                                        <button type="submit"
+                                                class="w-full rounded-lg border border-slate-300 py-2 text-sm font-medium hover:border-primary hover:text-primary">
+                                            @(p.IsInWishlist ? T("♥ In Wishlist", "♥ في المفضلة") : T("Add to Wishlist", "أضف للمفضلة"))
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </article>
                     }

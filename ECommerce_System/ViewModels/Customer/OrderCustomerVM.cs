@@ -1,12 +1,9 @@
-using ECommerce_System.Models;
-using ECommerce_System.ViewModels.Admin;
-
 namespace ECommerce_System.ViewModels.Customer;
 
 // ─── Checkout ────────────────────────────────────────────────────────────────
 public class CheckoutVM
 {
-    public List<CartItemVM> Items          { get; set; } = [];
+    public List<CheckoutCartItemVM> Items          { get; set; } = [];
     public decimal          Subtotal       { get; set; }
     public IList<Address>   Addresses      { get; set; } = [];
     public int?             DefaultAddressId { get; set; }
@@ -17,7 +14,7 @@ public class CheckoutVM
 }
 
 // ─── Cart item shown on checkout page ────────────────────────────────────────
-public class CartItemVM
+public class CheckoutCartItemVM
 {
     public int     Id               { get; set; }
     public int     CartId           { get; set; }
@@ -76,9 +73,29 @@ public class OrderDetailsCustomerVM
     public string?  CouponCode     { get; set; }
     public string   AddressLine    { get; set; } = string.Empty;
 
-    public ShipmentVM?         Shipment { get; set; }
-    public List<OrderItemVM>   Items    { get; set; } = [];
+    public ShipmentSummaryCustomerVM? Shipment { get; set; }
+    public List<OrderItemCustomerVM> Items { get; set; } = [];
 
     public bool CanCancel => Status == Utilities.SD.Status_Pending;
     public bool CanReview => Status == Utilities.SD.Status_Delivered;
+}
+
+public class OrderItemCustomerVM
+{
+    public string ProductName { get; set; } = string.Empty;
+    public string Size { get; set; } = string.Empty;
+    public string Color { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal Subtotal { get; set; }
+}
+
+public class ShipmentSummaryCustomerVM
+{
+    public string? TrackingNumber { get; set; }
+    public string? Carrier { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateOnly? EstimatedDelivery { get; set; }
+    public DateTime? ShippedAt { get; set; }
+    public DateTime? DeliveredAt { get; set; }
 }

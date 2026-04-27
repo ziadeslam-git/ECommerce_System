@@ -37,7 +37,7 @@ public class CloudinaryService : ICloudinaryService
         if (_cloudinary is not null)
             return await UploadToCloudinaryAsync(file, folder);
 
-        return await SaveLocallyAsync(file);
+        return await SaveLocallyAsync(file, folder);
     }
 
     private async Task<(string Url, string PublicId)> UploadToCloudinaryAsync(IFormFile file, string folder)
@@ -60,9 +60,10 @@ public class CloudinaryService : ICloudinaryService
         return (result.SecureUrl.ToString(), result.PublicId);
     }
 
-    private async Task<(string Url, string PublicId)> SaveLocallyAsync(IFormFile file)
+    private async Task<(string Url, string PublicId)> SaveLocallyAsync(IFormFile file, string folder)
     {
-        var uploadsDir = Path.Combine(_env.WebRootPath, "uploads", "products");
+        var normalizedFolder = NormalizeFolder(folder);
+        var uploadsDir = GetLocalUploadsDirectory(normalizedFolder);
         Directory.CreateDirectory(uploadsDir);
 
         var ext       = Path.GetExtension(file.FileName);
@@ -73,7 +74,7 @@ public class CloudinaryService : ICloudinaryService
         await using var fs = new FileStream(fullPath, FileMode.Create);
         await file.CopyToAsync(fs);
 
-        var url = $"/uploads/products/{fileName}";
+        var url = $"/uploads/{normalizedFolder}/{fileName}".Replace("\\", "/");
         return (url, publicId);
     }
 
@@ -90,10 +91,26 @@ public class CloudinaryService : ICloudinaryService
         if (publicId.StartsWith("local/"))
         {
             var fileName = publicId.Replace("local/", "local_") ;
-            var files    = Directory.GetFiles(
-                Path.Combine(_env.WebRootPath, "uploads", "products"),
-                fileName + ".*");
+            var uploadsRoot = Path.Combine(_env.WebRootPath, "uploads");
+            if (!Directory.Exists(uploadsRoot))
+                return;
+
+            var files = Directory.GetFiles(
+                uploadsRoot,
+                fileName + ".*",
+                SearchOption.AllDirectories);
             foreach (var f in files) File.Delete(f);
         }
+    }
+
+    private static string NormalizeFolder(string folder) =>
+        string.IsNullOrWhiteSpace(folder)
+            ? "misc"
+            : folder.Trim('/').Replace('\\', '/');
+
+    private string GetLocalUploadsDirectory(string folder)
+    {
+        var segments = folder.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return Path.Combine(new[] { _env.WebRootPath, "uploads" }.Concat(segments).ToArray());
     }
 }

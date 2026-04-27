@@ -26,92 +26,118 @@ public class ProductsController : Controller
         string? sort,
         int page = 1)
     {
-        const int pageSize = 12;
+        const int PageSize = 12;
+        page = Math.Max(1, page);
+        search = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        sort = string.IsNullOrWhiteSpace(sort) ? "newest" : sort.Trim().ToLowerInvariant();
 
         var query = _unitOfWork.Products
             .Query()
-            .Where(p => p.IsActive)
             .Include(p => p.Category)
             .Include(p => p.Images)
             .Include(p => p.Variants)
+            .Include(p => p.Reviews)
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(search))
+        {
             query = query.Where(p => p.Name.Contains(search));
+        }
 
         if (categoryId.HasValue)
+        {
             query = query.Where(p => p.CategoryId == categoryId);
+        }
 
         if (minPrice.HasValue)
-            query = query.Where(p => p.BasePrice >= minPrice);
+        {
+            query = query.Where(p =>
+                (p.Variants.Where(v => v.IsActive && v.Stock > 0)
+                    .Select(v => (decimal?)v.Price)
+                    .OrderBy(price => price)
+                    .FirstOrDefault() ?? p.BasePrice) >= minPrice.Value);
+        }
 
         if (maxPrice.HasValue)
-            query = query.Where(p => p.BasePrice <= maxPrice);
+        {
+            query = query.Where(p =>
+                (p.Variants.Where(v => v.IsActive && v.Stock > 0)
+                    .Select(v => (decimal?)v.Price)
+                    .OrderBy(price => price)
+                    .FirstOrDefault() ?? p.BasePrice) <= maxPrice.Value);
+        }
 
         query = sort switch
         {
-            "price_asc"   => query.OrderBy(p => p.BasePrice),
-            "price_desc"  => query.OrderByDescending(p => p.BasePrice),
-            "rating"      => query.OrderByDescending(p => p.AverageRating),
-            _             => query.OrderByDescending(p => p.CreatedAt)
+            "price_asc" => query.OrderBy(p =>
+                p.Variants.Where(v => v.IsActive && v.Stock > 0)
+                    .Select(v => (decimal?)v.Price)
+                    .OrderBy(price => price)
+                    .FirstOrDefault() ?? p.BasePrice),
+            "price_desc" => query.OrderByDescending(p =>
+                p.Variants.Where(v => v.IsActive && v.Stock > 0)
+                    .Select(v => (decimal?)v.Price)
+                    .OrderBy(price => price)
+                    .FirstOrDefault() ?? p.BasePrice),
+            "rating" => query.OrderByDescending(p => p.AverageRating),
+            _ => query.OrderByDescending(p => p.CreatedAt)
         };
 
         var totalCount = await query.CountAsync();
 
         var products = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
             .ToListAsync();
 
-        // Get wishlist for current user
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var wishlistIds = new List<int>();
+        var wishlistIds = new HashSet<int>();
 
         if (userId != null)
         {
-            wishlistIds = await _unitOfWork.WishlistItems
+            wishlistIds = (await _unitOfWork.WishlistItems
                 .Query()
                 .Where(w => w.UserId == userId)
                 .Select(w => w.ProductId)
-                .ToListAsync();
+                .ToListAsync())
+                .ToHashSet();
         }
 
-        // Build category dropdown
-        var categories = await _unitOfWork.Categories.GetAllAsync();
+        var categories = await _unitOfWork.Categories.GetAllAsync(tracked: false);
         var categorySelectList = categories.Select(c => new SelectListItem
         {
             Value = c.Id.ToString(),
-            Text  = c.Name
+            Text = c.Name
         });
 
         var vm = new ProductIndexCustomerVM
         {
             Products = products.Select(p => new ProductCardVM
             {
-                Id             = p.Id,
-                Name           = p.Name,
-                BasePrice      = p.BasePrice,
+                Id = p.Id,
+                Name = p.Name,
+                BasePrice = p.BasePrice,
                 MinVariantPrice = p.Variants.Where(v => v.IsActive && v.Stock > 0)
-                                            .Select(v => v.Price)
-                                            .OrderBy(price => price)
-                                            .FirstOrDefault() is decimal vp && vp > 0 ? vp : (decimal?)null,
-                AverageRating  = p.AverageRating,
-                MainImageUrl   = p.Images.FirstOrDefault(i => i.IsMain)?.ImageUrl
-                              ?? p.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.ImageUrl,
-                CategoryName   = p.Category?.Name,
-                IsInWishlist   = wishlistIds.Contains(p.Id),
-                HasStock       = p.Variants.Any(v => v.IsActive && v.Stock > 0)
+                    .Select(v => (decimal?)v.Price)
+                    .OrderBy(price => price)
+                    .FirstOrDefault(),
+                AverageRating = p.AverageRating,
+                ReviewCount = p.Reviews.Count(r => r.IsApproved && !r.IsRejected),
+                MainImageUrl = p.Images.FirstOrDefault(i => i.IsMain)?.ImageUrl
+                    ?? p.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.ImageUrl,
+                CategoryName = p.Category?.Name,
+                IsInWishlist = userId != null && wishlistIds.Contains(p.Id),
+                HasStock = p.Variants.Any(v => v.IsActive && v.Stock > 0)
             }).ToList(),
-
-            CurrentPage        = page,
-            TotalPages         = (int)Math.Ceiling(totalCount / (double)pageSize),
-            TotalCount         = totalCount,
-            Categories         = categorySelectList,
-            SearchQuery        = search,
+            Categories = categorySelectList,
+            CurrentPage = page,
+            TotalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize)),
+            TotalCount = totalCount,
+            SearchQuery = search,
             SelectedCategoryId = categoryId,
-            MinPrice           = minPrice,
-            MaxPrice           = maxPrice,
-            Sort               = sort
+            MinPrice = minPrice,
+            MaxPrice = maxPrice,
+            Sort = sort
         };
 
         return View(vm);
@@ -121,36 +147,39 @@ public class ProductsController : Controller
     {
         var product = await _unitOfWork.Products
             .Query()
-            .Where(p => p.Id == id && p.IsActive)
+            .Where(p => p.Id == id)
             .Include(p => p.Category)
             .Include(p => p.Images)
             .Include(p => p.Variants)
             .Include(p => p.Reviews)
             .FirstOrDefaultAsync();
 
-        if (product == null)
+        if (product == null || !product.IsActive)
+        {
             return NotFound();
+        }
 
-        // Approved Reviews only
         var reviews = product.Reviews
-            .Where(r => r.IsApproved)
+            .Where(r => r.IsApproved && !r.IsRejected)
+            .OrderByDescending(r => r.CreatedAt)
             .ToList();
 
-        // Related products
         var related = await _unitOfWork.Products
             .Query()
             .Where(p => p.CategoryId == product.CategoryId &&
                         p.Id != product.Id &&
                         p.IsActive)
+            .Include(p => p.Category)
             .Include(p => p.Images)
             .Include(p => p.Variants)
+            .OrderByDescending(p => p.CreatedAt)
             .Take(4)
             .ToListAsync();
 
         var vm = new ProductDetailsVM
         {
-            Product        = product,
-            Reviews        = reviews,
+            Product = product,
+            Reviews = reviews,
             RelatedProducts = related
         };
 

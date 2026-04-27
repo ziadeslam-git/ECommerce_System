@@ -1,34 +1,68 @@
-﻿@model ECommerce_System.Models.Order
+@model OrderDetailsCustomerVM
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @{
     ViewData["Title"] = SR["OrderDetails"];
-    var order = Model;
     string LocStatus(string? s) => s switch { "Pending" => SR["OrderStatus_Pending"], "Confirmed" => SR["OrderStatus_Confirmed"], "Shipped" => SR["OrderStatus_Shipped"], "Delivered" => SR["OrderStatus_Delivered"], "Cancelled" => SR["OrderStatus_Cancelled"], _ => s ?? "-" };
 }
 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
     <div class="flex items-center justify-between">
-        <a asp-area="Customer" asp-controller="Orders" asp-action="Index" class="text-sm text-primary hover:underline inline-flex items-center gap-1"><span class="material-symbols-outlined text-base">arrow_back</span>@SR["MyOrders"]</a>
-        @if (order?.Status == "Pending")
+        <a asp-area="Customer" asp-controller="Orders" asp-action="Index" class="inline-flex items-center gap-1 text-sm text-primary hover:underline"><span class="material-symbols-outlined text-base">arrow_back</span>@SR["MyOrders"]</a>
+        @if (Model.CanCancel)
         {
-            <form asp-area="Customer" asp-controller="Orders" asp-action="Cancel" method="post" data-loading="true">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@order.Id" /><button class="px-4 py-2 rounded-lg bg-rose-600 text-white">@SR["CancelOrder"]</button></form>
+            <form asp-area="Customer" asp-controller="Orders" asp-action="Cancel" method="post" data-loading="true">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id" />
+                <button class="rounded-lg bg-rose-600 px-4 py-2 text-white">@SR["CancelOrder"]</button>
+            </form>
         }
     </div>
 
-    <div class="bg-white border border-slate-200 rounded-2xl p-5">
-        <h1 class="text-xl font-bold mb-4">@SR["OrderDetails"] #@order?.Id</h1>
-        <div class="grid sm:grid-cols-4 gap-2 text-xs text-center">
+    <div class="rounded-2xl border border-slate-200 bg-white p-5">
+        <h1 class="mb-4 text-xl font-bold">@SR["OrderDetails"] #@Model.Id</h1>
+        <div class="grid gap-2 text-center text-xs sm:grid-cols-4">
             @foreach (var step in new[] { "Pending", "Confirmed", "Shipped", "Delivered" })
-            { <div class="rounded-lg px-2 py-2 @(order?.Status==step?"bg-primary text-white":"bg-slate-100")">@LocStatus(step)</div> }
+            {
+                <div class="rounded-lg px-2 py-2 @(Model.Status == step ? "bg-primary text-white" : "bg-slate-100")">@LocStatus(step)</div>
+            }
         </div>
     </div>
 
-    <div class="bg-white border border-slate-200 rounded-2xl overflow-auto">
-        <table class="w-full text-sm"><thead class="bg-slate-50"><tr><th class="p-3 text-left">Item</th><th class="p-3 text-left">Qty</th><th class="p-3 text-left">@SR["Price"]</th></tr></thead>
-        <tbody>@foreach (var i in order?.OrderItems ?? new List<ECommerce_System.Models.OrderItem>()) {<tr class="border-t border-slate-100"><td class="p-3">@i.ProductName (@i.Size / @i.Color)</td><td class="p-3">@i.Quantity</td><td class="p-3">@i.UnitPrice.ToString("0.00")</td></tr>}</tbody></table>
+    <div class="overflow-auto rounded-2xl border border-slate-200 bg-white">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="p-3 text-left">Item</th>
+                    <th class="p-3 text-left">Qty</th>
+                    <th class="p-3 text-left">@SR["Price"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    <tr class="border-t border-slate-100">
+                        <td class="p-3">@item.ProductName (@item.Size / @item.Color)</td>
+                        <td class="p-3">@item.Quantity</td>
+                        <td class="p-3">@item.UnitPrice.ToString("0.00")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 
-    <div class="grid md:grid-cols-2 gap-6">
-        <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2"><h2 class="font-semibold">Shipping</h2><p class="text-sm text-slate-600">Carrier: @(order?.Shipment?.Carrier ?? "TBD")</p><p class="text-sm text-slate-600">Tracking: @(order?.Shipment?.TrackingNumber ?? "Not available")</p><p class="text-sm text-slate-600">Estimated Delivery: @(order?.Shipment?.EstimatedDelivery.ToString() ?? "TBD")</p></div>
-        <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-2"><h2 class="font-semibold">@SR["OrderSummary"]</h2><p class="text-sm">@SR["Subtotal"]: @((order?.Subtotal ?? 0m).ToString("0.00")) EGP</p><p class="text-sm">@SR["Discount"]: @((order?.DiscountAmount ?? 0m).ToString("0.00")) EGP</p><p class="font-bold">@SR["Total"]: @((order?.TotalAmount ?? 0m).ToString("0.00")) EGP</p></div>
+    <div class="grid gap-6 md:grid-cols-2">
+        <div class="space-y-2 rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 class="font-semibold">Shipping</h2>
+            <p class="text-sm text-slate-600">Carrier: @(Model.Shipment?.Carrier ?? "TBD")</p>
+            <p class="text-sm text-slate-600">Tracking: @(Model.Shipment?.TrackingNumber ?? "Not available")</p>
+            <p class="text-sm text-slate-600">Estimated Delivery: @(Model.Shipment?.EstimatedDelivery?.ToString("dd MMM yyyy") ?? "TBD")</p>
+            <p class="text-sm text-slate-600">Address: @Model.AddressLine</p>
+        </div>
+        <div class="space-y-2 rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 class="font-semibold">@SR["OrderSummary"]</h2>
+            <p class="text-sm">@SR["Subtotal"]: @Model.Subtotal.ToString("0.00") EGP</p>
+            <p class="text-sm">@SR["Discount"]: @Model.DiscountAmount.ToString("0.00") EGP</p>
+            <p class="text-sm">Payment: @Model.PaymentStatus</p>
+            <p class="font-bold">@SR["Total"]: @Model.TotalAmount.ToString("0.00") EGP</p>
+        </div>
     </div>
 </section>

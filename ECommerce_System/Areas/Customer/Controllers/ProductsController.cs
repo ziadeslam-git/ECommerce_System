@@ -121,6 +121,11 @@ public class ProductsController : Controller
                     .Select(v => (decimal?)v.Price)
                     .OrderBy(price => price)
                     .FirstOrDefault(),
+                DefaultVariantId = p.Variants
+                    .Where(v => v.IsActive && v.Stock > 0)
+                    .OrderBy(v => v.Price)
+                    .Select(v => (int?)v.Id)
+                    .FirstOrDefault(),
                 AverageRating = p.AverageRating,
                 ReviewCount = p.Reviews.Count(r => r.IsApproved && !r.IsRejected),
                 MainImageUrl = p.Images.FirstOrDefault(i => i.IsMain)?.ImageUrl
@@ -176,11 +181,21 @@ public class ProductsController : Controller
             .Take(4)
             .ToListAsync();
 
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var isInWishlist = false;
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            isInWishlist = await _unitOfWork.WishlistItems
+                .Query()
+                .AnyAsync(w => w.UserId == userId && w.ProductId == product.Id);
+        }
+
         var vm = new ProductDetailsVM
         {
             Product = product,
             Reviews = reviews,
-            RelatedProducts = related
+            RelatedProducts = related,
+            IsInWishlist = isInWishlist
         };
 
         return View(vm);

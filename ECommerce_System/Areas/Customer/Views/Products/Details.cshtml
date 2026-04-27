@@ -6,14 +6,18 @@
     var product  = Model?.Product;
     var reviews  = Model?.Reviews  ?? [];
     var related  = Model?.RelatedProducts ?? [];
-    var sizes    = product?.Variants?.Where(v => v.IsActive).Select(v => v.Size).Distinct().OrderBy(s => s).ToList() ?? [];
-    var colors   = product?.Variants?.Where(v => v.IsActive).Select(v => v.Color).Distinct().OrderBy(c => c).ToList() ?? [];
+    var allVariants = product?.Variants?.OrderBy(v => v.Size).ThenBy(v => v.Color).ToList() ?? [];
+    var availableVariants = allVariants.Where(v => v.IsActive && v.Stock > 0).OrderBy(v => v.Price).ToList();
+    var firstAvailableVariant = availableVariants.FirstOrDefault();
+    var sizes    = allVariants.Select(v => v.Size).Distinct().OrderBy(s => s).ToList();
+    var colors   = allVariants.Select(v => v.Color).Distinct().OrderBy(c => c).ToList();
     var mainImg  = product?.Images?.FirstOrDefault(i => i.IsMain)?.ImageUrl
                 ?? product?.Images?.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.ImageUrl
                 ?? "https://placehold.co/900x900";
-    var minPrice     = product?.Variants?.Where(v => v.IsActive && v.Stock > 0).Select(v => v.Price).OrderBy(p => p).FirstOrDefault();
+    var minPrice     = availableVariants.Select(v => (decimal?)v.Price).OrderBy(p => p).FirstOrDefault();
     var displayPrice = (minPrice.HasValue && minPrice > 0) ? minPrice.Value : product?.BasePrice ?? 0m;
-    var hasStock     = product?.Variants?.Any(v => v.IsActive && v.Stock > 0) ?? false;
+    var hasStock     = availableVariants.Any();
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
     ViewData["Title"] = product?.Name ?? T("Product Details", "تفاصيل المنتج");
 }
 
@@ -60,10 +64,17 @@
                 </span>
             }
 
-            <form asp-area="Customer" asp-controller="Cart" asp-action="Add"
-                  method="post" data-loading="true" class="space-y-4">
+            <div id="variant-stock-notice"
+                 class="@(hasStock ? "hidden" : "block") rounded-2xl border px-4 py-3 text-sm font-medium @(hasStock ? "border-rose-200 bg-rose-50 text-rose-700" : "border-rose-200 bg-rose-50 text-rose-700")">
+                @T("Out of stock. Restock soon.", "نفد المخزون حاليًا وسيتم توفيره قريبًا.")
+            </div>
+
+            <form asp-area="Customer" asp-controller="Cart" asp-action="AddToCart"
+                  method="post" data-ajax-form="cart" class="space-y-4" id="add-to-cart-form">
                 @Html.AntiForgeryToken()
-                <input type="hidden" name="productId" value="@(product?.Id ?? 0)" />
+                @* productVariantId resolved by JS from selected size + color *@
+                <input type="hidden" id="selectedVariantId" name="productVariantId" value="" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
 
                 @if (sizes.Any())
                 {
@@ -73,9 +84,10 @@
                             @foreach (var s in sizes)
                             {
                                 <label class="cursor-pointer">
-                                    <input type="radio" name="size" value="@s" class="sr-only peer"
-                                           @(sizes.First() == s ? "checked" : "") />
-                                    <span class="px-3 py-2 rounded-lg border border-slate-300 text-sm
+                                    <input type="radio" name="size" value="@s" class="sr-only peer" data-size-input
+                                           @(firstAvailableVariant?.Size == s ? "checked" : "") />
+                                    <span data-option-pill data-size-pill
+                                          class="px-3 py-2 rounded-lg border border-slate-300 text-sm
                                                  peer-checked:border-primary peer-checked:bg-primary/10
                                                  hover:border-primary transition block">@s</span>
                                 </label>
@@ -92,9 +104,10 @@
                             @foreach (var c in colors)
                             {
                                 <label class="cursor-pointer">
-                                    <input type="radio" name="color" value="@c" class="sr-only peer"
-                                           @(colors.First() == c ? "checked" : "") />
-                                    <span class="px-3 py-1 rounded-full border border-slate-300 text-xs
+                                    <input type="radio" name="color" value="@c" class="sr-only peer" data-color-input
+                                           @(firstAvailableVariant?.Color == c ? "checked" : "") />
+                                    <span data-option-pill data-color-pill
+                                          class="px-3 py-1 rounded-full border border-slate-300 text-xs
                                                  peer-checked:border-primary peer-checked:bg-primary/10
                                                  hover:border-primary transition block">@c</span>
                                 </label>
@@ -112,14 +125,30 @@
 
                 <div class="flex flex-col sm:flex-row gap-3">
                     <button type="submit"
+                            id="add-to-cart-submit"
+                            @(hasStock ? null : "disabled")
                             class="px-5 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition">
                         @T("Add to Cart", "أضف للسلة")
                     </button>
-                    <button formaction="/Customer/Wishlist/Add" type="submit"
-                            class="px-5 py-3 rounded-lg border border-slate-300 font-semibold hover:border-primary hover:text-primary transition">
-                        @T("Add to Wishlist", "أضف للمفضلة")
-                    </button>
                 </div>
+            </form>
+
+            @* Separate wishlist form — Toggle takes productId, not variantId *@
+            <form asp-area="Customer" asp-controller="Wishlist" asp-action="Toggle"
+                  method="post"
+                  data-ajax-form="wishlist"
+                  data-active-text="@T("In Wishlist", "في المفضلة")"
+                  data-inactive-text="@T("Add to Wishlist", "أضف للمفضلة")"
+                  data-wishlist-active="@(Model?.IsInWishlist == true ? "true" : "false")">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="productId" value="@(product?.Id ?? 0)" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <button type="submit"
+                        data-wishlist-button
+                        class="w-full sm:w-auto px-5 py-3 rounded-lg border border-slate-300
+                               font-semibold hover:border-primary hover:text-primary transition">
+                    @(Model?.IsInWishlist == true ? T("In Wishlist", "في المفضلة") : T("Add to Wishlist", "أضف للمفضلة"))
+                </button>
             </form>
 
             @if (!string.IsNullOrWhiteSpace(product?.Description))
@@ -229,12 +258,143 @@
 </section>
 
 @section Scripts {
+    @{
+        var variantsJson = System.Text.Json.JsonSerializer.Serialize(
+            product?.Variants?.Select(v => new
+            {
+                id    = v.Id,
+                size  = v.Size,
+                color = v.Color,
+                stock = v.Stock,
+                isActive = v.IsActive
+            }) ?? Enumerable.Empty<object>()
+        );
+    }
     <script>
-        document.querySelectorAll('.qty-btn').forEach(b => b.addEventListener('click', () => {
-            const i = document.getElementById('qty');
-            let v = parseInt(i.value || '1');
-            v = b.dataset.dir === 'plus' ? v + 1 : Math.max(1, v - 1);
-            i.value = v;
+        const _variants = @Html.Raw(variantsJson);
+
+        const qtyInput = document.getElementById('qty');
+        const addToCartButton = document.getElementById('add-to-cart-submit');
+        const selectedVariantInput = document.getElementById('selectedVariantId');
+        const stockNotice = document.getElementById('variant-stock-notice');
+
+        function isAvailableVariant(variant) {
+            return !!variant && variant.isActive && variant.stock > 0;
+        }
+
+        function getSelectedValue(name) {
+            return document.querySelector(`input[name="${name}"]:checked`)?.value ?? null;
+        }
+
+        function getMatchingVariants(size, color) {
+            return _variants.filter(v =>
+                (size === null || v.size === size) &&
+                (color === null || v.color === color)
+            );
+        }
+
+        function getAvailableVariants(size, color) {
+            return getMatchingVariants(size, color).filter(isAvailableVariant);
+        }
+
+        function setOptionAvailability(inputs, counterpartName, ownName) {
+            const counterpartValue = getSelectedValue(counterpartName);
+
+            inputs.forEach(input => {
+                const ownValue = input.value;
+                const available = ownName === 'size'
+                    ? getAvailableVariants(ownValue, counterpartValue).length > 0
+                    : getAvailableVariants(counterpartValue, ownValue).length > 0;
+                const pill = input.parentElement?.querySelector('[data-option-pill]');
+
+                input.disabled = !available;
+                input.parentElement?.classList.toggle('cursor-not-allowed', !available);
+                input.parentElement?.classList.toggle('cursor-pointer', available);
+
+                if (pill) {
+                    pill.classList.toggle('opacity-40', !available);
+                    pill.classList.toggle('grayscale', !available);
+                    pill.classList.toggle('bg-slate-100', !available);
+                    pill.classList.toggle('text-slate-400', !available);
+                    pill.classList.toggle('border-slate-200', !available);
+                    pill.classList.toggle('hover:border-primary', available);
+                }
+            });
+        }
+
+        function ensureValidSelection(name) {
+            const inputs = Array.from(document.querySelectorAll(`input[name="${name}"]`));
+            const checked = inputs.find(input => input.checked && !input.disabled);
+            if (checked) return;
+
+            inputs.forEach(input => input.checked = false);
+            const firstEnabled = inputs.find(input => !input.disabled);
+            if (firstEnabled) {
+                firstEnabled.checked = true;
+            }
+        }
+
+        function updateStockNotice(message, isVisible) {
+            if (!stockNotice) return;
+            stockNotice.textContent = message;
+            stockNotice.classList.toggle('hidden', !isVisible);
+            stockNotice.classList.toggle('block', isVisible);
+        }
+
+        function resolveVariant() {
+            setOptionAvailability(document.querySelectorAll('input[name="size"]'), 'color', 'size');
+            ensureValidSelection('size');
+
+            setOptionAvailability(document.querySelectorAll('input[name="color"]'), 'size', 'color');
+            ensureValidSelection('color');
+
+            setOptionAvailability(document.querySelectorAll('input[name="size"]'), 'color', 'size');
+            ensureValidSelection('size');
+
+            const size = getSelectedValue('size');
+            const color = getSelectedValue('color');
+            const match = getMatchingVariants(size, color)[0];
+
+            selectedVariantInput.value = isAvailableVariant(match) ? match.id : '';
+
+            const availableStock = isAvailableVariant(match) ? match.stock : 0;
+            qtyInput.max = availableStock > 0 ? availableStock : 1;
+
+            if (parseInt(qtyInput.value || '1', 10) > qtyInput.max) {
+                qtyInput.value = qtyInput.max;
+            }
+
+            const isDisabled = !isAvailableVariant(match);
+            addToCartButton.disabled = isDisabled;
+            addToCartButton.classList.toggle('opacity-50', isDisabled);
+            addToCartButton.classList.toggle('cursor-not-allowed', isDisabled);
+
+            if (isDisabled) {
+                updateStockNotice('@T("Out of stock. Restock soon.", "نفد المخزون حاليًا وسيتم توفيره قريبًا.")', true);
+            } else {
+                updateStockNotice('', false);
+            }
+        }
+
+        document.querySelectorAll('input[name="size"], input[name="color"]')
+                .forEach(r => r.addEventListener('change', resolveVariant));
+
+        document.querySelectorAll('.qty-btn').forEach(button => button.addEventListener('click', () => {
+            const currentValue = parseInt(qtyInput.value || '1', 10);
+            const maxValue = parseInt(qtyInput.max || '1', 10);
+            const nextValue = button.dataset.dir === 'plus'
+                ? Math.min(maxValue, currentValue + 1)
+                : Math.max(1, currentValue - 1);
+
+            qtyInput.value = nextValue;
         }));
+
+        qtyInput.addEventListener('input', () => {
+            const maxValue = parseInt(qtyInput.max || '1', 10);
+            const sanitized = Math.max(1, Math.min(maxValue, parseInt(qtyInput.value || '1', 10) || 1));
+            qtyInput.value = sanitized;
+        });
+
+        resolveVariant(); // initialise on page load
     </script>
 }

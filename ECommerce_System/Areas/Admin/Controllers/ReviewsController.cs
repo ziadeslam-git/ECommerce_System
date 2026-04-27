@@ -3,6 +3,7 @@ using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce_System.Areas.Admin.Controllers;
 
@@ -11,7 +12,7 @@ namespace ECommerce_System.Areas.Admin.Controllers;
 public class ReviewsController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;
-    private const int PageSize = 15;
+    private const int PageSize = 10;
 
     public ReviewsController(IUnitOfWork unitOfWork)
         => _unitOfWork = unitOfWork;
@@ -22,22 +23,38 @@ public class ReviewsController : Controller
     // ──────────────────────────────────────────────────────────
     public async Task<IActionResult> Index(string? status = null, int page = 1)
     {
-        // Build expression filter — pushed to DB
-        System.Linq.Expressions.Expression<Func<ECommerce_System.Models.Review, bool>>? filter =
-            (status ?? "").ToLower() switch
-            {
-                "approved" => r => r.IsApproved,
-                "rejected" => r => r.IsRejected,                   // FIX: was !IsApproved (same as Pending)
-                "pending"  => r => !r.IsApproved && !r.IsRejected, // FIX: exclude Rejected from Pending
-                _          => null
-            };
+        page = Math.Max(page, 1);
 
-        var (items, total) = await _unitOfWork.Reviews.GetPagedAsync(
-            filter: filter,
-            includeProperties: "User,Product",
-            page: page,
-            pageSize: PageSize,
-            tracked: false);
+        var allReviewsQuery = _unitOfWork.Reviews.Query().AsNoTracking();
+        ViewBag.AllCount = await allReviewsQuery.CountAsync();
+        ViewBag.PendingCount = await allReviewsQuery.CountAsync(r => !r.IsApproved && !r.IsRejected);
+        ViewBag.ApprovedCount = await allReviewsQuery.CountAsync(r => r.IsApproved);
+        ViewBag.RejectedCount = await allReviewsQuery.CountAsync(r => r.IsRejected);
+
+        var filteredQuery = _unitOfWork.Reviews.Query()
+            .AsNoTracking()
+            .Include(r => r.User)
+            .Include(r => r.Product)
+            .AsQueryable();
+
+        filteredQuery = (status ?? "").ToLower() switch
+        {
+            "approved" => filteredQuery.Where(r => r.IsApproved),
+            "rejected" => filteredQuery.Where(r => r.IsRejected),
+            "pending" => filteredQuery.Where(r => !r.IsApproved && !r.IsRejected),
+            _ => filteredQuery
+        };
+
+        var total = await filteredQuery.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)PageSize));
+        if (page > totalPages)
+            page = totalPages;
+
+        var items = await filteredQuery
+            .OrderByDescending(r => r.CreatedAt)
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
+            .ToListAsync();
 
         var vms = items
             .Select(r => new ReviewVM
@@ -59,8 +76,9 @@ public class ReviewsController : Controller
 
         ViewBag.StatusFilter = status;
         ViewBag.CurrentPage  = page;
-        ViewBag.TotalPages   = (int)Math.Ceiling(total / (double)PageSize);
+        ViewBag.TotalPages   = totalPages;
         ViewBag.TotalCount   = total;
+        ViewBag.PageSize     = PageSize;
         ViewData["Title"]    = "Reviews";
         return View(vms);
     }

@@ -1,6 +1,15 @@
 @model IEnumerable<PaymentVM>
 @{
     ViewData["Title"] = "Payments";
+    var payments = Model.ToList();
+    int currentPage = ViewBag.CurrentPage is int cp ? cp : 1;
+    int totalPages = ViewBag.TotalPages is int tp ? tp : 1;
+    int totalCount = ViewBag.TotalCount is int tc ? tc : payments.Count;
+    int pageSize = ViewBag.PageSize is int ps ? ps : 10;
+    int startPage = Math.Max(1, currentPage - 2);
+    int endPage = Math.Min(totalPages, currentPage + 2);
+    int startItem = totalCount == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    int endItem = totalCount == 0 ? 0 : startItem + payments.Count - 1;
 }
 
 @section Styles {
@@ -89,7 +98,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                    @foreach (var p in Model)
+                    @foreach (var p in payments)
                     {
                         <tr class="hover:bg-slate-50/70 transition-colors group">
                             <td class="px-6 py-4">
@@ -141,7 +150,7 @@
                             </td>
                         </tr>
                     }
-                    @if (!Model.Any())
+                    @if (!payments.Any())
                     {
                         <tr>
                             <td colspan="6" class="text-center py-12">
@@ -156,20 +165,36 @@
 
         @if (ViewBag.TotalPages > 1)
         {
-            <div class="px-6 py-4 bg-surface-container-low border-t border-slate-100 flex justify-between items-center">
-                <span class="text-xs text-slate-500 font-medium">Page @ViewBag.CurrentPage of @ViewBag.TotalPages</span>
-                <div class="flex gap-1 items-center">
-                    @for (int pg = 1; pg <= ViewBag.TotalPages; pg++)
+            <div class="px-6 py-4 bg-surface-container-low border-t border-slate-100 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <span class="text-xs text-slate-500 font-medium">
+                    Showing <span class="font-semibold text-slate-700">@startItem</span>
+                    to <span class="font-semibold text-slate-700">@endItem</span>
+                    of <span class="font-semibold text-slate-700">@totalCount</span> payments
+                </span>
+                <div class="flex flex-wrap gap-2 items-center">
+                    <a asp-action="Index" asp-route-page="@(currentPage - 1)" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-searchQuery="@ViewBag.SearchQuery"
+                       class="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition-all @(currentPage == 1 ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-300" : "border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:text-primary")">
+                        <span class="material-symbols-outlined text-sm">chevron_left</span>
+                        Previous
+                    </a>
+
+                    @for (int pg = startPage; pg <= endPage; pg++)
                     {
-                        if (pg == ViewBag.CurrentPage)
+                        if (pg == currentPage)
                         {
-                            <button class="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold shadow-sm">@pg</button>
+                            <button class="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-primary bg-primary px-3 text-xs font-bold text-white shadow-md shadow-primary/20">@pg</button>
                         }
                         else
                         {
-                            <a asp-action="Index" asp-route-page="@pg" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-searchQuery="@ViewBag.SearchQuery" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-white border border-transparent hover:border-slate-200 text-xs font-bold transition-all">@pg</a>
+                            <a asp-action="Index" asp-route-page="@pg" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-searchQuery="@ViewBag.SearchQuery" class="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary/30 hover:text-primary">@pg</a>
                         }
                     }
+
+                    <a asp-action="Index" asp-route-page="@(currentPage + 1)" asp-route-statusFilter="@ViewBag.StatusFilter" asp-route-searchQuery="@ViewBag.SearchQuery"
+                       class="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition-all @(currentPage == totalPages ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-300" : "border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:text-primary")">
+                        Next
+                        <span class="material-symbols-outlined text-sm">chevron_right</span>
+                    </a>
                 </div>
             </div>
         }

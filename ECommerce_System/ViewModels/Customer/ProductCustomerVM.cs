@@ -9,6 +9,7 @@ public class ProductCardVM
     public string Name { get; set; } = string.Empty;
     public decimal BasePrice { get; set; }
     public decimal? MinVariantPrice { get; set; }
+    public int? DefaultVariantId { get; set; }
     public double AverageRating { get; set; }
     public int ReviewCount { get; set; }
     public string? MainImageUrl { get; set; }
@@ -36,6 +37,7 @@ public class ProductDetailsCustomerVM
     public Product Product { get; set; } = null!;
     public List<Review> Reviews { get; set; } = [];
     public List<Product> RelatedProducts { get; set; } = [];
+    public bool IsInWishlist { get; set; }
 }
 
 // Preserve the existing Razor view model name while consolidating these VMs in one file.

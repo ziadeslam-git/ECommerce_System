@@ -6,28 +6,34 @@ using ECommerce_System.ViewModels.Customer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Stripe.Checkout;
 
 namespace ECommerce_System.Areas.Customer.Controllers;
 
 [Area("Customer")]
-[Authorize(Roles = SD.Role_Customer)]
+[Authorize(Roles = SD.Role_AdminOrCustomer)]
 public class OrdersController : Controller
 {
     private readonly IUnitOfWork                    _unitOfWork;
     private readonly ILogger<OrdersController>      _logger;
+    private readonly StripeSettings                 _stripeSettings;
     private const    int                            PageSize = 10;
+    private const    string                         PaymentMethodCashOnDelivery = "CashOnDelivery";
+    private const    string                         PaymentMethodCreditCard     = "CreditCard";
 
-    public OrdersController(IUnitOfWork unitOfWork, ILogger<OrdersController> logger)
+    public OrdersController(IUnitOfWork unitOfWork, ILogger<OrdersController> logger, IOptions<StripeSettings> stripeOptions)
     {
         _unitOfWork = unitOfWork;
         _logger     = logger;
+        _stripeSettings = stripeOptions.Value;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
     //  GET  /Customer/Orders/Checkout
     // ──────────────────────────────────────────────────────────────────────────
     [HttpGet]
-    public async Task<IActionResult> Checkout()
+    public async Task<IActionResult> Checkout(string? couponCode = null, int? addressId = null, string? paymentMethod = null)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return Unauthorized();
@@ -49,7 +55,7 @@ public class OrdersController : Controller
                 ProductVariantId = ci.ProductVariantId,
                 Quantity         = ci.Quantity,
                 PriceSnapshot    = ci.PriceSnapshot,
-                CurrentPrice     = ci.ProductVariant.Price,
+                CurrentPrice     = ci.PriceSnapshot,
                 ProductName      = ci.ProductVariant.Product.Name,
                 Size             = ci.ProductVariant.Size,
                 Color            = ci.ProductVariant.Color,
@@ -60,7 +66,7 @@ public class OrdersController : Controller
                                      .FirstOrDefault()?.ImageUrl,
                 Stock            = ci.ProductVariant.Stock
             }).ToList(),
-            Subtotal         = cart.Items.Sum(ci => ci.Quantity * ci.ProductVariant.Price),
+            Subtotal         = cart.Items.Sum(ci => ci.Quantity * ci.PriceSnapshot),
             Addresses        = addresses.Select(a => new AddressOptionCustomerVM
             {
                 Id          = a.Id,
@@ -74,10 +80,20 @@ public class OrdersController : Controller
                 IsDefault   = a.IsDefault,
                 DisplayLine = BuildAddressLine(a)
             }).ToList(),
-            DefaultAddressId = addresses.FirstOrDefault(a => a.IsDefault)?.Id
+            DefaultAddressId = addresses.FirstOrDefault(a => a.IsDefault)?.Id,
+            AddressId        = addressId,
+            CouponCode       = couponCode?.Trim(),
+            PaymentMethod    = NormalizePaymentMethod(paymentMethod)
         };
 
-        return View(vm);
+        var (_, discountAmount, couponError, appliedCode) = await ResolveCouponAsync(userId, vm.CouponCode, vm.Subtotal);
+        vm.DiscountAmount = discountAmount;
+        vm.CouponCode = appliedCode ?? vm.CouponCode;
+        vm.CouponApplied = string.IsNullOrWhiteSpace(couponError) && discountAmount > 0 && !string.IsNullOrWhiteSpace(vm.CouponCode);
+        vm.CouponMessage = couponError ?? (vm.CouponApplied ? $"Coupon '{vm.CouponCode}' applied successfully." : null);
+
+        // Checkout.cshtml lives under Cart/, not Orders/ — specify path explicitly
+        return View("~/Areas/Customer/Views/Cart/Checkout.cshtml", vm);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -85,19 +101,20 @@ public class OrdersController : Controller
     // ──────────────────────────────────────────────────────────────────────────
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> PlaceOrder(int addressId, string? couponCode)
+    public async Task<IActionResult> PlaceOrder(int addressId, string? couponCode, string? paymentMethod)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return Unauthorized();
+        paymentMethod = NormalizePaymentMethod(paymentMethod);
 
-        _logger.LogInformation("PlaceOrder started. UserId={UserId}, AddressId={AddressId}, Coupon={Coupon}",
-            userId, addressId, couponCode ?? "none");
+        _logger.LogInformation("PlaceOrder started. UserId={UserId}, AddressId={AddressId}, Coupon={Coupon}, PaymentMethod={PaymentMethod}",
+            userId, addressId, couponCode ?? "none", paymentMethod);
 
         // ── Step 1: Validate Address ─────────────────────────────────────────
         if (addressId <= 0)
         {
             TempData["Error"] = "Please select a valid delivery address.";
-            return RedirectToAction(nameof(Checkout));
+            return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
         }
 
         var address = await _unitOfWork.Addresses.FindAsync(
@@ -108,7 +125,7 @@ public class OrdersController : Controller
             _logger.LogWarning("PlaceOrder blocked: Address {AddressId} not found for user {UserId}.",
                 addressId, userId);
             TempData["Error"] = "The selected address is invalid or does not belong to your account.";
-            return RedirectToAction(nameof(Checkout));
+            return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
         }
 
         // ── Step 2: Load Cart ─────────────────────────────────────────────────
@@ -145,137 +162,77 @@ public class OrdersController : Controller
                 return RedirectToAction("Index", "Cart");
             }
 
-            subtotal += item.Quantity * item.ProductVariant.Price;
+            subtotal += item.Quantity * item.PriceSnapshot;
         }
 
         // ── Step 5: Validate & Apply Coupon ──────────────────────────────────
-        decimal   discountAmount = 0;
-        Discount? appliedCoupon  = null;
-
-        if (!string.IsNullOrWhiteSpace(couponCode))
+        var (appliedCoupon, discountAmount, couponError, appliedCode) = await ResolveCouponAsync(userId, couponCode, subtotal);
+        couponCode = appliedCode ?? couponCode?.Trim();
+        if (!string.IsNullOrWhiteSpace(couponError))
         {
-            var normalizedCode = couponCode.Trim().ToUpperInvariant();
-            appliedCoupon = await _unitOfWork.Discounts.FindAsync(
-                d => d.CouponCode.ToUpper() == normalizedCode && d.IsActive);
+            _logger.LogWarning("PlaceOrder: Coupon validation failed. Coupon={Coupon}, UserId={UserId}, Reason={Reason}",
+                couponCode ?? "none", userId, couponError);
+            TempData["Error"] = couponError;
+            return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
+        }
 
-            if (appliedCoupon == null)
-            {
-                _logger.LogWarning("PlaceOrder: Coupon '{Coupon}' not found or inactive. UserId={UserId}.", couponCode, userId);
-                TempData["Error"] = $"Coupon code '{couponCode}' is invalid or has been deactivated.";
-                return RedirectToAction(nameof(Checkout));
-            }
-
-            if (appliedCoupon.ExpiresAt.HasValue && appliedCoupon.ExpiresAt.Value < DateTime.UtcNow)
-            {
-                TempData["Error"] = $"Coupon code '{couponCode}' has expired.";
-                return RedirectToAction(nameof(Checkout));
-            }
-
-            if (appliedCoupon.UsageLimit.HasValue && appliedCoupon.UsageCount >= appliedCoupon.UsageLimit.Value)
-            {
-                TempData["Error"] = $"Coupon code '{couponCode}' has reached its usage limit.";
-                return RedirectToAction(nameof(Checkout));
-            }
-
-            if (appliedCoupon.MinimumOrderAmount.HasValue && subtotal < appliedCoupon.MinimumOrderAmount.Value)
-            {
-                TempData["Error"] = $"This coupon requires a minimum order of {appliedCoupon.MinimumOrderAmount.Value:C}. " +
-                                    $"Your subtotal is {subtotal:C}.";
-                return RedirectToAction(nameof(Checkout));
-            }
-
-            discountAmount = appliedCoupon.Type == SD.Discount_Percentage
-                ? subtotal * (appliedCoupon.Value / 100m)
-                : appliedCoupon.Value;
-
-            // Cap: discount must not exceed subtotal
-            discountAmount = Math.Min(discountAmount, subtotal);
-
+        if (appliedCoupon != null)
+        {
             _logger.LogInformation("PlaceOrder: Coupon '{Coupon}' applied. Discount={Discount:C}. UserId={UserId}.",
                 appliedCoupon.CouponCode, discountAmount, userId);
         }
 
         var totalAmount = subtotal - discountAmount;
 
-        // ── Steps 6-10: Transactional section ────────────────────────────────
-        // KEY DESIGN: We build everything in memory first, then ONE SaveAsync + Commit.
-        // This avoids double SaveAsync (which held two sets of DB locks) and eliminates
-        // the N+1 await-in-loop pattern.
-        using var transaction = await _unitOfWork.BeginTransactionAsync();
+        if (paymentMethod == PaymentMethodCreditCard)
+        {
+            if (!IsStripeConfigured())
+            {
+                TempData["Error"] = "Stripe payment is not configured yet. Add the Stripe Secret Key first, then try again.";
+                return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
+            }
+
+            try
+            {
+                var session = await CreateStripeCheckoutSessionAsync(cart, userId, addressId, couponCode, subtotal, discountAmount, totalAmount);
+                if (string.IsNullOrWhiteSpace(session.Url))
+                {
+                    TempData["Error"] = "Could not start the Stripe checkout session. Please try again.";
+                    return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
+                }
+
+                return Redirect(session.Url);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PlaceOrder failed while creating Stripe session. UserId={UserId}.", userId);
+                TempData["Error"] = "Unable to start card payment right now. Please try again.";
+                return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
+            }
+        }
+
         try
         {
-            // ── Step 6 & 8: Deduct stock + build OrderItems snapshot in memory ──
-            var orderItems = new List<OrderItem>(cart.Items.Count);
-
-            foreach (var item in cart.Items)
-            {
-                // Stock deduction (in-memory; flushed in single SaveAsync below)
-                item.ProductVariant.Stock -= item.Quantity;
-                if (item.ProductVariant.Stock == 0)
-                {
-                    item.ProductVariant.IsActive = false;
-                    _logger.LogInformation(
-                        "PlaceOrder: Variant {VariantId} will be deactivated (stock → 0). UserId={UserId}.",
-                        item.ProductVariantId, userId);
-                }
-                _unitOfWork.ProductVariants.Update(item.ProductVariant);
-
-                // Snapshot — OrderId FK will be set by EF when Order is saved
-                orderItems.Add(new OrderItem
-                {
-                    ProductVariantId = item.ProductVariantId,
-                    ProductName      = item.ProductVariant.Product?.Name ?? "(deleted)",
-                    Size             = item.ProductVariant.Size,
-                    Color            = item.ProductVariant.Color,
-                    Quantity         = item.Quantity,
-                    UnitPrice        = item.ProductVariant.Price,
-                    Subtotal         = item.Quantity * item.ProductVariant.Price
-                });
-            }
-
-            // ── Step 7: Create Order and attach items via navigation property ──
-            // EF Core resolves the FK (OrderItem.OrderId) automatically on SaveAsync.
-            // No intermediate SaveAsync needed → no intermediate DB lock round-trip.
-            var order = new Order
-            {
-                UserId         = userId,
-                AddressId      = addressId,
-                Subtotal       = subtotal,
-                DiscountAmount = discountAmount,
-                TotalAmount    = totalAmount,
-                CouponCode     = appliedCoupon?.CouponCode,
-                Status         = SD.Status_Pending,
-                PaymentStatus  = SD.Payment_Unpaid,
-                OrderItems     = orderItems,          // ← EF sets FK automatically
-                CreatedAt      = DateTime.UtcNow,
-                UpdatedAt      = DateTime.UtcNow
-            };
-            await _unitOfWork.Orders.AddAsync(order); // tracks Order + all OrderItems
-
-            // ── Step 5b: Increment coupon usage ──────────────────────────────
-            if (appliedCoupon != null)
-            {
-                appliedCoupon.UsageCount++;
-                _unitOfWork.Discounts.Update(appliedCoupon);
-            }
-
-            // ── Step 9: Clear Cart ────────────────────────────────────────────
-            _unitOfWork.CartItems.RemoveRange(cart.Items);
-
-            // ── Step 10: Single SaveAsync → One round trip, one set of locks ─
-            await _unitOfWork.SaveAsync();
-            await transaction.CommitAsync();
+            var order = await FinalizeOrderAsync(
+                userId,
+                addressId,
+                cart,
+                subtotal,
+                discountAmount,
+                appliedCoupon,
+                SD.Payment_Unpaid,
+                paymentProvider: null,
+                transactionId: null,
+                couponCodeOverride: couponCode);
 
             _logger.LogInformation(
-                "PlaceOrder succeeded. OrderId={OrderId}, Items={Count}, Total={Total:C}, UserId={UserId}.",
-                order.Id, orderItems.Count, totalAmount, userId);
+                "PlaceOrder succeeded. OrderId={OrderId}, Total={Total:C}, UserId={UserId}.",
+                order.Id, totalAmount, userId);
 
-            TempData["Success"] = $"Order #{order.Id} placed successfully! We will keep you updated on the status.";
-            return RedirectToAction(nameof(Details), new { id = order.Id });
+            return RedirectToAction(nameof(Success), new { id = order.Id });
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            await transaction.RollbackAsync();
             _logger.LogWarning(ex,
                 "PlaceOrder concurrency conflict for UserId={UserId}. Stock was modified by another request.", userId);
             TempData["Error"] = "One or more products were updated while your order was being placed. " +
@@ -284,11 +241,179 @@ public class OrdersController : Controller
         }
         catch (Exception ex)
         {
-            await transaction.RollbackAsync();
             _logger.LogError(ex, "PlaceOrder failed for UserId={UserId}.", userId);
             TempData["Error"] = "Something went wrong while placing your order. Please try again.";
-            return RedirectToAction(nameof(Checkout));
+            return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
         }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> StripeSuccess(string sessionId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            TempData["Error"] = "Missing Stripe session details.";
+            return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
+        }
+
+        if (!IsStripeConfigured())
+        {
+            TempData["Error"] = "Stripe payment is not configured yet. Add the Stripe Secret Key first, then try again.";
+            return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
+        }
+
+        try
+        {
+            var sessionService = new SessionService();
+            var session = await sessionService.GetAsync(sessionId);
+
+            if (session == null || !string.Equals(session.PaymentStatus, "paid", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "Stripe payment was not completed successfully.";
+                return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
+            }
+
+            var metadata = session.Metadata ?? new Dictionary<string, string>();
+            var sessionUserId = metadata.TryGetValue("UserId", out var metadataUserId) ? metadataUserId : session.ClientReferenceId;
+            if (!string.Equals(sessionUserId, userId, StringComparison.Ordinal))
+            {
+                _logger.LogWarning("StripeSuccess blocked due to user mismatch. SessionId={SessionId}, SessionUserId={SessionUserId}, CurrentUserId={UserId}.",
+                    sessionId, sessionUserId, userId);
+                return Forbid();
+            }
+
+            var existingPayment = await _unitOfWork.Payments
+                .Query()
+                .Include(p => p.Order)
+                .FirstOrDefaultAsync(p => p.TransactionId == sessionId);
+
+            if (existingPayment?.Order != null)
+            {
+                return RedirectToAction(nameof(Success), new { id = existingPayment.Order.Id });
+            }
+
+            if (!metadata.TryGetValue("AddressId", out var addressValue) || !int.TryParse(addressValue, out var addressId))
+            {
+                TempData["Error"] = "Stripe session is missing address information.";
+                return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
+            }
+
+            metadata.TryGetValue("CouponCode", out var couponCode);
+
+            var address = await _unitOfWork.Addresses.FindAsync(a => a.Id == addressId && a.UserId == userId);
+            if (address == null)
+            {
+                TempData["Error"] = "The selected delivery address is no longer available.";
+                return RedirectToAction(nameof(Checkout), new { couponCode, paymentMethod = PaymentMethodCreditCard });
+            }
+
+            var cart = await _unitOfWork.Carts.GetCartByUserIdAsync(userId);
+            if (cart == null || !cart.Items.Any())
+            {
+                TempData["Error"] = "Your cart is empty. We could not finalize the paid order.";
+                return RedirectToAction("Index", "Cart");
+            }
+
+            decimal subtotal = 0;
+            foreach (var item in cart.Items)
+            {
+                if (item.ProductVariant == null || !item.ProductVariant.IsActive)
+                {
+                    TempData["Error"] = "One or more products in your cart are no longer available.";
+                    return RedirectToAction("Index", "Cart");
+                }
+
+                if (item.Quantity > item.ProductVariant.Stock)
+                {
+                    TempData["Error"] = $"Not enough stock for '{item.ProductVariant.Product?.Name}'. Please review your cart.";
+                    return RedirectToAction("Index", "Cart");
+                }
+
+                subtotal += item.Quantity * item.PriceSnapshot;
+            }
+
+            decimal discountAmount = 0m;
+            if (metadata.TryGetValue("DiscountAmount", out var discountValue))
+            {
+                decimal.TryParse(discountValue, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out discountAmount);
+            }
+            discountAmount = Math.Min(discountAmount, subtotal);
+
+            Discount? appliedCoupon = null;
+            if (!string.IsNullOrWhiteSpace(couponCode))
+            {
+                var normalizedCode = couponCode.Trim().ToUpperInvariant();
+                appliedCoupon = await _unitOfWork.Discounts.FindAsync(
+                    d => d.CouponCode.ToUpper() == normalizedCode,
+                    ignoreQueryFilters: true);
+                couponCode = normalizedCode;
+            }
+
+            var order = await FinalizeOrderAsync(
+                userId,
+                addressId,
+                cart,
+                subtotal,
+                discountAmount,
+                appliedCoupon,
+                SD.Payment_Paid,
+                paymentProvider: "Stripe",
+                transactionId: sessionId,
+                couponCodeOverride: couponCode);
+
+            return RedirectToAction(nameof(Success), new { id = order.Id });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "StripeSuccess failed. SessionId={SessionId}, UserId={UserId}.", sessionId, userId);
+            TempData["Error"] = "We couldn't finalize the Stripe payment right now. Please contact support if you were charged.";
+            return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
+        }
+    }
+
+    [HttpGet]
+    public IActionResult StripeCancel(string? couponCode = null, int? addressId = null)
+    {
+        TempData["Error"] = "Card payment was canceled before completion.";
+        return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod = PaymentMethodCreditCard });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Success(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        if (id <= 0) return NotFound();
+
+        var order = await _unitOfWork.Orders.GetOrderWithDetailsAsync(id);
+        if (order == null) return NotFound();
+
+        if (order.UserId != userId)
+        {
+            _logger.LogWarning("Success: UserId={UserId} attempted to view OrderId={OrderId} owned by {Owner}.",
+                userId, id, order.UserId);
+            return Forbid();
+        }
+
+        var estimatedFrom = order.Shipment?.EstimatedDelivery ?? DateOnly.FromDateTime(order.CreatedAt.AddDays(3));
+        var estimatedTo = order.Shipment?.EstimatedDelivery ?? DateOnly.FromDateTime(order.CreatedAt.AddDays(5));
+
+        var vm = new OrderSuccessCustomerVM
+        {
+            Id = order.Id,
+            CustomerEmail = order.User?.Email ?? string.Empty,
+            CreatedAt = order.CreatedAt,
+            EstimatedDeliveryFrom = estimatedFrom,
+            EstimatedDeliveryTo = estimatedTo,
+            ShippingLabel = string.IsNullOrWhiteSpace(order.Shipment?.Carrier) ? "Standard Shipping" : order.Shipment.Carrier!,
+            PaymentStatus = order.PaymentStatus
+        };
+
+        return View(vm);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -493,5 +618,235 @@ public class OrdersController : Controller
         parts.Add(addr.PostalCode);
         parts.Add(addr.Country);
         return string.Join(", ", parts);
+    }
+
+    private static string NormalizePaymentMethod(string? paymentMethod)
+    {
+        return paymentMethod == PaymentMethodCreditCard
+            ? PaymentMethodCreditCard
+            : PaymentMethodCashOnDelivery;
+    }
+
+    private bool IsStripeConfigured()
+    {
+        return !string.IsNullOrWhiteSpace(_stripeSettings.SecretKey);
+    }
+
+    private async Task<Session> CreateStripeCheckoutSessionAsync(
+        Cart cart,
+        string userId,
+        int addressId,
+        string? couponCode,
+        decimal subtotal,
+        decimal discountAmount,
+        decimal totalAmount)
+    {
+        var sessionService = new SessionService();
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var successUrl = $"{baseUrl}{Url.Action(nameof(StripeSuccess), "Orders", new { area = "Customer" })}?sessionId={{CHECKOUT_SESSION_ID}}";
+        var cancelUrl = $"{baseUrl}{Url.Action(nameof(StripeCancel), "Orders", new { area = "Customer", couponCode, addressId })}";
+
+        var lineItems = new List<SessionLineItemOptions>();
+
+        if (discountAmount > 0)
+        {
+            lineItems.Add(new SessionLineItemOptions
+            {
+                Quantity = 1,
+                PriceData = new SessionLineItemPriceDataOptions
+                {
+                    Currency = "egp",
+                    UnitAmount = (long)Math.Round(totalAmount * 100m, MidpointRounding.AwayFromZero),
+                    ProductData = new SessionLineItemPriceDataProductDataOptions
+                    {
+                        Name = "Smart Store Order",
+                        Description = string.IsNullOrWhiteSpace(couponCode)
+                            ? "Final order total"
+                            : $"Final order total after coupon {couponCode}"
+                    }
+                }
+            });
+        }
+        else
+        {
+            foreach (var item in cart.Items)
+            {
+                lineItems.Add(new SessionLineItemOptions
+                {
+                    Quantity = item.Quantity,
+                    PriceData = new SessionLineItemPriceDataOptions
+                    {
+                        Currency = "egp",
+                        UnitAmount = (long)Math.Round(item.PriceSnapshot * 100m, MidpointRounding.AwayFromZero),
+                        ProductData = new SessionLineItemPriceDataProductDataOptions
+                        {
+                            Name = item.ProductVariant.Product?.Name ?? "Smart Store Product",
+                            Description = $"{item.ProductVariant.Size} / {item.ProductVariant.Color}"
+                        }
+                    }
+                });
+            }
+        }
+
+        var options = new SessionCreateOptions
+        {
+            Mode = "payment",
+            SuccessUrl = successUrl,
+            CancelUrl = cancelUrl,
+            ClientReferenceId = userId,
+            CustomerEmail = User.FindFirstValue(ClaimTypes.Email),
+            LineItems = lineItems,
+            Metadata = new Dictionary<string, string>
+            {
+                ["UserId"] = userId,
+                ["AddressId"] = addressId.ToString(),
+                ["CouponCode"] = couponCode ?? string.Empty,
+                ["Subtotal"] = subtotal.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["DiscountAmount"] = discountAmount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["TotalAmount"] = totalAmount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            }
+        };
+
+        return await sessionService.CreateAsync(options);
+    }
+
+    private async Task<Order> FinalizeOrderAsync(
+        string userId,
+        int addressId,
+        Cart cart,
+        decimal subtotal,
+        decimal discountAmount,
+        Discount? appliedCoupon,
+        string paymentStatus,
+        string? paymentProvider,
+        string? transactionId,
+        string? couponCodeOverride = null)
+    {
+        using var transaction = await _unitOfWork.BeginTransactionAsync();
+        try
+        {
+            var orderItems = new List<OrderItem>(cart.Items.Count);
+
+            foreach (var item in cart.Items)
+            {
+                item.ProductVariant.Stock -= item.Quantity;
+                if (item.ProductVariant.Stock == 0)
+                {
+                    item.ProductVariant.IsActive = false;
+                    _logger.LogInformation(
+                        "FinalizeOrder: Variant {VariantId} will be deactivated (stock → 0). UserId={UserId}.",
+                        item.ProductVariantId, userId);
+                }
+                _unitOfWork.ProductVariants.Update(item.ProductVariant);
+
+                orderItems.Add(new OrderItem
+                {
+                    ProductVariantId = item.ProductVariantId,
+                    ProductName      = item.ProductVariant.Product?.Name ?? "(deleted)",
+                    Size             = item.ProductVariant.Size,
+                    Color            = item.ProductVariant.Color,
+                    Quantity         = item.Quantity,
+                    UnitPrice        = item.PriceSnapshot,
+                    Subtotal         = item.Quantity * item.PriceSnapshot
+                });
+            }
+
+            var totalAmount = subtotal - discountAmount;
+            var order = new Order
+            {
+                UserId         = userId,
+                AddressId      = addressId,
+                Subtotal       = subtotal,
+                DiscountAmount = discountAmount,
+                TotalAmount    = totalAmount,
+                CouponCode     = appliedCoupon?.CouponCode ?? couponCodeOverride,
+                Status         = SD.Status_Pending,
+                PaymentStatus  = paymentStatus,
+                OrderItems     = orderItems,
+                CreatedAt      = DateTime.UtcNow,
+                UpdatedAt      = DateTime.UtcNow
+            };
+
+            if (!string.IsNullOrWhiteSpace(paymentProvider) || !string.IsNullOrWhiteSpace(transactionId))
+            {
+                order.Payment = new Payment
+                {
+                    Amount = totalAmount,
+                    Provider = string.IsNullOrWhiteSpace(paymentProvider) ? "Stripe" : paymentProvider,
+                    TransactionId = transactionId,
+                    Status = paymentStatus == SD.Payment_Paid ? SD.Payment_Paid : SD.Payment_Pending
+                };
+            }
+
+            await _unitOfWork.Orders.AddAsync(order);
+
+            if (appliedCoupon != null)
+            {
+                appliedCoupon.UsageCount++;
+                _unitOfWork.Discounts.Update(appliedCoupon);
+            }
+
+            _unitOfWork.CartItems.RemoveRange(cart.Items);
+
+            await _unitOfWork.SaveAsync();
+            await transaction.CommitAsync();
+            return order;
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    private async Task<(Discount? Coupon, decimal DiscountAmount, string? ErrorMessage, string? AppliedCode)> ResolveCouponAsync(string userId, string? couponCode, decimal subtotal)
+    {
+        if (string.IsNullOrWhiteSpace(couponCode))
+        {
+            return (null, 0m, null, null);
+        }
+
+        var normalizedCode = couponCode.Trim().ToUpperInvariant();
+        var appliedCoupon = await _unitOfWork.Discounts.FindAsync(
+            d => d.CouponCode.ToUpper() == normalizedCode && d.IsActive);
+
+        if (appliedCoupon == null)
+        {
+            return (null, 0m, $"Coupon code '{couponCode}' is invalid or has been deactivated.", normalizedCode);
+        }
+
+        if (appliedCoupon.ExpiresAt.HasValue && appliedCoupon.ExpiresAt.Value < DateTime.UtcNow)
+        {
+            return (null, 0m, $"Coupon code '{appliedCoupon.CouponCode}' has expired.", appliedCoupon.CouponCode);
+        }
+
+        if (appliedCoupon.UsageLimit.HasValue && appliedCoupon.UsageCount >= appliedCoupon.UsageLimit.Value)
+        {
+            return (null, 0m, $"Coupon code '{appliedCoupon.CouponCode}' has reached its usage limit.", appliedCoupon.CouponCode);
+        }
+
+        var alreadyUsedByCustomer = await _unitOfWork.Orders
+            .Query()
+            .AnyAsync(o => o.UserId == userId && o.CouponCode == appliedCoupon.CouponCode);
+
+        if (alreadyUsedByCustomer)
+        {
+            return (null, 0m, $"You have already used coupon code '{appliedCoupon.CouponCode}'.", appliedCoupon.CouponCode);
+        }
+
+        if (appliedCoupon.MinimumOrderAmount.HasValue && subtotal < appliedCoupon.MinimumOrderAmount.Value)
+        {
+            return (null, 0m,
+                $"This coupon requires a minimum order of {appliedCoupon.MinimumOrderAmount.Value:C}. Your subtotal is {subtotal:C}.",
+                appliedCoupon.CouponCode);
+        }
+
+        var discountAmount = appliedCoupon.Type == SD.Discount_Percentage
+            ? subtotal * (appliedCoupon.Value / 100m)
+            : appliedCoupon.Value;
+
+        discountAmount = Math.Min(discountAmount, subtotal);
+
+        return (appliedCoupon, discountAmount, null, appliedCoupon.CouponCode);
     }
 }

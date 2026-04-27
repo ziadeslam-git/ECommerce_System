@@ -6,6 +6,9 @@ public class CheckoutVM
     public List<AddressOptionCustomerVM> Addresses { get; set; } = [];
     public int? DefaultAddressId { get; set; }
     public string? CouponCode { get; set; }
+    public string PaymentMethod { get; set; } = "CashOnDelivery";
+    public bool CouponApplied { get; set; }
+    public string? CouponMessage { get; set; }
     public int? AddressId { get; set; }
     public decimal Subtotal { get; set; }
     public decimal DiscountAmount { get; set; }

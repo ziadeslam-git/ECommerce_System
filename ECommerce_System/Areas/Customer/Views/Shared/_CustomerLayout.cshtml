@@ -1,10 +1,22 @@
+@using System.Security.Claims
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
+@inject ECommerce_System.Repositories.IRepositories.IUnitOfWork Uow
 @{
-    var cartCount = ViewBag.CartCount as int? ?? 0;
     var culture = System.Globalization.CultureInfo.CurrentUICulture.Name;
     var isRtl = culture.StartsWith("ar", StringComparison.OrdinalIgnoreCase);
     string T(string en, string ar) => isRtl ? ar : en;
     var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    var cartCount = 0;
+
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            var currentCart = await Uow.Carts.GetCartByUserIdAsync(userId);
+            cartCount = currentCart?.Items.Sum(i => i.Quantity) ?? 0;
+        }
+    }
 }
 <!DOCTYPE html>
 <html lang="@culture" dir="@(isRtl ? "rtl" : "ltr")">
@@ -51,7 +63,7 @@
                     </a>
                     <a asp-area="Customer" asp-controller="Cart" asp-action="Index" class="relative inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition" title="@T("Cart","سلة التسوق")">
                         <span class="material-symbols-outlined">shopping_cart</span>
-                        <span class="absolute -top-1 -right-1 text-[10px] min-w-5 h-5 px-1 rounded-full bg-primary text-white grid place-items-center">@cartCount</span>
+                        <span id="cart-count-badge" class="absolute -top-1 -right-1 text-[10px] min-w-5 h-5 px-1 rounded-full bg-primary text-white grid place-items-center">@cartCount</span>
                     </a>
                     @if (User.Identity?.IsAuthenticated == true && User.IsInRole("Admin"))
                     {
@@ -84,29 +96,272 @@
         </footer>
     </div>
 
+    <div id="site-notice-modal" class="fixed inset-0 z-[80] hidden items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm">
+        <div class="w-full max-w-md overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl shadow-slate-950/15">
+            <div id="site-notice-accent" class="h-1.5 w-full bg-emerald-500"></div>
+            <div class="px-6 pb-6 pt-7 text-center">
+                <div id="site-notice-icon-wrap" class="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                    <span id="site-notice-icon" class="material-symbols-outlined text-[32px]" style="font-variation-settings:'FILL' 1">check_circle</span>
+                </div>
+                <h3 id="site-notice-title" class="text-2xl font-extrabold tracking-tight text-slate-900">Successful</h3>
+                <p id="site-notice-message" class="mt-3 text-sm leading-6 text-slate-500"></p>
+                <button id="site-notice-ok"
+                        type="button"
+                        class="mt-6 inline-flex min-w-28 items-center justify-center rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-lg shadow-primary/20 transition hover:opacity-90">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="site-inline-toast-host" class="pointer-events-none fixed right-4 top-20 z-[85] flex w-full max-w-sm flex-col gap-3 sm:right-6"></div>
+
     @if (TempData["success"] is string success)
     {
-        <div id="toast-success" class="fixed right-4 top-20 z-50 rounded-lg bg-emerald-600 px-4 py-3 text-white shadow-lg">@success</div>
+        <div id="page-notice-success" data-notice-message="@success" data-notice-type="success" class="hidden"></div>
     }
     @if (TempData["error"] is string error)
     {
-        <div id="toast-error" class="fixed right-4 top-20 z-50 rounded-lg bg-rose-600 px-4 py-3 text-white shadow-lg">@error</div>
+        <div id="page-notice-error" data-notice-message="@error" data-notice-type="error" class="hidden"></div>
     }
 
     <script>
-        document.querySelectorAll('form[data-loading="true"]').forEach(form => {
-            form.addEventListener('submit', function () {
-                const btn = this.querySelector('button[type="submit"]');
+        const noticeModal = document.getElementById('site-notice-modal');
+        const noticeTitle = document.getElementById('site-notice-title');
+        const noticeMessage = document.getElementById('site-notice-message');
+        const noticeIconWrap = document.getElementById('site-notice-icon-wrap');
+        const noticeIcon = document.getElementById('site-notice-icon');
+        const noticeAccent = document.getElementById('site-notice-accent');
+        const noticeOkButton = document.getElementById('site-notice-ok');
+        const inlineToastHost = document.getElementById('site-inline-toast-host');
+
+        function getNoticeTitle(message, type = 'success') {
+            const value = (message || '').toLowerCase();
+
+            if (type === 'success') {
+                return 'Successful';
+            }
+
+            if (value.includes('cancel')) {
+                return 'Canceled';
+            }
+
+            if (value.includes('invalid') || value.includes('expired') || value.includes('not valid')) {
+                return 'Invalid';
+            }
+
+            return 'Failed';
+        }
+
+        function applyNoticeTheme(type = 'success') {
+            const isError = type === 'error';
+
+            noticeAccent.className = `h-1.5 w-full ${isError ? 'bg-rose-500' : 'bg-emerald-500'}`;
+            noticeIconWrap.className = `mx-auto mb-4 flex size-16 items-center justify-center rounded-full ${isError ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`;
+            noticeIcon.textContent = isError ? 'error' : 'check_circle';
+        }
+
+        function closeNoticeModal() {
+            if (!noticeModal) return;
+            noticeModal.classList.add('hidden');
+            noticeModal.classList.remove('flex');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        function showInlineToast(message, type = 'success') {
+            if (!message || !inlineToastHost) return;
+
+            const toast = document.createElement('div');
+            const isError = type === 'error';
+            toast.className = `pointer-events-auto translate-y-0 rounded-2xl border px-4 py-3 text-sm font-medium shadow-lg transition-all duration-300 ${isError ? 'border-rose-200 bg-white text-rose-700 shadow-rose-100/80' : 'border-emerald-200 bg-white text-emerald-700 shadow-emerald-100/80'}`;
+            toast.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <span class="material-symbols-outlined ${isError ? 'text-rose-500' : 'text-emerald-500'}" style="font-variation-settings:'FILL' 1">check_circle</span>
+                    <p class="flex-1 leading-6">${message}</p>
+                </div>
+            `;
+
+            inlineToastHost.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-[-8px]');
+                setTimeout(() => toast.remove(), 250);
+            }, 2000);
+        }
+
+        function showToast(message, type = 'success') {
+            if (!message) return;
+
+            applyNoticeTheme(type);
+            noticeTitle.textContent = getNoticeTitle(message, type);
+            noticeMessage.textContent = message;
+            noticeModal.classList.remove('hidden');
+            noticeModal.classList.add('flex');
+            document.body.classList.add('overflow-hidden');
+        }
+
+        function setButtonLoading(button, isLoading) {
+            if (!button) return;
+
+            if (isLoading) {
+                button.dataset.original = button.innerHTML;
+                button.disabled = true;
+                button.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".3"></circle><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3"></path></svg>Loading...</span>';
+                return;
+            }
+
+            if (button.dataset.original) {
+                button.innerHTML = button.dataset.original;
+            }
+            button.disabled = false;
+        }
+
+        function updateCartBadge(count) {
+            const badge = document.getElementById('cart-count-badge');
+            if (!badge || count === undefined || count === null) return;
+            badge.textContent = count;
+        }
+
+        function syncWishlistButton(form, isInWishlist) {
+            const button = form.querySelector('[data-wishlist-button]');
+            if (!button) return;
+
+            form.dataset.wishlistActive = isInWishlist ? 'true' : 'false';
+            const activeText = form.dataset.activeText || 'In Wishlist';
+            const inactiveText = form.dataset.inactiveText || 'Add to Wishlist';
+            const glyph = button.querySelector('[data-heart-glyph]');
+            const label = button.querySelector('[data-wishlist-label]');
+
+            if (glyph) {
+                glyph.textContent = isInWishlist ? '♥' : '♡';
+            }
+
+            if (label) {
+                label.textContent = isInWishlist ? activeText : inactiveText;
+            } else if (!glyph) {
+                button.textContent = isInWishlist ? activeText : inactiveText;
+            }
+
+            if (button.dataset.wishlistStyle === 'icon') {
+                button.classList.toggle('bg-rose-50', isInWishlist);
+                button.classList.toggle('border-rose-200', isInWishlist);
+                button.classList.toggle('text-rose-500', isInWishlist);
+                button.classList.toggle('bg-white/95', !isInWishlist);
+                button.classList.toggle('border-slate-200', !isInWishlist);
+                button.classList.toggle('text-slate-700', !isInWishlist);
+            } else {
+                button.classList.toggle('border-primary', isInWishlist);
+                button.classList.toggle('text-primary', isInWishlist);
+            }
+        }
+
+        document.querySelectorAll('form[data-loading="true"]:not([data-ajax-form])').forEach(form => {
+            form.addEventListener('submit', function (event) {
+                const btn = event.submitter || this.querySelector('button[type="submit"]');
                 if (btn && this.checkValidity()) {
-                    setTimeout(() => {
-                        btn.disabled = true;
-                        btn.dataset.original = btn.innerHTML;
-                        btn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".3"></circle><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3"></path></svg>Loading...</span>';
-                    }, 0);
+                    setTimeout(() => setButtonLoading(btn, true), 0);
                 }
             });
         });
-        setTimeout(() => { document.getElementById('toast-success')?.remove(); document.getElementById('toast-error')?.remove(); }, 2800);
+
+        document.querySelectorAll('form[data-ajax-form]').forEach(form => {
+            form.addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                if (!this.checkValidity()) {
+                    this.reportValidity();
+                    return;
+                }
+
+                const submitButton = this.querySelector('button[type="submit"]');
+                setButtonLoading(submitButton, true);
+
+                try {
+                    const response = await fetch(this.action, {
+                        method: this.method || 'POST',
+                        body: new FormData(this),
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                        return;
+                    }
+
+                    const contentType = response.headers.get('content-type') || '';
+                    if (!contentType.includes('application/json')) {
+                        window.location.reload();
+                        return;
+                    }
+
+                    const result = await response.json();
+                    const isSuccess = result.success !== false;
+
+                    if (typeof result.cartCount !== 'undefined') {
+                        updateCartBadge(result.cartCount);
+                    }
+
+                    if (typeof result.isInWishlist === 'boolean') {
+                        syncWishlistButton(this, result.isInWishlist);
+
+                        if (!result.isInWishlist && this.dataset.removeCardOnInactive === 'true') {
+                            const card = this.closest(this.dataset.removeCardClosest || 'article');
+                            card?.remove();
+
+                            const remaining = document.querySelectorAll(this.dataset.remainingCardsSelector || '[data-wishlist-card]').length;
+                            if (remaining === 0) {
+                                window.location.reload();
+                                return;
+                            }
+                        }
+                    }
+
+                    if (result.message) {
+                        const useInlineToast = this.dataset.ajaxForm === 'cart' || this.dataset.ajaxForm === 'wishlist';
+                        if (useInlineToast) {
+                            showInlineToast(result.message, isSuccess ? 'success' : 'error');
+                        } else {
+                            showToast(result.message, isSuccess ? 'success' : 'error');
+                        }
+                    }
+                } catch {
+                    const useInlineToast = this.dataset.ajaxForm === 'cart' || this.dataset.ajaxForm === 'wishlist';
+                    if (useInlineToast) {
+                        showInlineToast('Something went wrong. Please try again.', 'error');
+                    } else {
+                        showToast('Something went wrong. Please try again.', 'error');
+                    }
+                } finally {
+                    setButtonLoading(submitButton, false);
+                }
+            });
+        });
+
+        noticeOkButton?.addEventListener('click', closeNoticeModal);
+
+        noticeModal?.addEventListener('click', function (event) {
+            if (event.target === noticeModal) {
+                closeNoticeModal();
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && noticeModal && !noticeModal.classList.contains('hidden')) {
+                closeNoticeModal();
+            }
+        });
+
+        const initialSuccessNotice = document.getElementById('page-notice-success');
+        const initialErrorNotice = document.getElementById('page-notice-error');
+
+        if (initialSuccessNotice?.dataset.noticeMessage) {
+            showToast(initialSuccessNotice.dataset.noticeMessage, initialSuccessNotice.dataset.noticeType || 'success');
+        } else if (initialErrorNotice?.dataset.noticeMessage) {
+            showToast(initialErrorNotice.dataset.noticeMessage, initialErrorNotice.dataset.noticeType || 'error');
+        }
     </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

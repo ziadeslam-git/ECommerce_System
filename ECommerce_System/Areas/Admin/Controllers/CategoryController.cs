@@ -5,6 +5,7 @@ using ECommerce_System.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 namespace ECommerce_System.Areas.Admin.Controllers;
 
 [Area("Admin")]
@@ -12,6 +13,7 @@ namespace ECommerce_System.Areas.Admin.Controllers;
 public class CategoryController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;
+    private const int PageSize = 10;
 
     public CategoryController(IUnitOfWork unitOfWork)
         => _unitOfWork = unitOfWork;
@@ -43,16 +45,28 @@ public class CategoryController : Controller
 
     // ─── INDEX ─────────────────────────────────────────────────────────────────
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1)
     {
+        page = Math.Max(page, 1);
         ViewData["Title"] = "Categories";
 
-        var categories = await _unitOfWork.Categories
-            .GetAllAsync("ParentCategory,SubCategories,Products", tracked: false);
+        var query = _unitOfWork.Categories.Query().AsNoTracking();
+        var totalCount = await query.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+        if (page > totalPages)
+            page = totalPages;
+
+        var categories = await query
+            .Include(c => c.ParentCategory)
+            .Include(c => c.SubCategories)
+            .Include(c => c.Products)
+            .OrderBy(c => c.ParentCategoryId.HasValue)
+            .ThenBy(c => c.Name)
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
+            .ToListAsync();
 
         var viewModels = categories
-            .OrderBy(c => c.ParentCategoryId)
-            .ThenBy(c => c.Name)
             .Select(c => new CategoryVM
             {
                 Id                  = c.Id,
@@ -63,6 +77,10 @@ public class CategoryController : Controller
                 ProductsCount       = c.Products.Count
             });
 
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+        ViewBag.PageSize = PageSize;
         return View(viewModels);
     }
 

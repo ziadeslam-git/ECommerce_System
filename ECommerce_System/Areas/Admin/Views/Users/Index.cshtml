@@ -1,6 +1,15 @@
 @model IEnumerable<UserAdminVM>
 @{
     ViewData["Title"] = "Customers";
+    int currentPage = ViewBag.CurrentPage is int cp ? cp : 1;
+    int totalPages = ViewBag.TotalPages is int tp ? tp : 1;
+    int totalCount = ViewBag.TotalCount is int tc ? tc : Model.Count();
+    int activeCount = ViewBag.ActiveCount is int ac ? ac : Model.Count(u => u.IsActive);
+    int inactiveCount = ViewBag.InactiveCount is int ic ? ic : Model.Count(u => !u.IsActive);
+    int joinedRecentlyCount = ViewBag.JoinedRecentlyCount is int jc ? jc : Model.Count(u => u.CreatedAt >= DateTime.UtcNow.AddDays(-30));
+    int startPage = Math.Max(1, currentPage - 2);
+    int endPage = Math.Min(totalPages, currentPage + 2);
+    var activePercent = totalCount > 0 ? (activeCount * 100 / totalCount) : 0;
 }
 
 @section Styles {
@@ -31,7 +40,7 @@
         <div class="bg-surface-container-lowest p-5 rounded-xl border border-slate-100 shadow-[0_20px_40px_rgba(15,23,42,0.03)] flex flex-col gap-1">
             <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Customers</span>
             <div class="flex items-end justify-between">
-                <span class="text-2xl font-bold text-slate-800">@Model.Count()</span>
+                <span class="text-2xl font-bold text-slate-800">@totalCount</span>
             </div>
         </div>
 
@@ -39,10 +48,7 @@
         <div class="bg-surface-container-lowest p-5 rounded-xl border border-slate-100 shadow-[0_20px_40px_rgba(15,23,42,0.03)] flex flex-col gap-1">
             <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Users</span>
             <div class="flex items-end justify-between">
-                <span class="text-2xl font-bold text-emerald-600">@Model.Count(u => u.IsActive)</span>
-                @{
-                    var activePercent = Model.Any() ? (Model.Count(u => u.IsActive) * 100 / Model.Count()) : 0;
-                }
+                <span class="text-2xl font-bold text-emerald-600">@activeCount</span>
                 <div class="h-1.5 w-16 bg-emerald-100 rounded-full overflow-hidden">
                     <div class="h-full bg-emerald-500" style="width: @activePercent%"></div>
                 </div>
@@ -53,7 +59,7 @@
         <div class="bg-surface-container-lowest p-5 rounded-xl border border-slate-100 shadow-[0_20px_40px_rgba(15,23,42,0.03)] flex flex-col gap-1">
             <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Inactive</span>
             <div class="flex items-end justify-between">
-                <span class="text-2xl font-bold text-error">@Model.Count(u => !u.IsActive)</span>
+                <span class="text-2xl font-bold text-error">@inactiveCount</span>
                 <span class="text-[10px] text-error font-semibold">@((100 - activePercent))% total</span>
             </div>
         </div>
@@ -62,7 +68,7 @@
         <div class="bg-surface-container-lowest p-5 rounded-xl border border-slate-100 shadow-[0_20px_40px_rgba(15,23,42,0.03)] flex flex-col gap-1">
             <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Joined (30d)</span>
             <div class="flex items-end justify-between">
-                <span class="text-2xl font-bold text-primary">@Model.Count(u => u.CreatedAt >= DateTime.UtcNow.AddDays(-30))</span>
+                <span class="text-2xl font-bold text-primary">@joinedRecentlyCount</span>
                 <span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">trending_up</span>
             </div>
         </div>
@@ -181,20 +187,36 @@
         <!-- Pagination -->
         @if (ViewBag.TotalPages > 1)
         {
-            <div class="px-6 py-4 bg-surface-container-low border-t border-slate-100 flex justify-between items-center">
-                <span class="text-xs text-slate-500 font-medium">Page @ViewBag.CurrentPage of @ViewBag.TotalPages</span>
-                <div class="flex gap-1 items-center">
-                    @for (int i = 1; i <= ViewBag.TotalPages; i++)
+            <div class="px-6 py-4 bg-surface-container-low border-t border-slate-100 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <span class="text-xs text-slate-500 font-medium">
+                    Showing <span class="font-semibold text-slate-700">@(((currentPage - 1) * (ViewBag.PageSize is int ps ? ps : 10)) + (Model.Any() ? 1 : 0))</span>
+                    to <span class="font-semibold text-slate-700">@(((currentPage - 1) * (ViewBag.PageSize is int ps2 ? ps2 : 10)) + Model.Count())</span>
+                    of <span class="font-semibold text-slate-700">@totalCount</span> customers
+                </span>
+                <div class="flex flex-wrap gap-2 items-center">
+                    <a asp-action="Index" asp-route-page="@(currentPage - 1)" asp-route-searchQuery="@ViewBag.SearchQuery" asp-route-statusFilter="@ViewBag.StatusFilter"
+                       class="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition-all @(currentPage == 1 ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-300" : "border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:text-primary")">
+                        <span class="material-symbols-outlined text-sm">chevron_left</span>
+                        Previous
+                    </a>
+
+                    @for (int i = startPage; i <= endPage; i++)
                     {
-                        if (i == ViewBag.CurrentPage)
+                        if (i == currentPage)
                         {
-                            <button class="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold shadow-sm">@i</button>
+                            <button class="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-primary bg-primary px-3 text-xs font-bold text-white shadow-md shadow-primary/20">@i</button>
                         }
                         else
                         {
-                            <a asp-action="Index" asp-route-page="@i" asp-route-searchQuery="@ViewBag.SearchQuery" asp-route-statusFilter="@ViewBag.StatusFilter" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-white border border-transparent hover:border-slate-200 text-xs font-bold transition-all">@i</a>
+                            <a asp-action="Index" asp-route-page="@i" asp-route-searchQuery="@ViewBag.SearchQuery" asp-route-statusFilter="@ViewBag.StatusFilter" class="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary/30 hover:text-primary">@i</a>
                         }
                     }
+
+                    <a asp-action="Index" asp-route-page="@(currentPage + 1)" asp-route-searchQuery="@ViewBag.SearchQuery" asp-route-statusFilter="@ViewBag.StatusFilter"
+                       class="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition-all @(currentPage == totalPages ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-300" : "border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:text-primary")">
+                        Next
+                        <span class="material-symbols-outlined text-sm">chevron_right</span>
+                    </a>
                 </div>
             </div>
         }

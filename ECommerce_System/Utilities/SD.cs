@@ -5,6 +5,7 @@ public static class SD
     // ──────────────── Roles ────────────────
     public const string Role_Admin    = "Admin";
     public const string Role_Customer = "Customer";
+    public const string Role_AdminOrCustomer = Role_Admin + "," + Role_Customer;
 
     // ──────────────── Order Status ─────────────────
     public const string Status_Pending    = "Pending";

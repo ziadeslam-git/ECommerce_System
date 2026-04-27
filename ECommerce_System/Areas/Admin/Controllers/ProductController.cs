@@ -5,6 +5,7 @@ using ECommerce_System.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce_System.Areas.Admin.Controllers;
 
@@ -13,22 +14,48 @@ namespace ECommerce_System.Areas.Admin.Controllers;
 public class ProductController : Controller
 {
     private readonly IUnitOfWork _uow;
+    private const int PageSize = 10;
 
     public ProductController(IUnitOfWork uow) => _uow = uow;
 
     // ─── INDEX ────────────────────────────────────────────────────────────────
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1)
     {
+        page = Math.Max(page, 1);
         ViewData["Title"] = "Products";
 
-        var products = await _uow.Products
-            .GetAllAsync("Category,Variants,Images", tracked: false, ignoreQueryFilters: true);
+        var query = _uow.Products
+            .Query()
+            .IgnoreQueryFilters()
+            .AsNoTracking();
 
-        products = products.OrderByDescending(p => p.CreatedAt).Take(50);
+        var totalCount = await query.CountAsync();
+        var activeCount = await query.CountAsync(p => p.IsActive);
+        var totalStock = await _uow.ProductVariants.Query()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .SumAsync(v => (int?)v.Stock) ?? 0;
+        var withImages = await _uow.ProductImages.Query()
+            .AsNoTracking()
+            .Select(i => i.ProductId)
+            .Distinct()
+            .CountAsync();
+
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+        if (page > totalPages)
+            page = totalPages;
+
+        var products = await query
+            .Include(p => p.Category)
+            .Include(p => p.Variants)
+            .Include(p => p.Images)
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
+            .ToListAsync();
 
         var vms = products
-            .OrderByDescending(p => p.CreatedAt)
             .Select(p => new ProductIndexVM
             {
                 Id           = p.Id,
@@ -45,6 +72,13 @@ public class ProductController : Controller
                 CreatedAt    = p.CreatedAt,
             });
 
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+        ViewBag.PageSize = PageSize;
+        ViewBag.ActiveCount = activeCount;
+        ViewBag.TotalStock = totalStock;
+        ViewBag.WithImages = withImages;
         return View(vms);
     }
 

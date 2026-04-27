@@ -5,6 +5,7 @@
     string T(string en, string ar) => isAr ? ar : en;
     ViewData["Title"] = T("Products", "المنتجات");
     var products = Model?.Products ?? [];
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
 }
 
 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -88,11 +89,31 @@
                     @foreach (var p in products)
                     {
                         <article class="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition flex flex-col h-full">
-                            <a asp-area="Customer" asp-controller="Products" asp-action="Details"
-                               asp-route-id="@p.Id" class="block aspect-[4/5] bg-slate-100">
-                                <img src="@(p.MainImageUrl ?? "https://placehold.co/600x700")"
-                                     class="w-full h-full object-cover" alt="@p.Name" loading="lazy" />
-                            </a>
+                            <div class="relative">
+                                <a asp-area="Customer" asp-controller="Products" asp-action="Details"
+                                   asp-route-id="@p.Id" class="block aspect-[4/5] bg-slate-100">
+                                    <img src="@(p.MainImageUrl ?? "https://placehold.co/600x700")"
+                                         class="w-full h-full object-cover" alt="@p.Name" loading="lazy" />
+                                </a>
+                                <form asp-area="Customer" asp-controller="Wishlist" asp-action="Toggle"
+                                      method="post"
+                                      data-ajax-form="wishlist"
+                                      data-active-text="@T("In Wishlist", "في المفضلة")"
+                                      data-inactive-text="@T("Add to Wishlist", "أضف للمفضلة")"
+                                      data-wishlist-active="@(p.IsInWishlist ? "true" : "false")"
+                                      class="absolute top-3 right-3">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="productId" value="@p.Id" />
+                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                    <button type="submit"
+                                            data-wishlist-button
+                                            data-wishlist-style="icon"
+                                            class="inline-flex h-11 w-11 items-center justify-center rounded-full border shadow-md transition @(p.IsInWishlist ? "bg-rose-50 border-rose-200 text-rose-500" : "bg-white/95 border-slate-200 text-slate-700 hover:border-rose-200 hover:text-rose-500")"
+                                            title="@(p.IsInWishlist ? T("In Wishlist", "في المفضلة") : T("Add to Wishlist", "أضف للمفضلة"))">
+                                        <span data-heart-glyph class="text-2xl leading-none">@(p.IsInWishlist ? "♥" : "♡")</span>
+                                    </button>
+                                </form>
+                            </div>
                             <div class="p-3 flex flex-col flex-grow">
                                 <div class="space-y-2 flex-grow">
                                     <a asp-area="Customer" asp-controller="Products" asp-action="Details"
@@ -113,6 +134,7 @@
                                             int stars = (int)Math.Round(p.AverageRating);
                                             for (int s = 1; s <= 5; s++) { <text>@(s <= stars ? "★" : "☆")</text> }
                                         }
+                                        <span class="text-slate-500 ms-1">(@p.ReviewCount)</span>
                                     </div>
 
                                     @if (!p.HasStock)
@@ -121,16 +143,39 @@
                                     }
                                 </div>
 
-                                <div class="mt-4 pt-2 border-t border-slate-100">
-                                    <form asp-area="Customer" asp-controller="Wishlist" asp-action="Toggle"
-                                          method="post" data-loading="true">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="productId" value="@p.Id" />
-                                        <button type="submit"
-                                                class="w-full rounded-lg border border-slate-300 py-2 text-sm font-medium hover:border-primary hover:text-primary">
-                                            @(p.IsInWishlist ? T("♥ In Wishlist", "♥ في المفضلة") : T("Add to Wishlist", "أضف للمفضلة"))
+                                <div class="mt-4 pt-3 border-t border-slate-100">
+                                    @if (p.DefaultVariantId.HasValue && p.HasStock)
+                                    {
+                                        <form asp-area="Customer" asp-controller="Cart" asp-action="AddToCart"
+                                              method="post"
+                                              data-ajax-form="cart"
+                                              class="w-full">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="productVariantId" value="@p.DefaultVariantId.Value" />
+                                            <input type="hidden" name="quantity" value="1" />
+                                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                            <button type="submit"
+                                                    class="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-white transition hover:bg-primary/90">
+                                                @T("Add to Cart", "أضف للسلة")
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <button type="button"
+                                                disabled
+                                                class="w-full rounded-xl bg-slate-100 py-2.5 text-sm font-semibold text-slate-400 cursor-not-allowed">
+                                            @T("Out of stock", "نفذ المخزون")
                                         </button>
-                                    </form>
+                                    }
+                                </div>
+
+                                <div class="mt-2">
+                                    <a asp-area="Customer" asp-controller="Products" asp-action="Details"
+                                       asp-route-id="@p.Id"
+                                       class="block w-full rounded-xl border border-slate-300 py-2.5 text-center text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary">
+                                        @T("View Details", "عرض التفاصيل")
+                                    </a>
                                 </div>
                             </div>
                         </article>

@@ -2,13 +2,14 @@ using System.Security.Claims;
 using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
 using ECommerce_System.Utilities;
+using ECommerce_System.ViewModels.Customer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerce_System.Areas.Customer.Controllers;
 
 [Area("Customer")]
-[Authorize(Roles = SD.Role_Customer)]
+[Authorize(Roles = SD.Role_AdminOrCustomer)]
 public class WishlistController : Controller
 {
     private readonly IUnitOfWork _uow;
@@ -27,18 +28,32 @@ public class WishlistController : Controller
         if (userId == null) return Unauthorized();
 
         var wishlistItems = await _uow.WishlistItems.FindAllAsync(
-            w => w.UserId == userId, 
+            w => w.UserId == userId,
             "Product,Product.Images,Product.Variants"
         );
 
-        return View(wishlistItems.ToList());
+        var vm = new WishlistIndexVM
+        {
+            Items = wishlistItems.Select(w => new WishlistItemCustomerVM
+            {
+                WishlistItemId = w.Id,
+                ProductId      = w.ProductId,
+                ProductName    = w.Product?.Name ?? string.Empty,
+                BasePrice      = w.Product?.BasePrice ?? 0m,
+                ImageUrl       = w.Product?.Images?.FirstOrDefault(i => i.IsMain)?.ImageUrl
+                                 ?? w.Product?.Images?.FirstOrDefault()?.ImageUrl,
+                AverageRating  = w.Product?.AverageRating ?? 0
+            }).ToList()
+        };
+
+        return View(vm);
     }
 
     // ─── TOGGLE (JSON) ────────────────────────────────────────────────────────
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Toggle(int productId)
+    public async Task<IActionResult> Toggle(int productId, string? returnUrl = null)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return Unauthorized();
@@ -49,7 +64,7 @@ public class WishlistController : Controller
         {
             _uow.WishlistItems.Remove(existingItem);
             await _uow.SaveAsync();
-            return Json(new { isInWishlist = false, message = "Removed from wishlist." });
+            return BuildToggleResponse(true, false, "Removed from wishlist.", returnUrl);
         }
         else
         {
@@ -61,7 +76,7 @@ public class WishlistController : Controller
             };
             await _uow.WishlistItems.AddAsync(newItem);
             await _uow.SaveAsync();
-            return Json(new { isInWishlist = true, message = "Added to wishlist." });
+            return BuildToggleResponse(true, true, "Added to wishlist.", returnUrl);
         }
     }
 
@@ -133,5 +148,37 @@ public class WishlistController : Controller
 
         TempData["success"] = "Item moved to cart successfully.";
         return RedirectToAction("Index", "Cart", new { area = "Customer" });
+    }
+
+    private IActionResult BuildToggleResponse(bool success, bool isInWishlist, string message, string? returnUrl)
+    {
+        if (IsAjaxRequest())
+        {
+            return Json(new { success, isInWishlist, message });
+        }
+
+        TempData[success ? "success" : "error"] = message;
+        return RedirectBackOrDefault(returnUrl);
+    }
+
+    private bool IsAjaxRequest()
+    {
+        return string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private IActionResult RedirectBackOrDefault(string? returnUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return LocalRedirect(returnUrl);
+        }
+
+        var referer = Request.Headers.Referer.ToString();
+        if (Uri.TryCreate(referer, UriKind.Absolute, out var refererUri) && Url.IsLocalUrl(refererUri.PathAndQuery))
+        {
+            return LocalRedirect(refererUri.PathAndQuery);
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 }

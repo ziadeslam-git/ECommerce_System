@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ECommerce_System.Areas.Customer.Controllers;
 
 [Area("Customer")]
-[Authorize(Roles = SD.Role_Customer)]
+[Authorize(Roles = SD.Role_AdminOrCustomer)]
 public class ReviewsController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;

@@ -6,6 +6,13 @@
     Layout = "_AdminLayout";
 
     var currentStatus = ViewBag.CurrentStatus as string;
+    int currentPage = ViewBag.CurrentPage is int cp ? cp : 1;
+    int totalPages = ViewBag.TotalPages is int tp ? tp : 1;
+    int totalCount = ViewBag.TotalCount is int tc ? tc : Model.Count();
+    int startPage = Math.Max(1, currentPage - 2);
+    int endPage = Math.Min(totalPages, currentPage + 2);
+    int startItem = totalCount == 0 ? 0 : ((currentPage - 1) * (ViewBag.PageSize is int ps ? ps : 10)) + 1;
+    int endItem = totalCount == 0 ? 0 : startItem + Model.Count() - 1;
 
     string StatusBadge(string status) => status switch
     {
@@ -202,11 +209,43 @@
     </div>
 
     @* Footer count *@
-    <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+    <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <p class="text-xs text-slate-500 dark:text-slate-400">
-            Showing <span class="font-semibold text-slate-700 dark:text-slate-300">@Model.Count()</span> orders
+            Showing <span class="font-semibold text-slate-700 dark:text-slate-300">@startItem-@endItem</span>
+            of <span class="font-semibold text-slate-700 dark:text-slate-300">@totalCount</span> orders
             @if (!string.IsNullOrEmpty(currentStatus)) { <text>with status <span class="font-semibold text-primary">@currentStatus</span></text> }
         </p>
+
+        @if (totalPages > 1)
+        {
+            <div class="flex flex-wrap items-center gap-2">
+                <a asp-action="Index"
+                   asp-route-status="@currentStatus"
+                   asp-route-page="@(currentPage - 1)"
+                   class="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition-all @(currentPage == 1 ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-300" : "border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:text-primary")">
+                    <span class="material-symbols-outlined text-sm">chevron_left</span>
+                    Previous
+                </a>
+
+                @for (int i = startPage; i <= endPage; i++)
+                {
+                    <a asp-action="Index"
+                       asp-route-status="@currentStatus"
+                       asp-route-page="@i"
+                       class="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-xs font-bold transition-all @(i == currentPage ? "border-primary bg-primary text-white shadow-md shadow-primary/20" : "border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:text-primary")">
+                        @i
+                    </a>
+                }
+
+                <a asp-action="Index"
+                   asp-route-status="@currentStatus"
+                   asp-route-page="@(currentPage + 1)"
+                   class="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition-all @(currentPage == totalPages ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-300" : "border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:text-primary")">
+                    Next
+                    <span class="material-symbols-outlined text-sm">chevron_right</span>
+                </a>
+            </div>
+        }
     </div>
 </div>
 

@@ -44,7 +44,7 @@ public class OrdersController : Controller
 
         var vm = new CheckoutVM
         {
-            Items = cart.Items.Select(ci => new CartItemVM
+            Items = cart.Items.Select(ci => new CheckoutCartItemVM
             {
                 Id               = ci.Id,
                 CartId           = ci.CartId,

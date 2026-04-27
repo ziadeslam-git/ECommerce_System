@@ -1,0 +1,137 @@
+using System.Security.Claims;
+using ECommerce_System.Models;
+using ECommerce_System.Repositories.IRepositories;
+using ECommerce_System.Utilities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace ECommerce_System.Areas.Customer.Controllers;
+
+[Area("Customer")]
+[Authorize(Roles = SD.Role_Customer)]
+public class WishlistController : Controller
+{
+    private readonly IUnitOfWork _uow;
+
+    public WishlistController(IUnitOfWork uow)
+    {
+        _uow = uow;
+    }
+
+    // ─── INDEX ────────────────────────────────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> Index()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var wishlistItems = await _uow.WishlistItems.FindAllAsync(
+            w => w.UserId == userId, 
+            "Product,Product.Images,Product.Variants"
+        );
+
+        return View(wishlistItems.ToList());
+    }
+
+    // ─── TOGGLE (JSON) ────────────────────────────────────────────────────────
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Toggle(int productId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var existingItem = await _uow.WishlistItems.FindAsync(w => w.UserId == userId && w.ProductId == productId);
+
+        if (existingItem != null)
+        {
+            _uow.WishlistItems.Remove(existingItem);
+            await _uow.SaveAsync();
+            return Json(new { isInWishlist = false, message = "Removed from wishlist." });
+        }
+        else
+        {
+            var newItem = new WishlistItem
+            {
+                UserId = userId,
+                ProductId = productId,
+                AddedAt = DateTime.UtcNow
+            };
+            await _uow.WishlistItems.AddAsync(newItem);
+            await _uow.SaveAsync();
+            return Json(new { isInWishlist = true, message = "Added to wishlist." });
+        }
+    }
+
+    // ─── MOVE TO CART ─────────────────────────────────────────────────────────
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MoveToCart(int productId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var wishlistItem = await _uow.WishlistItems.FindAsync(w => w.UserId == userId && w.ProductId == productId);
+
+        if (wishlistItem == null)
+            return RedirectToAction(nameof(Index));
+
+        var product = await _uow.Products.FindAsync(p => p.Id == productId, "Variants");
+        if (product == null)
+        {
+            TempData["error"] = "Product not found.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var activeVariant = product.Variants.FirstOrDefault(v => v.IsActive && v.Stock > 0);
+        if (activeVariant == null)
+        {
+            TempData["error"] = "No active variant with sufficient stock is available for this product.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Add to cart logic
+        var cart = await _uow.Carts.GetCartByUserIdAsync(userId);
+        if (cart == null)
+        {
+            cart = new Cart { UserId = userId };
+            await _uow.Carts.AddAsync(cart);
+            await _uow.SaveAsync();
+        }
+
+        var cartItem = cart.Items.FirstOrDefault(i => i.ProductVariantId == activeVariant.Id);
+
+        if (cartItem != null)
+        {
+            if (cartItem.Quantity + 1 > activeVariant.Stock)
+            {
+                TempData["error"] = $"Cannot add more to cart. Max stock available: {activeVariant.Stock}.";
+                return RedirectToAction(nameof(Index));
+            }
+            cartItem.Quantity += 1;
+            _uow.CartItems.Update(cartItem);
+        }
+        else
+        {
+            cartItem = new CartItem
+            {
+                CartId = cart.Id,
+                ProductVariantId = activeVariant.Id,
+                Quantity = 1,
+                PriceSnapshot = activeVariant.Price
+            };
+            await _uow.CartItems.AddAsync(cartItem);
+        }
+
+        // Remove from wishlist
+        _uow.WishlistItems.Remove(wishlistItem);
+        
+        await _uow.SaveAsync();
+
+        TempData["success"] = "Item moved to cart successfully.";
+        return RedirectToAction("Index", "Cart", new { area = "Customer" });
+    }
+}

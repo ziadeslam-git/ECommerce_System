@@ -1,32 +1,5 @@
 namespace ECommerce_System.ViewModels.Customer;
 
-public class CartIndexVM
-{
-    public List<CartLineCustomerVM> Items { get; set; } = [];
-    public string? CouponCode { get; set; }
-    public decimal Subtotal { get; set; }
-    public decimal DiscountAmount { get; set; }
-
-    public decimal Total => Subtotal - DiscountAmount;
-    public bool IsEmpty => Items.Count == 0;
-}
-
-public class CartLineCustomerVM
-{
-    public int CartItemId { get; set; }
-    public int ProductId { get; set; }
-    public int ProductVariantId { get; set; }
-    public string ProductName { get; set; } = string.Empty;
-    public string Size { get; set; } = string.Empty;
-    public string Color { get; set; } = string.Empty;
-    public int Quantity { get; set; }
-    public int AvailableStock { get; set; }
-    public decimal UnitPrice { get; set; }
-    public string? ImageUrl { get; set; }
-
-    public decimal LineTotal => UnitPrice * Quantity;
-}
-
 public class CheckoutVM
 {
     public List<CheckoutItemCustomerVM> Items { get; set; } = [];

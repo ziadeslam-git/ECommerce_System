@@ -5,6 +5,11 @@
     var orders = Model?.Orders ?? [];
     string Badge(string? s) => s switch { "Pending" => "bg-amber-100 text-amber-700", "Confirmed" => "bg-blue-100 text-blue-700", "Shipped" => "bg-sky-100 text-sky-700", "Delivered" => "bg-emerald-100 text-emerald-700", "Cancelled" => "bg-rose-100 text-rose-700", _ => "bg-slate-100 text-slate-700" };
     string LocStatus(string? s) => s switch { "Pending" => SR["OrderStatus_Pending"], "Confirmed" => SR["OrderStatus_Confirmed"], "Shipped" => SR["OrderStatus_Shipped"], "Delivered" => SR["OrderStatus_Delivered"], "Cancelled" => SR["OrderStatus_Cancelled"], _ => s ?? "-" };
+    string TextOrFallback(string key, string fallback)
+    {
+        var value = SR[key].Value;
+        return string.IsNullOrWhiteSpace(value) || value == key ? fallback : value;
+    }
 }
 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
     <div class="flex items-center justify-between">
@@ -45,14 +50,22 @@
                         <td class="p-3"><span class="rounded-full px-2 py-1 text-xs @Badge(order.Status)">@LocStatus(order.Status)</span></td>
                         <td class="p-3"><span class="rounded-full px-2 py-1 text-xs @Badge(order.PaymentStatus)">@order.PaymentStatus</span></td>
                         <td class="p-3">
-                            <div class="flex items-center gap-2">
-                                <a asp-area="Customer" asp-controller="Orders" asp-action="Details" asp-route-id="@order.Id" class="text-primary hover:underline">@SR["View"]</a>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <a asp-area="Customer" asp-controller="Orders" asp-action="Details" asp-route-id="@order.Id"
+                                   class="inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition hover:border-primary/30 hover:bg-primary/10">
+                                    <span class="material-symbols-outlined text-[16px]">visibility</span>
+                                    @TextOrFallback("View", "View")
+                                </a>
                                 @if (order.Status == "Pending")
                                 {
                                     <form asp-area="Customer" asp-controller="Orders" asp-action="Cancel" method="post" data-loading="true" class="inline">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="id" value="@order.Id" />
-                                        <button class="text-rose-600">@SR["CancelOrder"]</button>
+                                        <button type="submit"
+                                                class="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-100">
+                                            <span class="material-symbols-outlined text-[16px]">close</span>
+                                            @TextOrFallback("CancelOrder", "Cancel")
+                                        </button>
                                     </form>
                                 }
                             </div>

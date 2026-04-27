@@ -4,6 +4,7 @@ using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce_System.Areas.Admin.Controllers;
 
@@ -12,7 +13,7 @@ namespace ECommerce_System.Areas.Admin.Controllers;
 public class PaymentsController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;
-    private const int PageSize = 15;
+    private const int PageSize = 10;
 
     public PaymentsController(IUnitOfWork unitOfWork)
         => _unitOfWork = unitOfWork;
@@ -22,53 +23,54 @@ public class PaymentsController : Controller
     public async Task<IActionResult> Index(
         int page = 1, string? statusFilter = null, string? searchQuery = null)
     {
-        // ── 1. Global stats — NO filter, full table ──────────────────────
-        //  These two queries go directly to DB (no in-memory loading)
-        var allPayments = await _unitOfWork.Payments.GetAllAsync(tracked: false);
-        var allList = allPayments.ToList();
+        page = Math.Max(page, 1);
 
-        ViewBag.TotalVolume   = allList.Where(p => p.Status == SD.Payment_Paid).Sum(p => p.Amount);
-        ViewBag.PaidCount     = allList.Count(p => p.Status == SD.Payment_Paid);
-        ViewBag.PendingCount  = allList.Count(p => p.Status == SD.Payment_Pending);
-        ViewBag.FailedCount   = allList.Count(p => p.Status == "Failed" || p.Status == "Refunded");
+        var paymentsBaseQuery = _unitOfWork.Payments.Query().AsNoTracking();
 
-        // ── 2. Build filter expression ─────────────────────────────────
-        System.Linq.Expressions.Expression<Func<Payment, bool>>? filter = null;
+        ViewBag.TotalVolume = await paymentsBaseQuery
+            .Where(p => p.Status == SD.Payment_Paid)
+            .SumAsync(p => (decimal?)p.Amount) ?? 0m;
+        ViewBag.PaidCount = await paymentsBaseQuery.CountAsync(p => p.Status == SD.Payment_Paid);
+        ViewBag.PendingCount = await paymentsBaseQuery.CountAsync(p => p.Status == SD.Payment_Pending);
+        ViewBag.FailedCount = await paymentsBaseQuery.CountAsync(p => p.Status == SD.Payment_Failed || p.Status == SD.Payment_Refunded);
 
-        if (!string.IsNullOrWhiteSpace(statusFilter) && !string.IsNullOrWhiteSpace(searchQuery))
+        var filteredQuery = _unitOfWork.Payments.Query()
+            .AsNoTracking()
+            .Include(p => p.Order)
+            .ThenInclude(o => o.User)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(statusFilter))
+        {
+            filteredQuery = filteredQuery.Where(p => p.Status == statusFilter);
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
         {
             var q = searchQuery.Trim();
-            filter = p => p.Status == statusFilter &&
-                          (p.Order.User!.Email!.Contains(q) || p.OrderId.ToString().Contains(q));
-        }
-        else if (!string.IsNullOrWhiteSpace(statusFilter))
-        {
-            filter = p => p.Status == statusFilter;
-        }
-        else if (!string.IsNullOrWhiteSpace(searchQuery))
-        {
-            var q = searchQuery.Trim();
-            filter = p => p.Order.User!.Email!.Contains(q) || p.OrderId.ToString().Contains(q);
+            filteredQuery = filteredQuery.Where(p =>
+                p.OrderId.ToString().Contains(q) ||
+                (p.Order != null && p.Order.User != null && p.Order.User.Email != null && p.Order.User.Email.Contains(q)));
         }
 
-        // ── 3. Server-side paged query ─────────────────────────────────
-        var (pagedItems, totalCount) = await _unitOfWork.Payments.GetPagedAsync(
-            filter: filter,
-            includeProperties: "Order,Order.User",
-            page: page,
-            pageSize: PageSize,
-            tracked: false);
+        var totalCount = await filteredQuery.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+        if (page > totalPages)
+            page = totalPages;
 
-        // Note: GetPagedAsync on Payment doesn't order — we need IQueryable ordering.
-        // Since Payment has simple fields, we order in memory after paging (acceptable for 15 items):
-        var paged = pagedItems
+        var pagedPayments = await filteredQuery
             .OrderByDescending(p => p.CreatedAt)
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
+            .ToListAsync();
+
+        var paged = pagedPayments
             .Select(p => new PaymentVM
             {
                 Id            = p.Id,
                 OrderId       = p.OrderId,
-                CustomerName  = p.Order?.User?.FullName  ?? "Unknown",
-                CustomerEmail = p.Order?.User?.Email     ?? string.Empty,
+                CustomerName  = p.Order != null && p.Order.User != null ? p.Order.User.FullName : "Unknown",
+                CustomerEmail = p.Order != null && p.Order.User != null ? p.Order.User.Email ?? string.Empty : string.Empty,
                 Amount        = p.Amount,
                 Provider      = p.Provider,
                 TransactionId = p.TransactionId,
@@ -78,8 +80,9 @@ public class PaymentsController : Controller
             .ToList();
 
         ViewBag.CurrentPage  = page;
-        ViewBag.TotalPages   = (int)Math.Ceiling(totalCount / (double)PageSize);
+        ViewBag.TotalPages   = totalPages;
         ViewBag.TotalCount   = totalCount;
+        ViewBag.PageSize     = PageSize;
         ViewBag.StatusFilter = statusFilter;
         ViewBag.SearchQuery  = searchQuery;
         ViewData["Title"]    = "Payments";

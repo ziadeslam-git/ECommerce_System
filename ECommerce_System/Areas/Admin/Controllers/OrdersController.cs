@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce_System.Areas.Admin.Controllers;
 
@@ -15,6 +16,7 @@ public class OrdersController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly UserManager<ApplicationUser> _userManager;
+    private const int PageSize = 10;
 
     public OrdersController(IUnitOfWork unitOfWork, UserManager<ApplicationUser> userManager)
     {
@@ -25,26 +27,39 @@ public class OrdersController : Controller
     // ──────────────────────────────────────────────────────────
     //  GET /Admin/Orders  –  List with optional status filter
     // ──────────────────────────────────────────────────────────
-    public async Task<IActionResult> Index(string? status)
+    public async Task<IActionResult> Index(string? status, int page = 1)
     {
+        page = Math.Max(page, 1);
         var cutoff = DateTime.UtcNow.AddHours(-24);
 
-        var orders = await _unitOfWork.Orders
-            .FindAllAsync(o => true, includeProperties: "User,Address,OrderItems,Shipment", tracked: false);
-
-        // Hide cancelled orders that were cancelled more than 24 hours ago
-        // (they remain in the database but are no longer shown in the admin UI)
-        orders = orders.Where(o =>
+        var query = _unitOfWork.Orders
+            .Query()
+            .AsNoTracking()
+            .Where(o =>
             o.Status != SD.Status_Cancelled ||
             !o.CancelledAt.HasValue ||
             o.CancelledAt.Value > cutoff);
 
         // Filter by status if provided
         if (!string.IsNullOrWhiteSpace(status))
-            orders = orders.Where(o => o.Status.Equals(status, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(o => o.Status.Equals(status));
+
+        var totalCount = await query.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+        if (page > totalPages)
+            page = totalPages;
+
+        var orders = await query
+            .Include(o => o.User)
+            .Include(o => o.Address)
+            .Include(o => o.OrderItems)
+            .Include(o => o.Shipment)
+            .OrderByDescending(o => o.CreatedAt)
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
+            .ToListAsync();
 
         var viewModels = orders
-            .OrderByDescending(o => o.CreatedAt)
             .Select(o => new OrderIndexVM
             {
                 Id             = o.Id,
@@ -62,6 +77,10 @@ public class OrdersController : Controller
 
         ViewBag.CurrentStatus = status;
         ViewBag.AllStatuses   = UpdateOrderStatusVM.OrderStatuses;
+        ViewBag.CurrentPage   = page;
+        ViewBag.TotalPages    = totalPages;
+        ViewBag.TotalCount    = totalCount;
+        ViewBag.PageSize      = PageSize;
         return View(viewModels);
     }
 

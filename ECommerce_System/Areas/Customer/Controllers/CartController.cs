@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ECommerce_System.Areas.Customer.Controllers;
 
 [Area("Customer")]
-[Authorize(Roles = SD.Role_Customer)]
+[Authorize(Roles = SD.Role_AdminOrCustomer)]
 public class CartController : Controller
 {
     private readonly IUnitOfWork _uow;
@@ -55,18 +55,28 @@ public class CartController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddToCart(int productVariantId, int quantity)
+    public async Task<IActionResult> AddToCart(int productVariantId, int quantity, string? returnUrl = null)
     {
         if (quantity < 1)
-            return Json(new { success = false, message = "Quantity must be at least 1." });
+            return BuildAddToCartResponse(false, "Quantity must be at least 1.", null, returnUrl);
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return Unauthorized();
 
         var variant = await _uow.ProductVariants.FindAsync(v => v.Id == productVariantId, "Product");
-        if (variant == null || !variant.IsActive || variant.Stock < quantity)
+        if (variant == null || !variant.IsActive)
         {
-            return Json(new { success = false, message = "Item is unavailable or insufficient stock." });
+            return BuildAddToCartResponse(false, "This variant is unavailable right now.", null, returnUrl);
+        }
+
+        if (variant.Stock <= 0)
+        {
+            return BuildAddToCartResponse(false, "Out of stock. Restock soon.", null, returnUrl);
+        }
+
+        if (variant.Stock < quantity)
+        {
+            return BuildAddToCartResponse(false, $"Only {variant.Stock} left in stock.", null, returnUrl);
         }
 
         var cart = await _uow.Carts.GetCartByUserIdAsync(userId);
@@ -83,7 +93,7 @@ public class CartController : Controller
         {
             if (cartItem.Quantity + quantity > variant.Stock)
             {
-                return Json(new { success = false, message = $"Cannot add more. Max stock available: {variant.Stock}." });
+                return BuildAddToCartResponse(false, $"Only {variant.Stock} available in stock. You already have {cartItem.Quantity} in your cart.", null, returnUrl);
             }
             cartItem.Quantity += quantity;
             _uow.CartItems.Update(cartItem);
@@ -106,7 +116,7 @@ public class CartController : Controller
         var updatedCart = await _uow.Carts.GetCartByUserIdAsync(userId);
         var cartCount = updatedCart?.Items.Sum(i => i.Quantity) ?? 0;
 
-        return Json(new { success = true, message = "Added to cart successfully.", cartCount });
+        return BuildAddToCartResponse(true, "Added to cart successfully.", cartCount, returnUrl);
     }
 
     // ─── UPDATE QUANTITY (JSON) ───────────────────────────────────────────────
@@ -217,5 +227,37 @@ public class CartController : Controller
             discountAmount = discountAmount, 
             message = "Coupon applied successfully!" 
         });
+    }
+
+    private IActionResult BuildAddToCartResponse(bool success, string message, int? cartCount, string? returnUrl)
+    {
+        if (IsAjaxRequest())
+        {
+            return Json(new { success, message, cartCount });
+        }
+
+        TempData[success ? "success" : "error"] = message;
+        return RedirectBackOrDefault(returnUrl);
+    }
+
+    private bool IsAjaxRequest()
+    {
+        return string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private IActionResult RedirectBackOrDefault(string? returnUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return LocalRedirect(returnUrl);
+        }
+
+        var referer = Request.Headers.Referer.ToString();
+        if (Uri.TryCreate(referer, UriKind.Absolute, out var refererUri) && Url.IsLocalUrl(refererUri.PathAndQuery))
+        {
+            return LocalRedirect(refererUri.PathAndQuery);
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 }

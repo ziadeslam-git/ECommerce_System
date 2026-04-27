@@ -3,6 +3,16 @@
 
 @{
     ViewData["Title"] = "Products";
+    var pagedProducts = Model.ToList();
+    int currentPage = ViewBag.CurrentPage is int cp ? cp : 1;
+    int totalPages = ViewBag.TotalPages is int tp ? tp : 1;
+    int totalCount = ViewBag.TotalCount is int tc ? tc : pagedProducts.Count;
+    int activeCount = ViewBag.ActiveCount is int ac ? ac : pagedProducts.Count(p => p.IsActive);
+    int totalStock = ViewBag.TotalStock is int ts ? ts : pagedProducts.Sum(p => p.TotalStock);
+    int withImages = ViewBag.WithImages is int wi ? wi : pagedProducts.Count(p => p.ImageCount > 0);
+    int pageSize = ViewBag.PageSize is int ps ? ps : 10;
+    int startPage = Math.Max(1, currentPage - 2);
+    int endPage = Math.Min(totalPages, currentPage + 2);
 }
 
 <div class="space-y-6">
@@ -28,19 +38,13 @@
 
     <!-- Summary Stats -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        @{
-            var all        = Model.ToList();
-            var active     = all.Count(p => p.IsActive);
-            var totalStock = all.Sum(p => p.TotalStock);
-            var withImages = all.Count(p => p.ImageCount > 0);
-        }
         <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-col gap-1">
             <span class="text-xs font-bold uppercase text-slate-400 tracking-wider">Total Products</span>
-            <span class="text-2xl font-black text-slate-900">@all.Count</span>
+            <span class="text-2xl font-black text-slate-900">@totalCount</span>
         </div>
         <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-col gap-1">
             <span class="text-xs font-bold uppercase text-slate-400 tracking-wider">Active</span>
-            <span class="text-2xl font-black text-emerald-600">@active</span>
+            <span class="text-2xl font-black text-emerald-600">@activeCount</span>
         </div>
         <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-col gap-1">
             <span class="text-xs font-bold uppercase text-slate-400 tracking-wider">Total Stock</span>
@@ -68,7 +72,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                    @if (!Model.Any())
+                    @if (!pagedProducts.Any())
                     {
                         <tr>
                             <td colspan="7" class="py-16 text-center text-slate-400">
@@ -81,7 +85,7 @@
                             </td>
                         </tr>
                     }
-                    @foreach (var p in Model)
+                    @foreach (var p in pagedProducts)
                     {
                         <tr class="hover:bg-primary/5 transition-colors group @(!p.IsActive ? "opacity-60 bg-slate-50" : "")">
                             <!-- Product + thumbnail -->
@@ -180,10 +184,37 @@
             </table>
         </div>
         <!-- Footer -->
-        <div class="bg-slate-50 px-6 py-3 border-t border-slate-200">
+        <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <p class="text-sm text-slate-500">
-                Total: <span class="font-semibold text-slate-900">@Model.Count()</span> products
+                Showing <span class="font-semibold text-slate-900">@(((currentPage - 1) * pageSize) + (pagedProducts.Any() ? 1 : 0))</span>
+                to <span class="font-semibold text-slate-900">@(((currentPage - 1) * pageSize) + pagedProducts.Count)</span>
+                of <span class="font-semibold text-slate-900">@totalCount</span> products
             </p>
+
+            @if (totalPages > 1)
+            {
+                <div class="flex flex-wrap items-center gap-2">
+                    <a asp-area="Admin" asp-controller="Product" asp-action="Index" asp-route-page="@(currentPage - 1)"
+                       class="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition-all @(currentPage == 1 ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-300" : "border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:text-primary")">
+                        <span class="material-symbols-outlined text-sm">chevron_left</span>
+                        Previous
+                    </a>
+
+                    @for (int i = startPage; i <= endPage; i++)
+                    {
+                        <a asp-area="Admin" asp-controller="Product" asp-action="Index" asp-route-page="@i"
+                           class="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-xs font-bold transition-all @(i == currentPage ? "border-primary bg-primary text-white shadow-md shadow-primary/20" : "border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:text-primary")">
+                            @i
+                        </a>
+                    }
+
+                    <a asp-area="Admin" asp-controller="Product" asp-action="Index" asp-route-page="@(currentPage + 1)"
+                       class="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition-all @(currentPage == totalPages ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-300" : "border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:text-primary")">
+                        Next
+                        <span class="material-symbols-outlined text-sm">chevron_right</span>
+                    </a>
+                </div>
+            }
         </div>
     </div>
 

@@ -37,6 +37,11 @@ public class HomeController : Controller
                         .Select(v => v.Price)
                         .OrderBy(price => price)
                         .FirstOrDefault(),
+                    DefaultVariantId = p.Variants
+                        .Where(v => v.IsActive && v.Stock > 0)
+                        .OrderBy(v => v.Price)
+                        .Select(v => (int?)v.Id)
+                        .FirstOrDefault(),
                     AverageRating = p.AverageRating,
                     MainImageUrl = p.Images.FirstOrDefault(i => i.IsMain)?.ImageUrl
                         ?? p.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.ImageUrl,

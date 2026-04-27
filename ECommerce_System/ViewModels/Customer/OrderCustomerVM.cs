@@ -46,6 +46,19 @@ public class OrderDetailsCustomerVM
     public bool CanReview => Status == Utilities.SD.Status_Delivered;
 }
 
+public class OrderSuccessCustomerVM
+{
+    public int Id { get; set; }
+    public string CustomerEmail { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateOnly? EstimatedDeliveryFrom { get; set; }
+    public DateOnly? EstimatedDeliveryTo { get; set; }
+    public string ShippingLabel { get; set; } = "Standard Shipping";
+    public string PaymentStatus { get; set; } = string.Empty;
+
+    public bool IsPaid => PaymentStatus == Utilities.SD.Payment_Paid;
+}
+
 public class OrderItemCustomerVM
 {
     public string ProductName { get; set; } = string.Empty;

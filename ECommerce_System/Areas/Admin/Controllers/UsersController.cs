@@ -15,7 +15,7 @@ public class UsersController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly UserManager<ApplicationUser> _userManager;
-    private const int PageSize = 15;
+    private const int PageSize = 10;
 
     public UsersController(IUnitOfWork unitOfWork, UserManager<ApplicationUser> userManager)
     {
@@ -39,7 +39,12 @@ public class UsersController : Controller
 
         // 2. Count at DB level (no data transferred)
         int totalCount = await query.CountAsync();
-        int totalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
+        int activeCount = await query.CountAsync(u => u.IsActive);
+        int inactiveCount = totalCount - activeCount;
+        int joinedRecentlyCount = await query.CountAsync(u => u.CreatedAt >= DateTime.UtcNow.AddDays(-30));
+        int totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+        if (page > totalPages)
+            page = totalPages;
 
         // 3. Fetch only the current page's users from DB
         var pagedUsers = await query
@@ -87,6 +92,11 @@ public class UsersController : Controller
 
         ViewBag.CurrentPage   = page;
         ViewBag.TotalPages    = totalPages;
+        ViewBag.TotalCount    = totalCount;
+        ViewBag.ActiveCount   = activeCount;
+        ViewBag.InactiveCount = inactiveCount;
+        ViewBag.JoinedRecentlyCount = joinedRecentlyCount;
+        ViewBag.PageSize      = PageSize;
         ViewBag.SearchQuery   = searchQuery;
         ViewBag.StatusFilter  = statusFilter;
         ViewData["Title"]     = "Users";

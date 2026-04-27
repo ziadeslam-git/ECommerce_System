@@ -12,6 +12,7 @@ public class ProductCardVM
     public string Name { get; set; } = string.Empty;
     public decimal BasePrice { get; set; }
     public decimal MinVariantPrice { get; set; }
+    public int? DefaultVariantId { get; set; }
     public double AverageRating { get; set; }
     public string? MainImageUrl { get; set; }
     public string? CategoryName { get; set; }

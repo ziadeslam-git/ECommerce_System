@@ -1,6 +1,15 @@
 @model IEnumerable<ReviewVM>
 @{
     ViewData["Title"] = "Reviews Management";
+    var reviews = Model.ToList();
+    int currentPage = ViewBag.CurrentPage is int cp ? cp : 1;
+    int totalPages = ViewBag.TotalPages is int tp ? tp : 1;
+    int totalCount = ViewBag.TotalCount is int tc ? tc : reviews.Count;
+    int pageSize = ViewBag.PageSize is int ps ? ps : 10;
+    int startPage = Math.Max(1, currentPage - 2);
+    int endPage = Math.Min(totalPages, currentPage + 2);
+    int startItem = totalCount == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    int endItem = totalCount == 0 ? 0 : startItem + reviews.Count - 1;
 }
 
 @section Styles {
@@ -21,26 +30,22 @@
                 <span class="material-symbols-outlined text-[18px]">download</span>
                 Export Word
             </a>
-            <button class="flex items-center gap-2 px-5 py-2 bg-primary text-white font-bold rounded-xl text-sm hover:shadow-lg hover:shadow-primary/20 transition-all">
-                <span class="material-symbols-outlined text-[18px]">add</span>
-                Request Review
-            </button>
         </div>
     </div>
 
     <!-- Filter Tabs -->
     <div class="flex flex-wrap items-center gap-1 bg-surface-container-low p-1.5 rounded-2xl w-fit">
         <a asp-action="Index" class="px-5 py-2 rounded-xl text-sm font-bold transition-all shadow-sm @(string.IsNullOrEmpty(ViewBag.StatusFilter) ? "bg-white text-primary" : "text-on-surface-variant hover:bg-white/50")">
-            All <span class="ml-1 opacity-60">@Model.Count()</span>
+            All <span class="ml-1 opacity-60">@ViewBag.AllCount</span>
         </a>
         <a asp-action="Index" asp-route-status="Pending" class="px-5 py-2 rounded-xl text-sm font-semibold transition-all @(ViewBag.StatusFilter == "Pending" ? "bg-white text-primary shadow-sm" : "text-on-surface-variant hover:bg-white/50")">
-            Pending <span class="ml-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px]">@Model.Count(r => !r.IsApproved && !r.IsRejected)</span>
+            Pending <span class="ml-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px]">@ViewBag.PendingCount</span>
         </a>
         <a asp-action="Index" asp-route-status="Approved" class="px-5 py-2 rounded-xl text-sm font-semibold transition-all @(ViewBag.StatusFilter == "Approved" ? "bg-white text-primary shadow-sm" : "text-on-surface-variant hover:bg-white/50")">
-            Approved <span class="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px]">@Model.Count(r => r.IsApproved)</span>
+            Approved <span class="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px]">@ViewBag.ApprovedCount</span>
         </a>
         <a asp-action="Index" asp-route-status="Rejected" class="px-5 py-2 rounded-xl text-sm font-semibold transition-all @(ViewBag.StatusFilter == "Rejected" ? "bg-white text-primary shadow-sm" : "text-on-surface-variant hover:bg-white/50")">
-            Rejected <span class="ml-1 px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px]">@Model.Count(r => r.IsRejected)</span>
+            Rejected <span class="ml-1 px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px]">@ViewBag.RejectedCount</span>
         </a>
     </div>
 
@@ -63,7 +68,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-surface-container">
-                    @foreach (var review in Model)
+                    @foreach (var review in reviews)
                     {
                         var isPending = !review.IsApproved && !review.IsRejected;
                         var rowClass = isPending ? "group bg-indigo-50/20 transition-colors hover:bg-indigo-50/40" : "group hover:bg-surface-container-low transition-colors";
@@ -144,7 +149,7 @@
                             </td>
                         </tr>
                     }
-                    @if (!Model.Any())
+                    @if (!reviews.Any())
                     {
                         <tr>
                             <td colspan="8" class="text-center py-16">
@@ -160,20 +165,36 @@
         <!-- Pagination -->
         @if (ViewBag.TotalPages > 1)
         {
-            <div class="px-8 py-5 border-t border-surface-container flex items-center justify-between">
-                <p class="text-xs text-on-surface-variant font-medium">Page @ViewBag.CurrentPage of @ViewBag.TotalPages</p>
-                <div class="flex items-center gap-1">
-                    @for (int i = 1; i <= ViewBag.TotalPages; i++)
+            <div class="px-8 py-5 border-t border-surface-container flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <p class="text-xs text-on-surface-variant font-medium">
+                    Showing <span class="font-semibold text-slate-700">@startItem</span>
+                    to <span class="font-semibold text-slate-700">@endItem</span>
+                    of <span class="font-semibold text-slate-700">@totalCount</span> reviews
+                </p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <a asp-action="Index" asp-route-page="@(currentPage - 1)" asp-route-status="@ViewBag.StatusFilter"
+                       class="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition-all @(currentPage == 1 ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-300" : "border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:text-primary")">
+                        <span class="material-symbols-outlined text-sm">chevron_left</span>
+                        Previous
+                    </a>
+
+                    @for (int i = startPage; i <= endPage; i++)
                     {
-                        if (i == ViewBag.CurrentPage)
+                        if (i == currentPage)
                         {
-                            <button class="w-8 h-8 rounded-lg bg-primary text-white font-bold text-xs shadow-sm">@i</button>
+                            <button class="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-primary bg-primary px-3 text-xs font-bold text-white shadow-md shadow-primary/20">@i</button>
                         }
                         else
                         {
-                            <a asp-action="Index" asp-route-page="@i" asp-route-status="@ViewBag.StatusFilter" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface-container font-bold text-xs text-slate-600 transition-colors">@i</a>
+                            <a asp-action="Index" asp-route-page="@i" asp-route-status="@ViewBag.StatusFilter" class="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary/30 hover:text-primary">@i</a>
                         }
                     }
+
+                    <a asp-action="Index" asp-route-page="@(currentPage + 1)" asp-route-status="@ViewBag.StatusFilter"
+                       class="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition-all @(currentPage == totalPages ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-300" : "border-slate-200 bg-white text-slate-600 hover:border-primary/30 hover:text-primary")">
+                        Next
+                        <span class="material-symbols-outlined text-sm">chevron_right</span>
+                    </a>
                 </div>
             </div>
         }

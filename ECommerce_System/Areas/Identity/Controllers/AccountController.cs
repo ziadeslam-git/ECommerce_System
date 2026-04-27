@@ -144,6 +144,9 @@ public class AccountController : Controller
     [HttpGet]
     public IActionResult Login() => View();
 
+    [HttpGet]
+    public IActionResult AccessDenied() => View();
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginVM vm)

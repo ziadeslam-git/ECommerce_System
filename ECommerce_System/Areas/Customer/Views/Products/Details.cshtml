@@ -60,10 +60,11 @@
                 </span>
             }
 
-            <form asp-area="Customer" asp-controller="Cart" asp-action="Add"
-                  method="post" data-loading="true" class="space-y-4">
+            <form asp-area="Customer" asp-controller="Cart" asp-action="AddToCart"
+                  method="post" data-loading="true" class="space-y-4" id="add-to-cart-form">
                 @Html.AntiForgeryToken()
-                <input type="hidden" name="productId" value="@(product?.Id ?? 0)" />
+                @* productVariantId resolved by JS from selected size + color *@
+                <input type="hidden" id="selectedVariantId" name="productVariantId" value="" />
 
                 @if (sizes.Any())
                 {
@@ -115,11 +116,19 @@
                             class="px-5 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition">
                         @T("Add to Cart", "أضف للسلة")
                     </button>
-                    <button formaction="/Customer/Wishlist/Add" type="submit"
-                            class="px-5 py-3 rounded-lg border border-slate-300 font-semibold hover:border-primary hover:text-primary transition">
-                        @T("Add to Wishlist", "أضف للمفضلة")
-                    </button>
                 </div>
+            </form>
+
+            @* Separate wishlist form — Toggle takes productId, not variantId *@
+            <form asp-area="Customer" asp-controller="Wishlist" asp-action="Toggle"
+                  method="post" data-loading="true">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="productId" value="@(product?.Id ?? 0)" />
+                <button type="submit"
+                        class="w-full sm:w-auto px-5 py-3 rounded-lg border border-slate-300
+                               font-semibold hover:border-primary hover:text-primary transition">
+                    @T("Add to Wishlist", "أضف للمفضلة")
+                </button>
             </form>
 
             @if (!string.IsNullOrWhiteSpace(product?.Description))
@@ -229,12 +238,42 @@
 </section>
 
 @section Scripts {
+    @{
+        var variantsJson = System.Text.Json.JsonSerializer.Serialize(
+            product?.Variants?.Where(v => v.IsActive).Select(v => new
+            {
+                id    = v.Id,
+                size  = v.Size,
+                color = v.Color,
+                stock = v.Stock
+            }) ?? Enumerable.Empty<object>()
+        );
+    }
     <script>
+        // Qty +/- buttons
         document.querySelectorAll('.qty-btn').forEach(b => b.addEventListener('click', () => {
             const i = document.getElementById('qty');
             let v = parseInt(i.value || '1');
             v = b.dataset.dir === 'plus' ? v + 1 : Math.max(1, v - 1);
             i.value = v;
         }));
+
+        // Variant resolution: selected size + color → productVariantId
+        const _variants = @Html.Raw(variantsJson);
+
+        function resolveVariant() {
+            const size  = document.querySelector('input[name="size"]:checked')?.value  ?? null;
+            const color = document.querySelector('input[name="color"]:checked')?.value ?? null;
+            const match = _variants.find(v =>
+                (size  === null || v.size  === size) &&
+                (color === null || v.color === color)
+            );
+            document.getElementById('selectedVariantId').value = match?.id ?? '';
+        }
+
+        document.querySelectorAll('input[name="size"], input[name="color"]')
+                .forEach(r => r.addEventListener('change', resolveVariant));
+
+        resolveVariant(); // initialise on page load
     </script>
 }

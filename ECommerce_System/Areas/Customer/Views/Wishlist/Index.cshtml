@@ -1,5 +1,5 @@
-@using ECommerce_System.Models
-@model IEnumerable<WishlistItem>
+@using ECommerce_System.ViewModels.Customer
+@model WishlistIndexVM
 
 @{
     ViewData["Title"] = "My Wishlist";
@@ -8,28 +8,30 @@
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold mb-6">My Wishlist</h1>
 
-    @if (!Model.Any())
+    @if (Model.IsEmpty)
     {
         <div class="bg-white p-8 rounded-lg shadow-sm border border-slate-200 text-center">
             <span class="material-symbols-outlined text-6xl text-slate-300 mb-4">favorite</span>
             <h2 class="text-xl font-semibold text-slate-700">Your wishlist is empty.</h2>
             <p class="text-slate-500 mt-2">Save items you like here to buy them later.</p>
+            <a asp-area="Customer" asp-controller="Products" asp-action="Index"
+               class="mt-4 inline-block bg-primary text-white font-semibold px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors">
+                Browse Products
+            </a>
         </div>
     }
     else
     {
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            @foreach (var item in Model)
+            @foreach (var item in Model.Items)
             {
                 <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+
                     <div class="aspect-square bg-slate-100 relative">
-                        @{
-                            var mainImg = item.Product.Images.FirstOrDefault(i => i.IsMain)?.ImageUrl 
-                                       ?? item.Product.Images.FirstOrDefault()?.ImageUrl;
-                        }
-                        @if (mainImg != null)
+                        @if (!string.IsNullOrEmpty(item.ImageUrl))
                         {
-                            <img src="@mainImg" alt="@item.Product.Name" class="w-full h-full object-cover" />
+                            <img src="@item.ImageUrl" alt="@item.ProductName"
+                                 class="w-full h-full object-cover" />
                         }
                         else
                         {
@@ -38,22 +40,32 @@
                             </div>
                         }
                     </div>
+
                     <div class="p-4 flex flex-col flex-grow">
-                        <h3 class="font-bold text-slate-800 mb-1">@item.Product.Name</h3>
-                        <p class="text-primary font-semibold mb-4">$@item.Product.BasePrice.ToString("0.00")</p>
-                        
+                        <h3 class="font-bold text-slate-800 mb-1">@item.ProductName</h3>
+                        <p class="text-primary font-semibold mb-4">$@item.BasePrice.ToString("0.00")</p>
+
                         <div class="mt-auto space-y-2">
+                            @* MoveToCart — antiforgery required by [ValidateAntiForgeryToken] *@
                             <form asp-action="MoveToCart" method="post" class="w-full">
+                                @Html.AntiForgeryToken()
                                 <input type="hidden" name="productId" value="@item.ProductId" />
-                                <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2 rounded transition-colors flex justify-center items-center gap-2">
+                                <button type="submit"
+                                        class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold
+                                               py-2 rounded transition-colors flex justify-center items-center gap-2">
                                     <span class="material-symbols-outlined text-sm">shopping_cart</span>
                                     Move to Cart
                                 </button>
                             </form>
-                            
+
+                            @* Toggle (Remove) — antiforgery required by [ValidateAntiForgeryToken] *@
                             <form asp-action="Toggle" method="post" class="w-full">
+                                @Html.AntiForgeryToken()
                                 <input type="hidden" name="productId" value="@item.ProductId" />
-                                <button type="submit" class="w-full border border-red-200 text-red-600 hover:bg-red-50 font-semibold py-2 rounded transition-colors flex justify-center items-center gap-2">
+                                <button type="submit"
+                                        class="w-full border border-red-200 text-red-600 hover:bg-red-50
+                                               font-semibold py-2 rounded transition-colors
+                                               flex justify-center items-center gap-2">
                                     <span class="material-symbols-outlined text-sm">delete</span>
                                     Remove
                                 </button>

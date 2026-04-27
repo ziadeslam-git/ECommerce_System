@@ -77,7 +77,8 @@ public class OrdersController : Controller
             DefaultAddressId = addresses.FirstOrDefault(a => a.IsDefault)?.Id
         };
 
-        return View(vm);
+        // Checkout.cshtml lives under Cart/, not Orders/ — specify path explicitly
+        return View("~/Areas/Customer/Views/Cart/Checkout.cshtml", vm);
     }
 
     // ──────────────────────────────────────────────────────────────────────────

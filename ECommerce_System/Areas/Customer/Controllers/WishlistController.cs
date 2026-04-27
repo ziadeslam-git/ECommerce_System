@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
 using ECommerce_System.Utilities;
+using ECommerce_System.ViewModels.Customer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -27,11 +28,25 @@ public class WishlistController : Controller
         if (userId == null) return Unauthorized();
 
         var wishlistItems = await _uow.WishlistItems.FindAllAsync(
-            w => w.UserId == userId, 
+            w => w.UserId == userId,
             "Product,Product.Images,Product.Variants"
         );
 
-        return View(wishlistItems.ToList());
+        var vm = new WishlistIndexVM
+        {
+            Items = wishlistItems.Select(w => new WishlistItemCustomerVM
+            {
+                WishlistItemId = w.Id,
+                ProductId      = w.ProductId,
+                ProductName    = w.Product?.Name ?? string.Empty,
+                BasePrice      = w.Product?.BasePrice ?? 0m,
+                ImageUrl       = w.Product?.Images?.FirstOrDefault(i => i.IsMain)?.ImageUrl
+                                 ?? w.Product?.Images?.FirstOrDefault()?.ImageUrl,
+                AverageRating  = w.Product?.AverageRating ?? 0
+            }).ToList()
+        };
+
+        return View(vm);
     }
 
     // ─── TOGGLE (JSON) ────────────────────────────────────────────────────────

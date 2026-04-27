@@ -6,7 +6,7 @@ namespace ECommerce_System.ViewModels.Customer;
 // ─── Checkout ────────────────────────────────────────────────────────────────
 public class CheckoutVM
 {
-    public List<CartItemVM> Items          { get; set; } = [];
+    public List<CheckoutCartItemVM> Items          { get; set; } = [];
     public decimal          Subtotal       { get; set; }
     public IList<Address>   Addresses      { get; set; } = [];
     public int?             DefaultAddressId { get; set; }
@@ -17,7 +17,7 @@ public class CheckoutVM
 }
 
 // ─── Cart item shown on checkout page ────────────────────────────────────────
-public class CartItemVM
+public class CheckoutCartItemVM
 {
     public int     Id               { get; set; }
     public int     CartId           { get; set; }

@@ -1,3 +1,13 @@
+@using ECommerce_System.Models
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<ApplicationUser> UserManager
+@{
+    var profileUser = User.Identity?.IsAuthenticated == true ? await UserManager.GetUserAsync(User) : null;
+    var profileDisplayName = !string.IsNullOrWhiteSpace(profileUser?.FullName)
+        ? profileUser!.FullName
+        : User.Identity?.Name ?? "My Profile";
+    var profileImageUrl = profileUser?.ProfileImageUrl;
+}
 <!DOCTYPE html>
 <html lang="en" class="light">
 <head>
@@ -14,7 +24,7 @@
             darkMode: "class",
             theme: {
                 extend: {
-                    colors: { "primary": "#6467f2", "background-light": "#f6f6f8", "background-dark": "#101122" },
+                    colors: { "primary": "#6467f2", "background-light": "#f6f6f8", "background-dark": "#101122", "sidebar-dark": "#0F172A" },
                     fontFamily: { "display": ["Inter", "sans-serif"] },
                 },
             },
@@ -24,9 +34,11 @@
         body { font-family: 'Inter', sans-serif; }
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
         .active-tab {
-            background-color: rgba(100, 103, 242, 0.05);
-            color: #6467f2;
-            border-left: 3px solid #6467f2;
+            background-color: rgba(100, 103, 242, 0.14);
+            color: #ffffff;
+            border-left: 4px solid #6467f2;
+            border-top-right-radius: 0.95rem;
+            border-bottom-right-radius: 0.95rem;
         }
     </style>
     @await RenderSectionAsync("Styles", required: false)
@@ -48,7 +60,7 @@
                 <div class="flex flex-1 justify-end gap-4 md:gap-8">
                     <nav class="hidden md:flex items-center gap-6">
                         <a asp-action="Index" asp-controller="Home" asp-area="Customer" class="text-slate-600 dark:text-slate-300 text-sm font-medium hover:text-primary transition-colors">Home</a>
-                        <a href="#" class="text-slate-600 dark:text-slate-300 text-sm font-medium hover:text-primary transition-colors">Orders</a>
+                        <a asp-action="Index" asp-controller="Orders" asp-area="Customer" class="text-slate-600 dark:text-slate-300 text-sm font-medium hover:text-primary transition-colors">Orders</a>
                         <a asp-action="Index" asp-controller="Profile" asp-area="Identity" class="text-primary text-sm font-bold border-b-2 border-primary py-1">Profile</a>
                     </nav>
                     <div class="flex items-center gap-2">
@@ -88,14 +100,21 @@
                     
                     <!-- Left Panel: Navigation Sidebar -->
                     <aside class="w-full md:w-64 lg:w-[280px] shrink-0">
-                        <div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-800 overflow-hidden flex flex-col h-full min-h-[500px]">
+                        <div class="bg-sidebar-dark rounded-[18px] shadow-sm border border-white/10 overflow-hidden flex flex-col h-full min-h-[500px]">
                             
                             <!-- User Profile Header -->
-                            <div class="p-6 flex flex-col items-center text-center border-b border-slate-100 dark:border-slate-800">
-                                <div class="w-[72px] h-[72px] rounded-full bg-primary/10 flex items-center justify-center mb-4 ring-4 ring-slate-50 dark:ring-slate-800 overflow-hidden">
-                                    <span class="material-symbols-outlined text-4xl text-primary">person</span>
+                            <div class="p-6 flex flex-col items-center text-center border-b border-white/10">
+                                <div id="profileSidebarAvatarContainer" class="w-[72px] h-[72px] rounded-full bg-white/5 flex items-center justify-center mb-4 ring-4 ring-white/5 overflow-hidden">
+                                    @if (!string.IsNullOrWhiteSpace(profileImageUrl))
+                                    {
+                                        <img id="profileSidebarAvatarImage" src="@profileImageUrl" alt="@profileDisplayName" class="h-full w-full object-cover" />
+                                    }
+                                    else
+                                    {
+                                        <span id="profileSidebarAvatarFallback" class="material-symbols-outlined text-4xl text-primary">person</span>
+                                    }
                                 </div>
-                                <h2 class="text-base font-bold text-slate-900 dark:text-white">@User.Identity?.Name</h2>
+                                <h2 class="text-base font-bold text-white">@profileDisplayName</h2>
                             </div>
                             
                             <!-- Navigation Tabs -->
@@ -104,25 +123,25 @@
                                     var currentAction = ViewContext.RouteData.Values["Action"]?.ToString();
                                 }
                                 <a asp-action="Index" asp-controller="Profile" asp-area="Identity" 
-                                   class="@(currentAction == "Index" ? "active-tab" : "") flex items-center gap-3 px-6 py-3 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
-                                    <span class="material-symbols-outlined text-[20px] @(currentAction == "Index" ? "text-primary" : "text-slate-500")">person</span>
+                                   class="@(currentAction == "Index" ? "active-tab" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-r-[18px]") flex items-center gap-3 px-6 py-3 text-sm font-semibold transition-colors">
+                                    <span class="material-symbols-outlined text-[20px] @(currentAction == "Index" ? "text-white" : "text-slate-400")">person</span>
                                     <span>Personal Info</span>
                                 </a>
                                 <a asp-action="ChangePassword" asp-controller="Profile" asp-area="Identity" 
-                                   class="@(currentAction == "ChangePassword" ? "active-tab" : "") flex items-center gap-3 px-6 py-3 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
-                                    <span class="material-symbols-outlined text-[20px] @(currentAction == "ChangePassword" ? "text-primary" : "text-slate-500")">lock</span>
+                                   class="@(currentAction == "ChangePassword" ? "active-tab" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-r-[18px]") flex items-center gap-3 px-6 py-3 text-sm font-semibold transition-colors">
+                                    <span class="material-symbols-outlined text-[20px] @(currentAction == "ChangePassword" ? "text-white" : "text-slate-400")">lock</span>
                                     <span>Change Password</span>
                                 </a>
                                 <a asp-action="Addresses" asp-controller="Profile" asp-area="Identity" 
-                                   class="@(currentAction == "Addresses" || currentAction == "AddAddress" || currentAction == "EditAddress" ? "active-tab" : "") flex items-center gap-3 px-6 py-3 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-800">
-                                    <span class="material-symbols-outlined text-[20px] @(currentAction == "Addresses" || currentAction == "AddAddress" || currentAction == "EditAddress" ? "text-primary" : "text-slate-500")">location_on</span>
+                                   class="@(currentAction == "Addresses" || currentAction == "AddAddress" || currentAction == "EditAddress" ? "active-tab" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-r-[18px]") flex items-center gap-3 px-6 py-3 text-sm font-semibold transition-colors">
+                                    <span class="material-symbols-outlined text-[20px] @(currentAction == "Addresses" || currentAction == "AddAddress" || currentAction == "EditAddress" ? "text-white" : "text-slate-400")">location_on</span>
                                     <span>My Addresses</span>
                                 </a>
                                 
-                                <div class="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <div class="mt-auto pt-4 border-t border-white/10">
                                     <form asp-action="Logout" asp-controller="Account" asp-area="Identity" method="post" class="m-0 p-0">
                                         @Html.AntiForgeryToken()
-                                        <button type="submit" class="flex items-center gap-3 px-6 py-4 text-sm font-medium text-slate-400 hover:text-red-500 transition-colors w-full text-left">
+                                        <button type="submit" class="flex items-center gap-3 px-6 py-4 text-sm font-medium text-slate-400 hover:text-white transition-colors w-full text-left">
                                             <span class="material-symbols-outlined text-[20px]">logout</span>
                                             <span>Sign Out</span>
                                         </button>

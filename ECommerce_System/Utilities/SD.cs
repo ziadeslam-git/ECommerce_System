@@ -33,6 +33,7 @@ public static class SD
 
     // ──────────────── Image Upload ─────────────────
     public const string Cloudinary_ProductFolder = "ecommerce/products";
+    public const string Cloudinary_ProfileFolder = "ecommerce/profiles";
 
     // ──────────────── Default Admin ────────────────
     public const string Admin_Email    = "admin@ecommerce.com";

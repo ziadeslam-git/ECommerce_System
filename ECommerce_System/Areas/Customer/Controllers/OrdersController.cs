@@ -2,7 +2,6 @@ using System.Security.Claims;
 using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
 using ECommerce_System.Utilities;
-using ECommerce_System.ViewModels.Admin;
 using ECommerce_System.ViewModels.Customer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -44,10 +43,9 @@ public class OrdersController : Controller
 
         var vm = new CheckoutVM
         {
-            Items = cart.Items.Select(ci => new CartItemVM
+            Items = cart.Items.Select(ci => new CheckoutItemCustomerVM
             {
-                Id               = ci.Id,
-                CartId           = ci.CartId,
+                CartItemId       = ci.Id,
                 ProductVariantId = ci.ProductVariantId,
                 Quantity         = ci.Quantity,
                 PriceSnapshot    = ci.PriceSnapshot,
@@ -55,12 +53,27 @@ public class OrdersController : Controller
                 ProductName      = ci.ProductVariant.Product.Name,
                 Size             = ci.ProductVariant.Size,
                 Color            = ci.ProductVariant.Color,
-                MainImageUrl     = ci.ProductVariant.Product.Images
-                                     .FirstOrDefault(i => i.IsMain)?.ImageUrl,
+                ImageUrl         = ci.ProductVariant.Product.Images
+                                     .FirstOrDefault(i => i.IsMain)?.ImageUrl
+                                   ?? ci.ProductVariant.Product.Images
+                                     .OrderBy(i => i.DisplayOrder)
+                                     .FirstOrDefault()?.ImageUrl,
                 Stock            = ci.ProductVariant.Stock
             }).ToList(),
             Subtotal         = cart.Items.Sum(ci => ci.Quantity * ci.ProductVariant.Price),
-            Addresses        = addresses.ToList(),
+            Addresses        = addresses.Select(a => new AddressOptionCustomerVM
+            {
+                Id          = a.Id,
+                FullName    = a.FullName,
+                PhoneNumber = a.PhoneNumber,
+                Street      = a.Street,
+                City        = a.City,
+                State       = a.State,
+                Country     = a.Country,
+                PostalCode  = a.PostalCode,
+                IsDefault   = a.IsDefault,
+                DisplayLine = BuildAddressLine(a)
+            }).ToList(),
             DefaultAddressId = addresses.FirstOrDefault(a => a.IsDefault)?.Id
         };
 
@@ -358,7 +371,7 @@ public class OrdersController : Controller
             TotalAmount    = order.TotalAmount,
             CouponCode     = order.CouponCode,
             AddressLine    = BuildAddressLine(order.Address),
-            Shipment       = order.Shipment != null ? new ShipmentVM
+            Shipment       = order.Shipment != null ? new ShipmentSummaryCustomerVM
             {
                 TrackingNumber    = order.Shipment.TrackingNumber,
                 Carrier           = order.Shipment.Carrier,
@@ -367,7 +380,7 @@ public class OrdersController : Controller
                 ShippedAt         = order.Shipment.ShippedAt,
                 DeliveredAt       = order.Shipment.DeliveredAt
             } : null,
-            Items = order.OrderItems.Select(oi => new OrderItemVM
+            Items = order.OrderItems.Select(oi => new OrderItemCustomerVM
             {
                 ProductName = oi.ProductName,
                 Size        = oi.Size,

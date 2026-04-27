@@ -1,41 +1,4 @@
-using ECommerce_System.Models;
-using ECommerce_System.ViewModels.Admin;
-
 namespace ECommerce_System.ViewModels.Customer;
-
-// ─── Checkout ────────────────────────────────────────────────────────────────
-public class CheckoutVM
-{
-    public List<CartItemVM> Items          { get; set; } = [];
-    public decimal          Subtotal       { get; set; }
-    public IList<Address>   Addresses      { get; set; } = [];
-    public int?             DefaultAddressId { get; set; }
-
-    // Re-populate on validation failure
-    public string?  CouponCode  { get; set; }
-    public int?     AddressId   { get; set; }
-}
-
-// ─── Cart item shown on checkout page ────────────────────────────────────────
-public class CartItemVM
-{
-    public int     Id               { get; set; }
-    public int     CartId           { get; set; }
-    public int     ProductVariantId { get; set; }
-    public int     Quantity         { get; set; }
-    public decimal PriceSnapshot    { get; set; }
-
-    /// <summary>Live price from DB — used for subtotal on checkout page.</summary>
-    public decimal CurrentPrice     { get; set; }
-
-    public string  ProductName { get; set; } = string.Empty;
-    public string  Size        { get; set; } = string.Empty;
-    public string  Color       { get; set; } = string.Empty;
-    public string? MainImageUrl { get; set; }
-    public int     Stock       { get; set; }
-
-    public decimal LineTotal   => Quantity * CurrentPrice;
-}
 
 // ─── My Orders list ──────────────────────────────────────────────────────────
 public class OrderIndexCustomerVM
@@ -76,9 +39,29 @@ public class OrderDetailsCustomerVM
     public string?  CouponCode     { get; set; }
     public string   AddressLine    { get; set; } = string.Empty;
 
-    public ShipmentVM?         Shipment { get; set; }
-    public List<OrderItemVM>   Items    { get; set; } = [];
+    public ShipmentSummaryCustomerVM? Shipment { get; set; }
+    public List<OrderItemCustomerVM> Items { get; set; } = [];
 
     public bool CanCancel => Status == Utilities.SD.Status_Pending;
     public bool CanReview => Status == Utilities.SD.Status_Delivered;
+}
+
+public class OrderItemCustomerVM
+{
+    public string ProductName { get; set; } = string.Empty;
+    public string Size { get; set; } = string.Empty;
+    public string Color { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal Subtotal { get; set; }
+}
+
+public class ShipmentSummaryCustomerVM
+{
+    public string? TrackingNumber { get; set; }
+    public string? Carrier { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateOnly? EstimatedDelivery { get; set; }
+    public DateTime? ShippedAt { get; set; }
+    public DateTime? DeliveredAt { get; set; }
 }

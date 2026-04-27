@@ -1,7 +1,9 @@
 using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
+using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Identity;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,12 +15,17 @@ public class ProfileController : Controller
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICloudinaryService _cloudinaryService;
 
     // ✅ FIX: Added IUnitOfWork for Address management
-    public ProfileController(UserManager<ApplicationUser> userManager, IUnitOfWork unitOfWork)
+    public ProfileController(
+        UserManager<ApplicationUser> userManager,
+        IUnitOfWork unitOfWork,
+        ICloudinaryService cloudinaryService)
     {
         _userManager = userManager;
         _unitOfWork  = unitOfWork;
+        _cloudinaryService = cloudinaryService;
     }
 
     // ─── PROFILE INDEX ──────────────────────────────────────────
@@ -33,6 +40,7 @@ public class ProfileController : Controller
             FullName    = user.FullName,
             Email       = user.Email ?? string.Empty,
             PhoneNumber = user.PhoneNumber,
+            ProfileImageUrl = user.ProfileImageUrl
         };
 
         return View(vm);
@@ -43,24 +51,154 @@ public class ProfileController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(ProfileVM vm)
     {
-        if (!ModelState.IsValid) return View(vm);
-
         var user = await _userManager.GetUserAsync(User);
         if (user is null) return NotFound();
+
+        vm.Email ??= user.Email ?? string.Empty;
+        vm.ProfileImageUrl ??= user.ProfileImageUrl;
+        var hasCroppedProfileImage = !string.IsNullOrWhiteSpace(vm.CroppedProfileImageDataUrl);
+
+        if (vm.ProfileImage is not null && vm.ProfileImage.Length > 0 && !hasCroppedProfileImage)
+        {
+            var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp" };
+            if (!allowedTypes.Contains(vm.ProfileImage.ContentType.ToLowerInvariant()))
+            {
+                ModelState.AddModelError(nameof(vm.ProfileImage), "Only JPG, PNG and WebP images are allowed.");
+            }
+
+            if (vm.ProfileImage.Length > 5 * 1024 * 1024)
+            {
+                ModelState.AddModelError(nameof(vm.ProfileImage), "Profile image must not exceed 5 MB.");
+            }
+        }
+
+        if (hasCroppedProfileImage && !TryBuildCroppedImageFile(vm.CroppedProfileImageDataUrl!, out _, out var cropError))
+        {
+            ModelState.AddModelError(nameof(vm.ProfileImage), cropError ?? "The cropped image could not be processed. Please choose the photo again.");
+        }
+
+        if (!ModelState.IsValid) return View(vm);
 
         // ✅ FIX: FullName بدل Name / مفيش user.Address
         user.FullName   = vm.FullName;
         user.PhoneNumber = vm.PhoneNumber;
 
+        string? oldPublicId = null;
+        string? uploadedPublicId = null;
+
+        if (hasCroppedProfileImage)
+        {
+            TryBuildCroppedImageFile(vm.CroppedProfileImageDataUrl!, out var croppedFile, out _);
+            if (croppedFile is not null)
+            {
+                var uploadResult = await _cloudinaryService.UploadAsync(croppedFile, SD.Cloudinary_ProfileFolder);
+                oldPublicId = user.ProfileImagePublicId;
+                uploadedPublicId = uploadResult.PublicId;
+                user.ProfileImageUrl = uploadResult.Url;
+                user.ProfileImagePublicId = uploadResult.PublicId;
+            }
+        }
+        else if (vm.ProfileImage is not null && vm.ProfileImage.Length > 0)
+        {
+            var uploadResult = await _cloudinaryService.UploadAsync(vm.ProfileImage, SD.Cloudinary_ProfileFolder);
+            oldPublicId = user.ProfileImagePublicId;
+            uploadedPublicId = uploadResult.PublicId;
+            user.ProfileImageUrl = uploadResult.Url;
+            user.ProfileImagePublicId = uploadResult.PublicId;
+        }
+
         var result = await _userManager.UpdateAsync(user);
 
         if (result.Succeeded)
+        {
+            if (!string.IsNullOrWhiteSpace(oldPublicId) && oldPublicId != uploadedPublicId)
+            {
+                await _cloudinaryService.DeleteAsync(oldPublicId);
+            }
+
             TempData["success"] = "Profile updated successfully.";
+            return RedirectToAction(nameof(Index));
+        }
         else
+        {
+            if (!string.IsNullOrWhiteSpace(uploadedPublicId))
+            {
+                await _cloudinaryService.DeleteAsync(uploadedPublicId);
+            }
+
             foreach (var error in result.Errors)
                 ModelState.AddModelError(string.Empty, error.Description);
+        }
 
+        vm.ProfileImageUrl = user.ProfileImageUrl;
         return View(vm);
+    }
+
+    private static bool TryBuildCroppedImageFile(
+        string dataUrl,
+        out IFormFile? formFile,
+        out string? errorMessage)
+    {
+        formFile = null;
+        errorMessage = null;
+
+        var parts = dataUrl.Split(',', 2);
+        if (parts.Length != 2 || !parts[0].StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+        {
+            errorMessage = "Invalid cropped image format.";
+            return false;
+        }
+
+        string contentType;
+        string extension;
+
+        if (parts[0].Contains("image/png", StringComparison.OrdinalIgnoreCase))
+        {
+            contentType = "image/png";
+            extension = ".png";
+        }
+        else if (parts[0].Contains("image/webp", StringComparison.OrdinalIgnoreCase))
+        {
+            contentType = "image/webp";
+            extension = ".webp";
+        }
+        else
+        {
+            contentType = "image/jpeg";
+            extension = ".jpg";
+        }
+
+        byte[] bytes;
+        try
+        {
+            bytes = Convert.FromBase64String(parts[1]);
+        }
+        catch (FormatException)
+        {
+            errorMessage = "The cropped image data is invalid.";
+            return false;
+        }
+
+        if (bytes.Length == 0)
+        {
+            errorMessage = "The cropped image is empty.";
+            return false;
+        }
+
+        if (bytes.Length > 5 * 1024 * 1024)
+        {
+            errorMessage = "Profile image must not exceed 5 MB.";
+            return false;
+        }
+
+        var stream = new MemoryStream(bytes);
+        formFile = new FormFile(stream, 0, bytes.Length, "ProfileImage", $"profile-crop{extension}")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = contentType
+        };
+
+        return true;
     }
 
     // ─── CHANGE PASSWORD ────────────────────────────────────────

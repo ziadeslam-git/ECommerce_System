@@ -1,11 +1,14 @@
 using System.Security.Claims;
+using System.Text.Json;
 using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
+using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Customer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using Stripe.Checkout;
 
@@ -18,16 +21,23 @@ public class OrdersController : Controller
     private readonly IUnitOfWork                    _unitOfWork;
     private readonly ILogger<OrdersController>      _logger;
     private readonly StripeSettings                 _stripeSettings;
+    private readonly IStringLocalizer<SharedResource> _localizer;
     private const    int                            PageSize = 10;
     private const    string                         PaymentMethodCashOnDelivery = "CashOnDelivery";
     private const    string                         PaymentMethodCreditCard     = "CreditCard";
     private const    string                         CheckoutViewPath            = "~/Areas/Customer/Views/Cart/Checkout.cshtml";
+    private const    string                         CheckoutStateTempDataKey    = "checkout_state";
 
-    public OrdersController(IUnitOfWork unitOfWork, ILogger<OrdersController> logger, IOptions<StripeSettings> stripeOptions)
+    public OrdersController(
+        IUnitOfWork unitOfWork,
+        ILogger<OrdersController> logger,
+        IOptions<StripeSettings> stripeOptions,
+        IStringLocalizer<SharedResource> localizer)
     {
         _unitOfWork = unitOfWork;
         _logger     = logger;
         _stripeSettings = stripeOptions.Value;
+        _localizer = localizer;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -36,18 +46,39 @@ public class OrdersController : Controller
     [HttpGet]
     public async Task<IActionResult> Checkout([FromQuery] CheckoutVM? request)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId == null) return Unauthorized();
-
-        var cart = await _unitOfWork.Carts.GetCartByUserIdAsync(userId);
-        if (cart == null || !cart.Items.Any())
+        try
         {
-            TempData["Info"] = "Your cart is empty. Add some products before checking out.";
-            return RedirectToAction("Index", "Cart");
-        }
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
 
-        var vm = await BuildCheckoutViewModelAsync(userId, request);
-        return View(CheckoutViewPath, vm);
+            var hasExplicitRequest = request is not null &&
+                                     (request.AddressId.HasValue ||
+                                      !string.IsNullOrWhiteSpace(request.CouponCode) ||
+                                      request.ShowNewAddressForm ||
+                                      request.HasNewAddressInput ||
+                                      request.PaymentMethod == PaymentMethodCreditCard);
+
+            if (!hasExplicitRequest)
+            {
+                request = ReadCheckoutState();
+            }
+
+            var cart = await _unitOfWork.Carts.GetCartByUserIdAsync(userId);
+            if (cart == null || !cart.Items.Any())
+            {
+                TempData["error"] = _localizer["CartEmptyBeforeCheckout"].Value;
+                return RedirectToAction("Index", "Cart");
+            }
+
+            var vm = await BuildCheckoutViewModelAsync(userId, request);
+            return View(CheckoutViewPath, vm);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Checkout GET failed.");
+            TempData["error"] = _localizer["SomethingWentWrongWhileLoadingCheckout"].Value;
+            return RedirectToAction("Error", "Home", new { area = "Customer" });
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -57,31 +88,41 @@ public class OrdersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UseNewAddress(CheckoutVM vm)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId == null) return Unauthorized();
-
-        vm.PaymentMethod = NormalizePaymentMethod(vm.PaymentMethod);
-        vm.CouponCode = vm.CouponCode?.Trim();
-        vm.ShowNewAddressForm = true;
-
-        if (!TryValidateInlineAddress(vm))
+        try
         {
-            var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
-            invalidVm.ShowNewAddressForm = true;
-            return View(CheckoutViewPath, invalidVm);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+
+            vm.PaymentMethod = NormalizePaymentMethod(vm.PaymentMethod);
+            vm.CouponCode = vm.CouponCode?.Trim();
+            vm.ShowNewAddressForm = true;
+
+            if (!TryValidateInlineAddress(vm))
+            {
+                StoreCheckoutState(vm);
+                TempData["error"] = _localizer["PleaseCompleteNewAddressBeforeSaving"].Value;
+                return RedirectToAction(nameof(Checkout));
+            }
+
+            var existingAddresses = await _unitOfWork.Addresses.FindAllAsync(a => a.UserId == userId);
+            var makeDefault = !existingAddresses.Any() || vm.SaveNewAddress;
+            var address = await CreateInlineAddressAsync(userId, vm, makeDefault);
+
+            TempData["success"] = _localizer["AddressSavedSuccessfully"].Value;
+            return RedirectToAction(nameof(Checkout), new
+            {
+                addressId = address.Id,
+                couponCode = vm.CouponCode,
+                paymentMethod = vm.PaymentMethod,
+                showNewAddressForm = false
+            });
         }
-
-        var existingAddresses = await _unitOfWork.Addresses.FindAllAsync(a => a.UserId == userId);
-        var makeDefault = !existingAddresses.Any() || vm.SaveNewAddress;
-        var address = await CreateInlineAddressAsync(userId, vm, makeDefault);
-
-        return RedirectToAction(nameof(Checkout), new
+        catch (Exception ex)
         {
-            addressId = address.Id,
-            couponCode = vm.CouponCode,
-            paymentMethod = vm.PaymentMethod,
-            showNewAddressForm = false
-        });
+            _logger.LogError(ex, "UseNewAddress failed.");
+            TempData["error"] = _localizer["SomethingWentWrongWhileSavingNewAddress"].Value;
+            return RedirectToAction("Error", "Home", new { area = "Customer" });
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -91,61 +132,126 @@ public class OrdersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SelectSavedAddress(CheckoutVM vm)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId == null) return Unauthorized();
-
-        vm.PaymentMethod = NormalizePaymentMethod(vm.PaymentMethod);
-        vm.CouponCode = vm.CouponCode?.Trim();
-
-        if (!vm.AddressId.HasValue || vm.AddressId.Value <= 0)
+        try
         {
-            return RedirectToAction(nameof(Checkout), new
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+
+            vm.PaymentMethod = NormalizePaymentMethod(vm.PaymentMethod);
+            vm.CouponCode = vm.CouponCode?.Trim();
+
+            if (!vm.AddressId.HasValue || vm.AddressId.Value <= 0)
             {
-                couponCode = vm.CouponCode,
-                paymentMethod = vm.PaymentMethod,
-                showNewAddressForm = false
-            });
-        }
-
-        var selectedAddress = await _unitOfWork.Addresses.FindAsync(
-            a => a.Id == vm.AddressId.Value && a.UserId == userId);
-
-        if (selectedAddress == null)
-        {
-            return RedirectToAction(nameof(Checkout), new
-            {
-                couponCode = vm.CouponCode,
-                paymentMethod = vm.PaymentMethod,
-                showNewAddressForm = false
-            });
-        }
-
-        var userAddresses = await _unitOfWork.Addresses.FindAllAsync(a => a.UserId == userId);
-        var changed = false;
-
-        foreach (var address in userAddresses)
-        {
-            var shouldBeDefault = address.Id == selectedAddress.Id;
-            if (address.IsDefault != shouldBeDefault)
-            {
-                address.IsDefault = shouldBeDefault;
-                _unitOfWork.Addresses.Update(address);
-                changed = true;
+                return RedirectToAction(nameof(Checkout), new
+                {
+                    couponCode = vm.CouponCode,
+                    paymentMethod = vm.PaymentMethod,
+                    showNewAddressForm = false
+                });
             }
-        }
 
-        if (changed)
+            var selectedAddress = await _unitOfWork.Addresses.FindAsync(
+                a => a.Id == vm.AddressId.Value && a.UserId == userId);
+
+            if (selectedAddress == null)
+            {
+                TempData["error"] = _localizer["SelectedAddressNotFound"].Value;
+                return RedirectToAction(nameof(Checkout), new
+                {
+                    couponCode = vm.CouponCode,
+                    paymentMethod = vm.PaymentMethod,
+                    showNewAddressForm = false
+                });
+            }
+
+            var userAddresses = await _unitOfWork.Addresses.FindAllAsync(a => a.UserId == userId);
+            var changed = false;
+
+            foreach (var address in userAddresses)
+            {
+                var shouldBeDefault = address.Id == selectedAddress.Id;
+                if (address.IsDefault != shouldBeDefault)
+                {
+                    address.IsDefault = shouldBeDefault;
+                    _unitOfWork.Addresses.Update(address);
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                await _unitOfWork.SaveAsync();
+            }
+
+            return RedirectToAction(nameof(Checkout), new
+            {
+                addressId = selectedAddress.Id,
+                couponCode = vm.CouponCode,
+                paymentMethod = vm.PaymentMethod,
+                showNewAddressForm = false
+            });
+        }
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "SelectSavedAddress failed.");
+            TempData["error"] = _localizer["SomethingWentWrongWhileSelectingAddress"].Value;
+            return RedirectToAction("Error", "Home", new { area = "Customer" });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteAddress(int deleteAddressId, CheckoutVM vm)
+    {
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+
+            vm.PaymentMethod = NormalizePaymentMethod(vm.PaymentMethod);
+            vm.CouponCode = vm.CouponCode?.Trim();
+
+            var address = await _unitOfWork.Addresses.FindAsync(a => a.Id == deleteAddressId && a.UserId == userId);
+            if (address == null)
+            {
+                TempData["error"] = _localizer["SelectedAddressNotFound"].Value;
+                return RedirectToAction(nameof(Checkout), new { couponCode = vm.CouponCode, paymentMethod = vm.PaymentMethod });
+            }
+
+            var hasRelatedOrders = await _unitOfWork.Orders.Query().AnyAsync(o => o.AddressId == deleteAddressId);
+            if (hasRelatedOrders)
+            {
+                TempData["error"] = _localizer["AddressCannotBeDeletedUsedInPreviousOrders"].Value;
+                return RedirectToAction(nameof(Checkout), new { addressId = vm.AddressId, couponCode = vm.CouponCode, paymentMethod = vm.PaymentMethod });
+            }
+
+            _unitOfWork.Addresses.Remove(address);
             await _unitOfWork.SaveAsync();
-        }
 
-        return RedirectToAction(nameof(Checkout), new
+            var remainingAddresses = (await _unitOfWork.Addresses.FindAllAsync(a => a.UserId == userId)).ToList();
+            if (remainingAddresses.Any() && !remainingAddresses.Any(a => a.IsDefault))
+            {
+                remainingAddresses[0].IsDefault = true;
+                _unitOfWork.Addresses.Update(remainingAddresses[0]);
+                await _unitOfWork.SaveAsync();
+            }
+
+            TempData["success"] = _localizer["AddressDeletedSuccessfully"].Value;
+
+            return RedirectToAction(nameof(Checkout), new
+            {
+                addressId = remainingAddresses.FirstOrDefault(a => a.IsDefault)?.Id ?? remainingAddresses.FirstOrDefault()?.Id,
+                couponCode = vm.CouponCode,
+                paymentMethod = vm.PaymentMethod,
+                showNewAddressForm = !remainingAddresses.Any()
+            });
+        }
+        catch (Exception ex)
         {
-            addressId = selectedAddress.Id,
-            couponCode = vm.CouponCode,
-            paymentMethod = vm.PaymentMethod,
-            showNewAddressForm = false
-        });
+            _logger.LogError(ex, "DeleteAddress failed. AddressId={AddressId}", deleteAddressId);
+            TempData["error"] = _localizer["SomethingWentWrongWhileDeletingAddress"].Value;
+            return RedirectToAction("Error", "Home", new { area = "Customer" });
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -155,6 +261,8 @@ public class OrdersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> PlaceOrder(CheckoutVM vm)
     {
+        try
+        {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return Unauthorized();
         vm.PaymentMethod = NormalizePaymentMethod(vm.PaymentMethod);
@@ -172,8 +280,9 @@ public class OrdersController : Controller
             if (!TryValidateInlineAddress(vm))
             {
                 vm.ShowNewAddressForm = true;
-                var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
-                return View(CheckoutViewPath, invalidVm);
+                StoreCheckoutState(vm);
+                TempData["error"] = _localizer["PleaseCompleteNewAddressBeforePlacingOrder"].Value;
+                return RedirectToAction(nameof(Checkout));
             }
 
             var makeDefault = !existingAddresses.Any() || vm.SaveNewAddress;
@@ -183,9 +292,9 @@ public class OrdersController : Controller
         }
         else if (addressId <= 0)
         {
-            ModelState.AddModelError(nameof(vm.AddressId), "Please select a delivery address.");
-            var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
-            return View(CheckoutViewPath, invalidVm);
+            StoreCheckoutState(vm);
+            TempData["error"] = _localizer["PleaseSelectDeliveryAddress"].Value;
+            return RedirectToAction(nameof(Checkout));
         }
 
         var userAddresses = existingAddresses.ToList();
@@ -217,16 +326,16 @@ public class OrdersController : Controller
         {
             _logger.LogWarning("PlaceOrder blocked: Address {AddressId} not found for user {UserId}.",
                 addressId, userId);
-            ModelState.AddModelError(nameof(vm.AddressId), "The selected address is invalid or does not belong to your account.");
-            var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
-            return View(CheckoutViewPath, invalidVm);
+            StoreCheckoutState(vm);
+            TempData["error"] = _localizer["SelectedAddressInvalid"].Value;
+            return RedirectToAction(nameof(Checkout));
         }
 
         // ── Step 2: Load Cart ─────────────────────────────────────────────────
         var cart = await _unitOfWork.Carts.GetCartByUserIdAsync(userId);
         if (cart == null || !cart.Items.Any())
         {
-            TempData["Info"] = "Your cart is empty.";
+            TempData["Info"] = _localizer["CartEmpty"].Value;
             return RedirectToAction("Index", "Cart");
         }
 
@@ -239,20 +348,27 @@ public class OrdersController : Controller
             {
                 _logger.LogError("PlaceOrder: CartItem {ItemId} has no ProductVariant. UserId={UserId}.",
                     item.Id, userId);
-                TempData["Error"] = "One or more products in your cart are no longer available. Please review your cart.";
+                TempData["Error"] = _localizer["ProductsInCartNoLongerAvailable"].Value;
                 return RedirectToAction("Index", "Cart");
             }
 
             if (!item.ProductVariant.IsActive)
             {
-                TempData["Error"] = $"{item.ProductVariant.Product?.Name} ({item.ProductVariant.Size} / {item.ProductVariant.Color}) is no longer available.";
+                TempData["Error"] = _localizer["VariantNoLongerAvailable",
+                    item.ProductVariant.Product?.Name ?? _localizer["ProductNotFound"].Value,
+                    item.ProductVariant.Size,
+                    item.ProductVariant.Color].Value;
                 return RedirectToAction("Index", "Cart");
             }
 
             if (item.Quantity > item.ProductVariant.Stock)
             {
-                TempData["Error"] = $"Not enough stock for '{item.ProductVariant.Product?.Name}' ({item.ProductVariant.Size} / {item.ProductVariant.Color}). " +
-                                    $"Available: {item.ProductVariant.Stock}, Requested: {item.Quantity}.";
+                TempData["Error"] = _localizer["NotEnoughStockForVariant",
+                    item.ProductVariant.Product?.Name ?? _localizer["ProductNotFound"].Value,
+                    item.ProductVariant.Size,
+                    item.ProductVariant.Color,
+                    item.ProductVariant.Stock,
+                    item.Quantity].Value;
                 return RedirectToAction("Index", "Cart");
             }
 
@@ -266,11 +382,11 @@ public class OrdersController : Controller
         {
             _logger.LogWarning("PlaceOrder: Coupon validation failed. Coupon={Coupon}, UserId={UserId}, Reason={Reason}",
                 couponCode ?? "none", userId, couponError);
-            ModelState.AddModelError(nameof(vm.CouponCode), couponError);
             vm.CouponCode = couponCode;
             vm.AddressId = addressId;
-            var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
-            return View(CheckoutViewPath, invalidVm);
+            StoreCheckoutState(vm);
+            TempData["error"] = couponError;
+            return RedirectToAction(nameof(Checkout));
         }
 
         if (appliedCoupon != null)
@@ -285,9 +401,9 @@ public class OrdersController : Controller
         {
             if (!IsStripeConfigured())
             {
-                ModelState.AddModelError(string.Empty, "Stripe payment is not configured yet. Add the Stripe Secret Key first, then try again.");
-                var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
-                return View(CheckoutViewPath, invalidVm);
+                StoreCheckoutState(vm);
+                TempData["error"] = _localizer["StripeNotConfigured"].Value;
+                return RedirectToAction(nameof(Checkout));
             }
 
             try
@@ -295,9 +411,9 @@ public class OrdersController : Controller
                 var session = await CreateStripeCheckoutSessionAsync(cart, userId, addressId, couponCode, subtotal, discountAmount, totalAmount);
                 if (string.IsNullOrWhiteSpace(session.Url))
                 {
-                    ModelState.AddModelError(string.Empty, "Could not start the Stripe checkout session. Please try again.");
-                    var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
-                    return View(CheckoutViewPath, invalidVm);
+                    StoreCheckoutState(vm);
+                    TempData["error"] = _localizer["StripeSessionCouldNotStart"].Value;
+                    return RedirectToAction(nameof(Checkout));
                 }
 
                 return Redirect(session.Url);
@@ -305,9 +421,9 @@ public class OrdersController : Controller
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PlaceOrder failed while creating Stripe session. UserId={UserId}.", userId);
-                ModelState.AddModelError(string.Empty, "Unable to start card payment right now. Please try again.");
-                var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
-                return View(CheckoutViewPath, invalidVm);
+                TempData["error"] = _localizer["CardPaymentUnavailable"].Value;
+                StoreCheckoutState(vm);
+                return RedirectToAction(nameof(Checkout));
             }
         }
 
@@ -335,15 +451,21 @@ public class OrdersController : Controller
         {
             _logger.LogWarning(ex,
                 "PlaceOrder concurrency conflict for UserId={UserId}. Stock was modified by another request.", userId);
-            TempData["Error"] = "One or more products were updated while your order was being placed. " +
-                                "Please review your cart and try again.";
+            TempData["error"] = _localizer["OrderUpdatedWhilePlacing"].Value;
             return RedirectToAction("Index", "Cart");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "PlaceOrder failed for UserId={UserId}.", userId);
-            TempData["Error"] = "Something went wrong while placing your order. Please try again.";
-            return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod = vm.PaymentMethod });
+            TempData["error"] = _localizer["SomethingWentWrongWhilePlacingOrder"].Value;
+            return RedirectToAction("Error", "Home", new { area = "Customer" });
+        }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PlaceOrder pipeline failed before completion.");
+            TempData["error"] = _localizer["SomethingWentWrongWhilePlacingOrder"].Value;
+            return RedirectToAction("Error", "Home", new { area = "Customer" });
         }
     }
 
@@ -355,13 +477,13 @@ public class OrdersController : Controller
 
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            TempData["Error"] = "Missing Stripe session details.";
+            TempData["Error"] = _localizer["MissingStripeSessionDetails"].Value;
             return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
         }
 
         if (!IsStripeConfigured())
         {
-            TempData["Error"] = "Stripe payment is not configured yet. Add the Stripe Secret Key first, then try again.";
+            TempData["Error"] = _localizer["StripeNotConfigured"].Value;
             return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
         }
 
@@ -372,7 +494,7 @@ public class OrdersController : Controller
 
             if (session == null || !string.Equals(session.PaymentStatus, "paid", StringComparison.OrdinalIgnoreCase))
             {
-                TempData["Error"] = "Stripe payment was not completed successfully.";
+                TempData["Error"] = _localizer["StripePaymentNotCompleted"].Value;
                 return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
             }
 
@@ -397,7 +519,7 @@ public class OrdersController : Controller
 
             if (!metadata.TryGetValue("AddressId", out var addressValue) || !int.TryParse(addressValue, out var addressId))
             {
-                TempData["Error"] = "Stripe session is missing address information.";
+                TempData["Error"] = _localizer["StripeSessionMissingAddressInformation"].Value;
                 return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
             }
 
@@ -406,14 +528,14 @@ public class OrdersController : Controller
             var address = await _unitOfWork.Addresses.FindAsync(a => a.Id == addressId && a.UserId == userId);
             if (address == null)
             {
-                TempData["Error"] = "The selected delivery address is no longer available.";
+                TempData["Error"] = _localizer["SelectedDeliveryAddressNoLongerAvailable"].Value;
                 return RedirectToAction(nameof(Checkout), new { couponCode, paymentMethod = PaymentMethodCreditCard });
             }
 
             var cart = await _unitOfWork.Carts.GetCartByUserIdAsync(userId);
             if (cart == null || !cart.Items.Any())
             {
-                TempData["Error"] = "Your cart is empty. We could not finalize the paid order.";
+                TempData["Error"] = _localizer["CouldNotFinalizePaidOrderCartEmpty"].Value;
                 return RedirectToAction("Index", "Cart");
             }
 
@@ -422,13 +544,13 @@ public class OrdersController : Controller
             {
                 if (item.ProductVariant == null || !item.ProductVariant.IsActive)
                 {
-                    TempData["Error"] = "One or more products in your cart are no longer available.";
+                    TempData["Error"] = _localizer["ProductsInCartNoLongerAvailable"].Value;
                     return RedirectToAction("Index", "Cart");
                 }
 
                 if (item.Quantity > item.ProductVariant.Stock)
                 {
-                    TempData["Error"] = $"Not enough stock for '{item.ProductVariant.Product?.Name}'. Please review your cart.";
+                    TempData["Error"] = _localizer["NotEnoughStockForProductReviewCart", item.ProductVariant.Product?.Name ?? _localizer["ProductNotFound"].Value].Value;
                     return RedirectToAction("Index", "Cart");
                 }
 
@@ -469,7 +591,7 @@ public class OrdersController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "StripeSuccess failed. SessionId={SessionId}, UserId={UserId}.", sessionId, userId);
-            TempData["Error"] = "We couldn't finalize the Stripe payment right now. Please contact support if you were charged.";
+            TempData["Error"] = _localizer["CouldNotFinalizeStripePayment"].Value;
             return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
         }
     }
@@ -477,7 +599,7 @@ public class OrdersController : Controller
     [HttpGet]
     public IActionResult StripeCancel(string? couponCode = null, int? addressId = null)
     {
-        TempData["Error"] = "Card payment was canceled before completion.";
+        TempData["Error"] = _localizer["CardPaymentCanceled"].Value;
         return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod = PaymentMethodCreditCard });
     }
 
@@ -509,7 +631,7 @@ public class OrdersController : Controller
             CreatedAt = order.CreatedAt,
             EstimatedDeliveryFrom = estimatedFrom,
             EstimatedDeliveryTo = estimatedTo,
-            ShippingLabel = string.IsNullOrWhiteSpace(order.Shipment?.Carrier) ? "Standard Shipping" : order.Shipment.Carrier!,
+            ShippingLabel = string.IsNullOrWhiteSpace(order.Shipment?.Carrier) ? _localizer["StandardShipping"] : order.Shipment.Carrier!,
             PaymentStatus = order.PaymentStatus
         };
 
@@ -648,8 +770,7 @@ public class OrdersController : Controller
         // Business rule: only Pending orders can be cancelled
         if (order.Status != SD.Status_Pending)
         {
-            TempData["Error"] = $"Order #{id} cannot be cancelled because its status is '{order.Status}'. " +
-                                 "Only Pending orders can be cancelled.";
+            TempData["Error"] = _localizer["OrderCannotBeCancelledStatus", id, order.Status].Value;
             return RedirectToAction(nameof(Details), new { id });
         }
 
@@ -688,19 +809,19 @@ public class OrdersController : Controller
             await transaction.CommitAsync();
 
             _logger.LogInformation("Cancel succeeded. OrderId={OrderId}, UserId={UserId}.", id, userId);
-            TempData["Success"] = $"Order #{id} has been cancelled successfully.";
+            TempData["Success"] = _localizer["OrderCancelledSuccessfully", id].Value;
         }
         catch (DbUpdateConcurrencyException ex)
         {
             await transaction.RollbackAsync();
             _logger.LogWarning(ex, "Cancel concurrency conflict. OrderId={OrderId}, UserId={UserId}.", id, userId);
-            TempData["Error"] = "A conflict occurred while cancelling the order. Please try again.";
+            TempData["Error"] = _localizer["OrderCancelConflict"].Value;
         }
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
             _logger.LogError(ex, "Cancel failed. OrderId={OrderId}, UserId={UserId}.", id, userId);
-            TempData["Error"] = "Something went wrong while cancelling the order. Please try again.";
+            TempData["Error"] = _localizer["SomethingWentWrongWhileCancellingOrder"].Value;
         }
 
         return RedirectToAction(nameof(Details), new { id });
@@ -709,9 +830,9 @@ public class OrdersController : Controller
     // ──────────────────────────────────────────────────────────────────────────
     //  Private helpers
     // ──────────────────────────────────────────────────────────────────────────
-    private static string BuildAddressLine(Address? addr)
+    private string BuildAddressLine(Address? addr)
     {
-        if (addr == null) return "Address not available";
+        if (addr == null) return _localizer["AddressNotAvailable"];
 
         var parts = new List<string> { addr.Street, addr.City };
         if (!string.IsNullOrWhiteSpace(addr.State))   parts.Add(addr.State);
@@ -789,7 +910,7 @@ public class OrdersController : Controller
         vm.DiscountAmount = discountAmount;
         vm.CouponCode = appliedCode ?? vm.CouponCode;
         vm.CouponApplied = string.IsNullOrWhiteSpace(couponError) && discountAmount > 0 && !string.IsNullOrWhiteSpace(vm.CouponCode);
-        vm.CouponMessage = couponError ?? (vm.CouponApplied ? $"Coupon '{vm.CouponCode}' applied successfully." : null);
+        vm.CouponMessage = couponError ?? (vm.CouponApplied ? _localizer["CouponNamedAppliedSuccessfully", vm.CouponCode ?? string.Empty].Value : null);
 
         return vm;
     }
@@ -800,37 +921,37 @@ public class OrdersController : Controller
 
         if (string.IsNullOrWhiteSpace(vm.NewAddressFullName))
         {
-            ModelState.AddModelError(nameof(vm.NewAddressFullName), "Full name is required.");
+            ModelState.AddModelError(nameof(vm.NewAddressFullName), _localizer["FullNameRequired"]);
             isValid = false;
         }
 
         if (string.IsNullOrWhiteSpace(vm.NewAddressPhoneNumber))
         {
-            ModelState.AddModelError(nameof(vm.NewAddressPhoneNumber), "Phone number is required.");
+            ModelState.AddModelError(nameof(vm.NewAddressPhoneNumber), _localizer["PhoneNumberRequired"]);
             isValid = false;
         }
 
         if (string.IsNullOrWhiteSpace(vm.NewAddressStreet))
         {
-            ModelState.AddModelError(nameof(vm.NewAddressStreet), "Street address is required.");
+            ModelState.AddModelError(nameof(vm.NewAddressStreet), _localizer["StreetAddressRequired"]);
             isValid = false;
         }
 
         if (string.IsNullOrWhiteSpace(vm.NewAddressCity))
         {
-            ModelState.AddModelError(nameof(vm.NewAddressCity), "City is required.");
+            ModelState.AddModelError(nameof(vm.NewAddressCity), _localizer["CityRequired"]);
             isValid = false;
         }
 
         if (string.IsNullOrWhiteSpace(vm.NewAddressCountry))
         {
-            ModelState.AddModelError(nameof(vm.NewAddressCountry), "Country is required.");
+            ModelState.AddModelError(nameof(vm.NewAddressCountry), _localizer["CountryRequired"]);
             isValid = false;
         }
 
         if (string.IsNullOrWhiteSpace(vm.NewAddressPostalCode))
         {
-            ModelState.AddModelError(nameof(vm.NewAddressPostalCode), "Postal code is required.");
+            ModelState.AddModelError(nameof(vm.NewAddressPostalCode), _localizer["PostalCodeRequired"]);
             isValid = false;
         }
 
@@ -874,6 +995,44 @@ public class OrdersController : Controller
         return !string.IsNullOrWhiteSpace(_stripeSettings.SecretKey);
     }
 
+    private void StoreCheckoutState(CheckoutVM vm)
+    {
+        var state = new CheckoutVM
+        {
+            AddressId = vm.AddressId,
+            CouponCode = vm.CouponCode?.Trim(),
+            PaymentMethod = NormalizePaymentMethod(vm.PaymentMethod),
+            ShowNewAddressForm = vm.ShowNewAddressForm,
+            SaveNewAddress = vm.SaveNewAddress,
+            NewAddressFullName = vm.NewAddressFullName ?? string.Empty,
+            NewAddressPhoneNumber = vm.NewAddressPhoneNumber ?? string.Empty,
+            NewAddressStreet = vm.NewAddressStreet ?? string.Empty,
+            NewAddressCity = vm.NewAddressCity ?? string.Empty,
+            NewAddressState = vm.NewAddressState,
+            NewAddressCountry = vm.NewAddressCountry ?? string.Empty,
+            NewAddressPostalCode = vm.NewAddressPostalCode ?? string.Empty
+        };
+
+        TempData[CheckoutStateTempDataKey] = JsonSerializer.Serialize(state);
+    }
+
+    private CheckoutVM? ReadCheckoutState()
+    {
+        if (!TempData.TryGetValue(CheckoutStateTempDataKey, out var raw) || raw is not string json || string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<CheckoutVM>(json);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private async Task<Session> CreateStripeCheckoutSessionAsync(
         Cart cart,
         string userId,
@@ -901,10 +1060,10 @@ public class OrdersController : Controller
                     UnitAmount = (long)Math.Round(totalAmount * 100m, MidpointRounding.AwayFromZero),
                     ProductData = new SessionLineItemPriceDataProductDataOptions
                     {
-                        Name = "Smart Store Order",
+                        Name = _localizer["SmartStoreOrder"],
                         Description = string.IsNullOrWhiteSpace(couponCode)
-                            ? "Final order total"
-                            : $"Final order total after coupon {couponCode}"
+                            ? _localizer["FinalOrderTotal"]
+                            : _localizer["FinalOrderTotalAfterCoupon", couponCode]
                     }
                 }
             });
@@ -922,7 +1081,7 @@ public class OrdersController : Controller
                         UnitAmount = (long)Math.Round(item.PriceSnapshot * 100m, MidpointRounding.AwayFromZero),
                         ProductData = new SessionLineItemPriceDataProductDataOptions
                         {
-                            Name = item.ProductVariant.Product?.Name ?? "Smart Store Product",
+                            Name = item.ProductVariant.Product?.Name ?? _localizer["SmartStoreOrder"].Value,
                             Description = $"{item.ProductVariant.Size} / {item.ProductVariant.Color}"
                         }
                     }
@@ -1054,17 +1213,17 @@ public class OrdersController : Controller
 
         if (appliedCoupon == null)
         {
-            return (null, 0m, $"Coupon code '{couponCode}' is invalid or has been deactivated.", normalizedCode);
+            return (null, 0m, _localizer["CouponInvalidOrDeactivated", couponCode], normalizedCode);
         }
 
         if (appliedCoupon.ExpiresAt.HasValue && appliedCoupon.ExpiresAt.Value < DateTime.UtcNow)
         {
-            return (null, 0m, $"Coupon code '{appliedCoupon.CouponCode}' has expired.", appliedCoupon.CouponCode);
+            return (null, 0m, _localizer["CouponHasExpired", appliedCoupon.CouponCode], appliedCoupon.CouponCode);
         }
 
         if (appliedCoupon.UsageLimit.HasValue && appliedCoupon.UsageCount >= appliedCoupon.UsageLimit.Value)
         {
-            return (null, 0m, $"Coupon code '{appliedCoupon.CouponCode}' has reached its usage limit.", appliedCoupon.CouponCode);
+            return (null, 0m, _localizer["CouponNamedUsageLimitReached", appliedCoupon.CouponCode], appliedCoupon.CouponCode);
         }
 
         var alreadyUsedByCustomer = await _unitOfWork.Orders
@@ -1073,13 +1232,15 @@ public class OrdersController : Controller
 
         if (alreadyUsedByCustomer)
         {
-            return (null, 0m, $"You have already used coupon code '{appliedCoupon.CouponCode}'.", appliedCoupon.CouponCode);
+            return (null, 0m, _localizer["CouponAlreadyUsed", appliedCoupon.CouponCode], appliedCoupon.CouponCode);
         }
 
         if (appliedCoupon.MinimumOrderAmount.HasValue && subtotal < appliedCoupon.MinimumOrderAmount.Value)
         {
             return (null, 0m,
-                $"This coupon requires a minimum order of {appliedCoupon.MinimumOrderAmount.Value:C}. Your subtotal is {subtotal:C}.",
+                _localizer["CouponMinimumOrderRequiredDetailed",
+                    appliedCoupon.MinimumOrderAmount.Value.ToString("C", System.Globalization.CultureInfo.CurrentCulture),
+                    subtotal.ToString("C", System.Globalization.CultureInfo.CurrentCulture)],
                 appliedCoupon.CouponCode);
         }
 

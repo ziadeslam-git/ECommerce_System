@@ -4,19 +4,19 @@ namespace ECommerce_System.ViewModels.Identity;
 
 public class ChangePasswordVM
 {
-    [Required]
+    [Required(ErrorMessage = "RequiredField")]
     [DataType(DataType.Password)]
-    [Display(Name = "Current Password")]
+    [Display(Name = "CurrentPassword")]
     public string CurrentPassword { get; set; } = string.Empty;
 
-    [Required, MinLength(8)]
+    [Required(ErrorMessage = "RequiredField"), MinLength(8, ErrorMessage = "MinimumLength")]
     [DataType(DataType.Password)]
-    [Display(Name = "New Password")]
+    [Display(Name = "NewPassword")]
     public string NewPassword { get; set; } = string.Empty;
 
-    [Required]
+    [Required(ErrorMessage = "RequiredField")]
     [DataType(DataType.Password)]
-    [Display(Name = "Confirm New Password")]
-    [Compare(nameof(NewPassword), ErrorMessage = "Passwords do not match.")]
+    [Display(Name = "ConfirmNewPassword")]
+    [Compare(nameof(NewPassword), ErrorMessage = "PasswordsDoNotMatch")]
     public string ConfirmNewPassword { get; set; } = string.Empty;
 }

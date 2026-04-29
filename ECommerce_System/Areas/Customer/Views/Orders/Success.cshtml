@@ -1,12 +1,13 @@
+@inject Microsoft.Extensions.Localization.IStringLocalizer<ECommerce_System.Resources.SharedResource> SR
 @model OrderSuccessCustomerVM
 @{
-    ViewData["Title"] = "Order Placed";
-    var etaFrom = Model.EstimatedDeliveryFrom?.ToString("MMM dd, yyyy") ?? "TBD";
+    ViewData["Title"] = SR["OrderPlaced"];
+    var etaFrom = Model.EstimatedDeliveryFrom?.ToString("MMM dd, yyyy") ?? SR["Tbd"].Value;
     var etaTo = Model.EstimatedDeliveryTo?.ToString("MMM dd, yyyy") ?? etaFrom;
-    var email = string.IsNullOrWhiteSpace(Model.CustomerEmail) ? "your email address" : Model.CustomerEmail;
+    var email = string.IsNullOrWhiteSpace(Model.CustomerEmail) ? SR["YourEmailAddress"].Value : Model.CustomerEmail;
     var statusMessage = Model.IsPaid
-        ? "Your payment has been confirmed and your order is now being prepared for shipping."
-        : "Your order has been confirmed and is now being prepared for shipping.";
+        ? SR["OrderPlacedStatusPaid"].Value
+        : SR["OrderPlacedStatusPending"].Value;
 }
 
 <section class="relative flex min-h-[calc(100vh-10rem)] items-center justify-center overflow-hidden px-4 py-10 sm:px-6 lg:px-8">
@@ -22,11 +23,11 @@
         </div>
 
         <div class="mx-auto mb-10 max-w-2xl space-y-4">
-            <h1 class="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Order Placed!</h1>
+            <h1 class="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">@SR["OrderPlaced"]</h1>
             <p class="text-base leading-7 text-slate-500 sm:text-lg">@statusMessage</p>
 
             <div class="mt-4 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
-                <span class="text-sm font-medium text-slate-500">Order Number:</span>
+                <span class="text-sm font-medium text-slate-500">@SR["OrderNumber"]:</span>
                 <span class="font-mono text-sm font-bold tracking-[0.18em] text-primary">#ORD-@Model.Id</span>
             </div>
         </div>
@@ -35,7 +36,7 @@
             <div class="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-6">
                 <div class="mb-3 flex items-center gap-2 text-slate-500">
                     <span class="material-symbols-outlined text-xl">local_shipping</span>
-                    <h3 class="text-sm font-semibold uppercase tracking-[0.14em]">Estimated Delivery</h3>
+                    <h3 class="text-sm font-semibold uppercase tracking-[0.14em]">@SR["EstimatedDelivery"]</h3>
                 </div>
                 <p class="text-lg font-semibold text-slate-900">@etaFrom - @etaTo</p>
                 <p class="mt-2 text-sm text-slate-500">@Model.ShippingLabel</p>
@@ -44,10 +45,10 @@
             <div class="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-6">
                 <div class="mb-3 flex items-center gap-2 text-slate-500">
                     <span class="material-symbols-outlined text-xl">mail</span>
-                    <h3 class="text-sm font-semibold uppercase tracking-[0.14em]">Confirmation Sent To</h3>
+                    <h3 class="text-sm font-semibold uppercase tracking-[0.14em]">@SR["ConfirmationSentTo"]</h3>
                 </div>
                 <p class="truncate text-base font-semibold text-slate-900">@email</p>
-                <p class="mt-2 text-sm text-slate-500">We will send your shipping and payment updates here.</p>
+                <p class="mt-2 text-sm text-slate-500">@SR["ShippingAndPaymentUpdatesHere"]</p>
             </div>
         </div>
 
@@ -57,7 +58,7 @@
                asp-action="Details"
                asp-route-id="@Model.Id"
                class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-indigo-500 px-8 py-3.5 text-sm font-bold text-white shadow-[0_10px_24px_rgba(70,72,212,0.22)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(70,72,212,0.28)]">
-                Track My Order
+                @SR["TrackMyOrder"]
                 <span class="material-symbols-outlined text-sm">arrow_forward</span>
             </a>
 
@@ -66,7 +67,7 @@
                asp-action="Index"
                class="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-8 py-3.5 text-sm font-bold text-primary transition-colors hover:border-slate-300 hover:bg-slate-50">
                 <span class="material-symbols-outlined text-sm">storefront</span>
-                Continue Shopping
+                @SR["ContinueShopping"]
             </a>
         </div>
     </div>

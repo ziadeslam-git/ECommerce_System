@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
+using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Customer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 
 namespace ECommerce_System.Areas.Customer.Controllers;
 
@@ -13,10 +15,12 @@ namespace ECommerce_System.Areas.Customer.Controllers;
 public class WishlistController : Controller
 {
     private readonly IUnitOfWork _uow;
+    private readonly IStringLocalizer<SharedResource> _localizer;
 
-    public WishlistController(IUnitOfWork uow)
+    public WishlistController(IUnitOfWork uow, IStringLocalizer<SharedResource> localizer)
     {
         _uow = uow;
+        _localizer = localizer;
     }
 
     // ─── INDEX ────────────────────────────────────────────────────────────────
@@ -64,7 +68,7 @@ public class WishlistController : Controller
         {
             _uow.WishlistItems.Remove(existingItem);
             await _uow.SaveAsync();
-            return BuildToggleResponse(true, false, "Removed from wishlist.", returnUrl);
+            return BuildToggleResponse(true, false, _localizer["RemovedFromWishlist"], returnUrl);
         }
         else
         {
@@ -76,7 +80,7 @@ public class WishlistController : Controller
             };
             await _uow.WishlistItems.AddAsync(newItem);
             await _uow.SaveAsync();
-            return BuildToggleResponse(true, true, "Added to wishlist.", returnUrl);
+            return BuildToggleResponse(true, true, _localizer["AddedToWishlist"], returnUrl);
         }
     }
 
@@ -97,14 +101,14 @@ public class WishlistController : Controller
         var product = await _uow.Products.FindAsync(p => p.Id == productId, "Variants");
         if (product == null)
         {
-            TempData["error"] = "Product not found.";
+            TempData["error"] = _localizer["ProductNotFound"].Value;
             return RedirectToAction(nameof(Index));
         }
 
         var activeVariant = product.Variants.FirstOrDefault(v => v.IsActive && v.Stock > 0);
         if (activeVariant == null)
         {
-            TempData["error"] = "No active variant with sufficient stock is available for this product.";
+            TempData["error"] = _localizer["NoActiveVariantAvailable"].Value;
             return RedirectToAction(nameof(Index));
         }
 
@@ -123,7 +127,7 @@ public class WishlistController : Controller
         {
             if (cartItem.Quantity + 1 > activeVariant.Stock)
             {
-                TempData["error"] = $"Cannot add more to cart. Max stock available: {activeVariant.Stock}.";
+                TempData["error"] = _localizer["CannotAddMoreToCartMaxStock", activeVariant.Stock].Value;
                 return RedirectToAction(nameof(Index));
             }
             cartItem.Quantity += 1;
@@ -146,7 +150,7 @@ public class WishlistController : Controller
         
         await _uow.SaveAsync();
 
-        TempData["success"] = "Item moved to cart successfully.";
+        TempData["success"] = _localizer["ItemMovedToCartSuccessfully"].Value;
         return RedirectToAction("Index", "Cart", new { area = "Customer" });
     }
 

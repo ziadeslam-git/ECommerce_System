@@ -4,22 +4,22 @@ namespace ECommerce_System.ViewModels.Identity;
 
 public class RegisterVM
 {
-    [Required, MaxLength(100)]
-    [Display(Name = "Full Name")]
+    [Required(ErrorMessage = "RequiredField"), MaxLength(100, ErrorMessage = "MaximumLength")]
+    [Display(Name = "FullName")]
     public string FullName { get; set; } = string.Empty;
 
-    [Required, EmailAddress]
+    [Required(ErrorMessage = "RequiredField"), EmailAddress(ErrorMessage = "InvalidEmailAddress")]
     [Display(Name = "Email")]
     public string Email { get; set; } = string.Empty;
 
-    [Required, MinLength(8)]
+    [Required(ErrorMessage = "RequiredField"), MinLength(8, ErrorMessage = "MinimumLength")]
     [DataType(DataType.Password)]
     [Display(Name = "Password")]
     public string Password { get; set; } = string.Empty;
 
-    [Required]
+    [Required(ErrorMessage = "RequiredField")]
     [DataType(DataType.Password)]
-    [Display(Name = "Confirm Password")]
-    [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
+    [Display(Name = "ConfirmPassword")]
+    [Compare(nameof(Password), ErrorMessage = "PasswordsDoNotMatch")]
     public string ConfirmPassword { get; set; } = string.Empty;
 }

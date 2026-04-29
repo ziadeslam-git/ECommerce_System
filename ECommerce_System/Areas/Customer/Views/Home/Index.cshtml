@@ -6,6 +6,9 @@
     var categories = Model?.Categories ?? [];
     var isAr = System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("ar", StringComparison.OrdinalIgnoreCase);
     string T(string en, string ar) => isAr ? ar : en;
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var loginReturnUrl = $"/Identity/Account/Login?ReturnUrl={Uri.EscapeDataString(returnUrl)}";
 
     var heroProduct = featured.FirstOrDefault();
     var heroImage = heroProduct?.MainImageUrl ?? "https://placehold.co/900x1100/eef2ff/4648d4?text=Smart+Store";
@@ -29,6 +32,14 @@
 
     bundleCards = bundleCards.Take(3).ToList();
 
+    while (freshDropCards.Count < 10)
+    {
+        freshDropCards.AddRange(featured.Take(Math.Max(1, 10 - freshDropCards.Count)));
+        if (!featured.Any()) break;
+    }
+
+    freshDropCards = freshDropCards.Take(10).ToList();
+
     var bundleBaseTotal = bundleCards.Sum(item => item.MinVariantPrice > 0 ? item.MinVariantPrice : item.BasePrice);
     var bundleDiscountedTotal = bundleBaseTotal > 0 ? Math.Round(bundleBaseTotal * 0.85m, 2) : 0m;
 }
@@ -44,6 +55,7 @@
     }
 
     .fresh-drops-marquee {
+        direction: ltr;
         mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
         -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
     }
@@ -52,6 +64,10 @@
         width: max-content;
         animation: fresh-drops-scroll 34s linear infinite;
         will-change: transform;
+    }
+
+    .fresh-drops-card {
+        direction: @(isAr ? "rtl" : "ltr");
     }
 
     .fresh-drops-marquee:hover .fresh-drops-track {
@@ -90,12 +106,22 @@
                                class="inline-flex items-center justify-center rounded-2xl bg-primary px-8 py-4 text-base font-black text-white shadow-xl shadow-primary/30 transition-all hover:-translate-y-0.5 hover:shadow-primary/40">
                                 @T("Shop Products", "تسوق المنتجات")
                             </a>
-                            <a asp-area="Customer"
-                               asp-controller="Wishlist"
-                               asp-action="Index"
-                               class="inline-flex items-center justify-center rounded-2xl border-2 border-primary bg-white px-8 py-4 text-base font-black text-primary transition-colors hover:bg-primary/5">
-                                @T("My Wishlist", "المفضلة")
-                            </a>
+                            @if (isAuthenticated)
+                            {
+                                <a asp-area="Customer"
+                                   asp-controller="Wishlist"
+                                   asp-action="Index"
+                                   class="inline-flex items-center justify-center rounded-2xl border-2 border-primary bg-white px-8 py-4 text-base font-black text-primary transition-colors hover:bg-primary/5">
+                                    @T("My Wishlist", "المفضلة")
+                                </a>
+                            }
+                            else
+                            {
+                                <a href="@loginReturnUrl"
+                                   class="inline-flex items-center justify-center rounded-2xl border-2 border-primary bg-white px-8 py-4 text-base font-black text-primary transition-colors hover:bg-primary/5">
+                                    @T("Login for wishlist", "سجل الدخول للمفضلة")
+                                </a>
+                            }
                         </div>
                     </div>
 
@@ -213,14 +239,14 @@
                 }
                 else
                 {
-                    <div class="fresh-drops-marquee overflow-hidden">
-                        <div class="fresh-drops-track flex items-stretch gap-6 py-2">
+                    <div class="fresh-drops-marquee overflow-hidden" dir="ltr">
+                        <div class="fresh-drops-track flex flex-nowrap items-stretch gap-6 py-2">
                             @foreach (var item in freshDropCards.Concat(freshDropCards))
                             {
                                 var price = item.MinVariantPrice > 0 ? item.MinVariantPrice : item.BasePrice;
                                 var rating = (int)Math.Round(item.AverageRating);
                                 var productImage = item.MainImageUrl ?? "https://placehold.co/700x900/e5e7eb/0f172a?text=Product";
-                                <article class="group w-[260px] flex-shrink-0 sm:w-[280px] lg:w-[300px]">
+                                <article class="fresh-drops-card group w-[260px] flex-shrink-0 sm:w-[280px] lg:w-[300px]">
                                     <div class="relative mb-4 aspect-[3/4] overflow-hidden rounded-[2rem] bg-slate-100 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-2xl">
                                         <a asp-area="Customer"
                                            asp-controller="Products"
@@ -230,7 +256,7 @@
                                             <img src="@productImage" alt="@item.Name" class="h-full w-full object-cover" />
                                         </a>
 
-                                        @if (item.DefaultVariantId.HasValue)
+                                        @if (item.DefaultVariantId.HasValue && isAuthenticated)
                                         {
                                             <form asp-area="Customer"
                                                   asp-controller="Cart"
@@ -247,6 +273,14 @@
                                                     <span class="material-symbols-outlined">add_shopping_cart</span>
                                                 </button>
                                             </form>
+                                        }
+                                        else if (item.DefaultVariantId.HasValue)
+                                        {
+                                            <a href="@loginReturnUrl"
+                                               class="absolute bottom-4 right-4 inline-flex items-center justify-center rounded-full bg-white p-3 text-slate-900 shadow-md opacity-0 transition-opacity group-hover:opacity-100"
+                                               title="@T("Login to add to cart", "سجل الدخول للإضافة للسلة")">
+                                                <span class="material-symbols-outlined">shopping_cart</span>
+                                            </a>
                                         }
 
                                         <div class="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white">

@@ -4,15 +4,15 @@ namespace ECommerce_System.ViewModels.Identity;
 
 public class LoginVM
 {
-    [Required, EmailAddress]
+    [Required(ErrorMessage = "RequiredField"), EmailAddress(ErrorMessage = "InvalidEmailAddress")]
     [Display(Name = "Email")]
     public string Email { get; set; } = string.Empty;
 
-    [Required]
+    [Required(ErrorMessage = "RequiredField")]
     [DataType(DataType.Password)]
     [Display(Name = "Password")]
     public string Password { get; set; } = string.Empty;
 
-    [Display(Name = "Remember Me")]
-    public bool RememberMe { get; set; }
+    [Display(Name = "RememberMe")]
+    public bool RememberMe { get; set; } = true;
 }

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -85,7 +85,7 @@
     <value>تعليق</value>
   </data>
   <data name="AddToCart" xml:space="preserve">
-    <value>أضف للسلة</value>
+    <value>أضف إلى السلة</value>
   </data>
   <data name="AddToWishlist" xml:space="preserve">
     <value>أضف للمفضلة</value>
@@ -94,7 +94,7 @@
     <value>المفضلة</value>
   </data>
   <data name="WishlistEmpty" xml:space="preserve">
-    <value>المفضلة فارغة.</value>
+    <value>قائمة المفضلة فارغة.</value>
   </data>
   <data name="MoveToCart" xml:space="preserve">
     <value>انقل للسلة</value>
@@ -106,7 +106,7 @@
     <value>سلة التسوق</value>
   </data>
   <data name="CartEmpty" xml:space="preserve">
-    <value>سلتك فارغة</value>
+    <value>سلتك فارغة.</value>
   </data>
   <data name="ContinueShopping" xml:space="preserve">
     <value>متابعة التسوق</value>
@@ -136,10 +136,10 @@
     <value>تطبيق</value>
   </data>
   <data name="Checkout" xml:space="preserve">
-    <value>إتمام الشراء</value>
+    <value>إتمام الطلب</value>
   </data>
   <data name="BackToCart" xml:space="preserve">
-    <value>العودة للسلة</value>
+    <value>العودة إلى السلة</value>
   </data>
   <data name="ShippingAddress" xml:space="preserve">
     <value>عنوان الشحن</value>
@@ -200,5 +200,539 @@
   </data>
   <data name="Logout" xml:space="preserve">
     <value>تسجيل الخروج</value>
+  </data>
+  <data name="FullName" xml:space="preserve">
+    <value>الاسم الكامل</value>
+  </data>
+  <data name="RememberMe" xml:space="preserve">
+    <value>تذكرني</value>
+  </data>
+  <data name="PhoneNumber" xml:space="preserve">
+    <value>رقم الهاتف</value>
+  </data>
+  <data name="StreetAddress" xml:space="preserve">
+    <value>عنوان الشارع</value>
+  </data>
+  <data name="StateProvince" xml:space="preserve">
+    <value>المحافظة / الولاية</value>
+  </data>
+  <data name="PostalCode" xml:space="preserve">
+    <value>الرمز البريدي</value>
+  </data>
+  <data name="SetAsDefault" xml:space="preserve">
+    <value>تعيين كافتراضي</value>
+  </data>
+  <data name="CurrentPassword" xml:space="preserve">
+    <value>كلمة المرور الحالية</value>
+  </data>
+  <data name="NewPassword" xml:space="preserve">
+    <value>كلمة المرور الجديدة</value>
+  </data>
+  <data name="ConfirmPassword" xml:space="preserve">
+    <value>تأكيد كلمة المرور</value>
+  </data>
+  <data name="ConfirmNewPassword" xml:space="preserve">
+    <value>تأكيد كلمة المرور الجديدة</value>
+  </data>
+  <data name="CountryCode" xml:space="preserve">
+    <value>كود الدولة</value>
+  </data>
+  <data name="ProfilePhoto" xml:space="preserve">
+    <value>صورة الملف الشخصي</value>
+  </data>
+  <data name="RequiredField" xml:space="preserve">
+    <value>حقل {0} مطلوب.</value>
+  </data>
+  <data name="InvalidEmailAddress" xml:space="preserve">
+    <value>حقل {0} ليس بريدًا إلكترونيًا صالحًا.</value>
+  </data>
+  <data name="InvalidPhoneNumber" xml:space="preserve">
+    <value>حقل {0} ليس رقم هاتف صالحًا.</value>
+  </data>
+  <data name="MinimumLength" xml:space="preserve">
+    <value>يجب ألا يقل حقل {0} عن {1} أحرف.</value>
+  </data>
+  <data name="MaximumLength" xml:space="preserve">
+    <value>يجب ألا يزيد حقل {0} عن {1} حرفًا.</value>
+  </data>
+  <data name="PasswordsDoNotMatch" xml:space="preserve">
+    <value>كلمة المرور وتأكيد كلمة المرور غير متطابقين.</value>
+  </data>
+  <data name="QuantityMustBeAtLeastOne" xml:space="preserve">
+    <value>الكمية يجب أن تكون 1 على الأقل.</value>
+  </data>
+  <data name="VariantUnavailableRightNow" xml:space="preserve">
+    <value>هذا الإصدار غير متاح حاليًا.</value>
+  </data>
+  <data name="OutOfStockRestockSoon" xml:space="preserve">
+    <value>نفذ المخزون. سيتوفر قريبًا.</value>
+  </data>
+  <data name="OnlyLeftInStock" xml:space="preserve">
+    <value>المتبقي في المخزون فقط {0}.</value>
+  </data>
+  <data name="AlreadyHaveInCartStockLimit" xml:space="preserve">
+    <value>المتاح في المخزون فقط {0}. لديك بالفعل {1} في سلتك.</value>
+  </data>
+  <data name="AddedToCartSuccessfully" xml:space="preserve">
+    <value>تمت إضافة المنتج إلى السلة بنجاح.</value>
+  </data>
+  <data name="InvalidRequest" xml:space="preserve">
+    <value>الطلب غير صالح.</value>
+  </data>
+  <data name="InvalidQuantityAvailableStock" xml:space="preserve">
+    <value>الكمية غير صالحة. المخزون المتاح: {0}.</value>
+  </data>
+  <data name="PleaseEnterCouponCode" xml:space="preserve">
+    <value>من فضلك أدخل كود الخصم.</value>
+  </data>
+  <data name="InvalidOrInactiveCoupon" xml:space="preserve">
+    <value>كود الخصم غير صالح أو غير نشط.</value>
+  </data>
+  <data name="CouponExpired" xml:space="preserve">
+    <value>انتهت صلاحية كود الخصم هذا.</value>
+  </data>
+  <data name="CouponUsageLimitReached" xml:space="preserve">
+    <value>تم الوصول إلى الحد الأقصى لاستخدام هذا الكود.</value>
+  </data>
+  <data name="MinimumOrderAmountRequired" xml:space="preserve">
+    <value>الحد الأدنى المطلوب للطلب هو {0}.</value>
+  </data>
+  <data name="CouponAppliedSuccessfully" xml:space="preserve">
+    <value>تم تطبيق كود الخصم بنجاح.</value>
+  </data>
+  <data name="RemovedFromWishlist" xml:space="preserve">
+    <value>تمت إزالة المنتج من المفضلة.</value>
+  </data>
+  <data name="AddedToWishlist" xml:space="preserve">
+    <value>تمت إضافة المنتج إلى المفضلة.</value>
+  </data>
+  <data name="ProductNotFound" xml:space="preserve">
+    <value>المنتج غير موجود.</value>
+  </data>
+  <data name="NoActiveVariantAvailable" xml:space="preserve">
+    <value>لا يوجد إصدار نشط بكمية كافية لهذا المنتج.</value>
+  </data>
+  <data name="CannotAddMoreToCartMaxStock" xml:space="preserve">
+    <value>لا يمكن إضافة المزيد إلى السلة. الحد الأقصى المتاح: {0}.</value>
+  </data>
+  <data name="ItemMovedToCartSuccessfully" xml:space="preserve">
+    <value>تم نقل المنتج إلى السلة بنجاح.</value>
+  </data>
+  <data name="RatingMustBeBetweenOneAndFive" xml:space="preserve">
+    <value>التقييم يجب أن يكون بين 1 و5.</value>
+  </data>
+  <data name="ReviewOnlyDeliveredPurchased" xml:space="preserve">
+    <value>يمكنك تقييم المنتجات التي اشتريتها وتم تسليمها فقط.</value>
+  </data>
+  <data name="ReviewAlreadySubmitted" xml:space="preserve">
+    <value>لقد أرسلت تقييمًا لهذا المنتج بالفعل.</value>
+  </data>
+  <data name="ReviewSubmittedPendingApproval" xml:space="preserve">
+    <value>تم إرسال التقييم وهو بانتظار موافقة الإدارة.</value>
+  </data>
+  <data name="CartEmptyBeforeCheckout" xml:space="preserve">
+    <value>سلتك فارغة. أضف بعض المنتجات قبل إتمام الشراء.</value>
+  </data>
+  <data name="SomethingWentWrongWhileLoadingCheckout" xml:space="preserve">
+    <value>حدث خطأ أثناء تحميل صفحة إتمام الشراء.</value>
+  </data>
+  <data name="PleaseCompleteNewAddressBeforeSaving" xml:space="preserve">
+    <value>من فضلك أكمل بيانات العنوان الجديد قبل الحفظ.</value>
+  </data>
+  <data name="AddressSavedSuccessfully" xml:space="preserve">
+    <value>تم حفظ العنوان بنجاح.</value>
+  </data>
+  <data name="SomethingWentWrongWhileSavingNewAddress" xml:space="preserve">
+    <value>حدث خطأ أثناء حفظ العنوان الجديد.</value>
+  </data>
+  <data name="SelectedAddressNotFound" xml:space="preserve">
+    <value>تعذر العثور على العنوان المحدد.</value>
+  </data>
+  <data name="SomethingWentWrongWhileSelectingAddress" xml:space="preserve">
+    <value>حدث خطأ أثناء اختيار العنوان.</value>
+  </data>
+  <data name="AddressCannotBeDeletedUsedInPreviousOrders" xml:space="preserve">
+    <value>لا يمكن حذف هذا العنوان لأنه مستخدم في طلبات سابقة.</value>
+  </data>
+  <data name="AddressDeletedSuccessfully" xml:space="preserve">
+    <value>تم حذف العنوان بنجاح.</value>
+  </data>
+  <data name="SomethingWentWrongWhileDeletingAddress" xml:space="preserve">
+    <value>حدث خطأ أثناء حذف العنوان.</value>
+  </data>
+  <data name="PleaseCompleteNewAddressBeforePlacingOrder" xml:space="preserve">
+    <value>من فضلك أكمل بيانات العنوان الجديد قبل تأكيد الطلب.</value>
+  </data>
+  <data name="PleaseSelectDeliveryAddress" xml:space="preserve">
+    <value>من فضلك اختر عنوان التوصيل.</value>
+  </data>
+  <data name="SelectedAddressInvalid" xml:space="preserve">
+    <value>العنوان المحدد غير صالح أو لا يخص حسابك.</value>
+  </data>
+  <data name="ProductsInCartNoLongerAvailable" xml:space="preserve">
+    <value>منتج أو أكثر في سلتك لم يعد متاحًا. من فضلك راجع السلة.</value>
+  </data>
+  <data name="VariantNoLongerAvailable" xml:space="preserve">
+    <value>{0} ({1} / {2}) لم يعد متاحًا.</value>
+  </data>
+  <data name="NotEnoughStockForVariant" xml:space="preserve">
+    <value>لا يوجد مخزون كافٍ للمنتج '{0}' ({1} / {2}). المتاح: {3}، المطلوب: {4}.</value>
+  </data>
+  <data name="StripeNotConfigured" xml:space="preserve">
+    <value>لم يتم إعداد دفع Stripe بعد. أضف المفتاح السري أولًا ثم حاول مرة أخرى.</value>
+  </data>
+  <data name="StripeSessionCouldNotStart" xml:space="preserve">
+    <value>تعذر بدء جلسة الدفع عبر Stripe. حاول مرة أخرى.</value>
+  </data>
+  <data name="CardPaymentUnavailable" xml:space="preserve">
+    <value>لا يمكن بدء الدفع بالبطاقة الآن. حاول مرة أخرى.</value>
+  </data>
+  <data name="OrderUpdatedWhilePlacing" xml:space="preserve">
+    <value>تم تحديث منتج أو أكثر أثناء تنفيذ الطلب. من فضلك راجع السلة وحاول مرة أخرى.</value>
+  </data>
+  <data name="SomethingWentWrongWhilePlacingOrder" xml:space="preserve">
+    <value>حدث خطأ أثناء تنفيذ طلبك.</value>
+  </data>
+  <data name="MissingStripeSessionDetails" xml:space="preserve">
+    <value>بيانات جلسة Stripe غير مكتملة.</value>
+  </data>
+  <data name="StripePaymentNotCompleted" xml:space="preserve">
+    <value>لم يكتمل الدفع عبر Stripe بنجاح.</value>
+  </data>
+  <data name="StripeSessionMissingAddressInformation" xml:space="preserve">
+    <value>جلسة Stripe تفتقد معلومات العنوان.</value>
+  </data>
+  <data name="SelectedDeliveryAddressNoLongerAvailable" xml:space="preserve">
+    <value>عنوان التوصيل المحدد لم يعد متاحًا.</value>
+  </data>
+  <data name="CouldNotFinalizePaidOrderCartEmpty" xml:space="preserve">
+    <value>سلتك فارغة، ولم نتمكن من إنهاء الطلب المدفوع.</value>
+  </data>
+  <data name="NotEnoughStockForProductReviewCart" xml:space="preserve">
+    <value>لا يوجد مخزون كافٍ للمنتج '{0}'. من فضلك راجع سلتك.</value>
+  </data>
+  <data name="CouldNotFinalizeStripePayment" xml:space="preserve">
+    <value>لم نتمكن من إنهاء دفع Stripe الآن. إذا تم خصم مبلغ منك، تواصل مع الدعم.</value>
+  </data>
+  <data name="CardPaymentCanceled" xml:space="preserve">
+    <value>تم إلغاء الدفع بالبطاقة قبل اكتماله.</value>
+  </data>
+  <data name="OrderCannotBeCancelledStatus" xml:space="preserve">
+    <value>لا يمكن إلغاء الطلب رقم {0} لأن حالته هي '{1}'. يمكن إلغاء الطلبات قيد الانتظار فقط.</value>
+  </data>
+  <data name="OrderCancelledSuccessfully" xml:space="preserve">
+    <value>تم إلغاء الطلب رقم {0} بنجاح.</value>
+  </data>
+  <data name="OrderCancelConflict" xml:space="preserve">
+    <value>حدث تعارض أثناء إلغاء الطلب. حاول مرة أخرى.</value>
+  </data>
+  <data name="SomethingWentWrongWhileCancellingOrder" xml:space="preserve">
+    <value>حدث خطأ أثناء إلغاء الطلب. حاول مرة أخرى.</value>
+  </data>
+  <data name="AddressNotAvailable" xml:space="preserve">
+    <value>العنوان غير متاح</value>
+  </data>
+  <data name="CouponNamedAppliedSuccessfully" xml:space="preserve">
+    <value>تم تطبيق كود الخصم '{0}' بنجاح.</value>
+  </data>
+  <data name="FullNameRequired" xml:space="preserve">
+    <value>الاسم الكامل مطلوب.</value>
+  </data>
+  <data name="PhoneNumberRequired" xml:space="preserve">
+    <value>رقم الهاتف مطلوب.</value>
+  </data>
+  <data name="StreetAddressRequired" xml:space="preserve">
+    <value>عنوان الشارع مطلوب.</value>
+  </data>
+  <data name="CityRequired" xml:space="preserve">
+    <value>المدينة مطلوبة.</value>
+  </data>
+  <data name="CountryRequired" xml:space="preserve">
+    <value>الدولة مطلوبة.</value>
+  </data>
+  <data name="PostalCodeRequired" xml:space="preserve">
+    <value>الرمز البريدي مطلوب.</value>
+  </data>
+  <data name="SmartStoreOrder" xml:space="preserve">
+    <value>طلب سمارت ستور</value>
+  </data>
+  <data name="FinalOrderTotal" xml:space="preserve">
+    <value>إجمالي الطلب النهائي</value>
+  </data>
+  <data name="FinalOrderTotalAfterCoupon" xml:space="preserve">
+    <value>إجمالي الطلب النهائي بعد كود الخصم {0}</value>
+  </data>
+  <data name="CouponInvalidOrDeactivated" xml:space="preserve">
+    <value>كود الخصم '{0}' غير صالح أو تم تعطيله.</value>
+  </data>
+  <data name="CouponHasExpired" xml:space="preserve">
+    <value>انتهت صلاحية كود الخصم '{0}'.</value>
+  </data>
+  <data name="CouponNamedUsageLimitReached" xml:space="preserve">
+    <value>وصل كود الخصم '{0}' إلى الحد الأقصى للاستخدام.</value>
+  </data>
+  <data name="CouponAlreadyUsed" xml:space="preserve">
+    <value>لقد استخدمت كود الخصم '{0}' من قبل.</value>
+  </data>
+  <data name="CouponMinimumOrderRequiredDetailed" xml:space="preserve">
+    <value>هذا الكود يتطلب حدًا أدنى للطلب بقيمة {0}. إجمالي طلبك الحالي {1}.</value>
+  </data>
+  <data name="AccountCreatedCheckEmail" xml:space="preserve">
+    <value>تم إنشاء الحساب! من فضلك افحص بريدك الإلكتروني لتأكيد الحساب.</value>
+  </data>
+  <data name="EmailConfirmedSuccess" xml:space="preserve">
+    <value>تم تأكيد البريد الإلكتروني بنجاح! يمكنك تسجيل الدخول الآن.</value>
+  </data>
+  <data name="EmailConfirmationFailed" xml:space="preserve">
+    <value>فشل تأكيد البريد الإلكتروني. ربما انتهت صلاحية الرابط.</value>
+  </data>
+  <data name="InvalidEmailOrPassword" xml:space="preserve">
+    <value>البريد الإلكتروني أو كلمة المرور غير صحيحة.</value>
+  </data>
+  <data name="AccountLockedOut" xml:space="preserve">
+    <value>تم قفل الحساب بسبب محاولات دخول كثيرة. حاول لاحقًا.</value>
+  </data>
+  <data name="LoginNotAllowed" xml:space="preserve">
+    <value>تسجيل الدخول غير مسموح. تواصل مع الدعم إذا استمرت المشكلة.</value>
+  </data>
+  <data name="IfEmailExistsResetSent" xml:space="preserve">
+    <value>إذا كان هذا البريد موجودًا، فقد تم إرسال رابط إعادة التعيين.</value>
+  </data>
+  <data name="PasswordResetSuccess" xml:space="preserve">
+    <value>تم إعادة تعيين كلمة المرور بنجاح.</value>
+  </data>
+  <data name="PasswordResetPleaseLogin" xml:space="preserve">
+    <value>تم إعادة تعيين كلمة المرور بنجاح. من فضلك سجل الدخول.</value>
+  </data>
+  <data name="IfEmailExistsConfirmationSent" xml:space="preserve">
+    <value>إذا كان هذا البريد موجودًا ولم يتم تأكيده بعد، فقد تم إرسال رابط تأكيد جديد.</value>
+  </data>
+  <data name="ExternalProviderError" xml:space="preserve">
+    <value>حدث خطأ من مزود تسجيل الدخول الخارجي: {0}</value>
+  </data>
+  <data name="ExternalLoginInfoLoadError" xml:space="preserve">
+    <value>حدث خطأ أثناء تحميل معلومات تسجيل الدخول الخارجي.</value>
+  </data>
+  <data name="ExternalAccountLockedOut" xml:space="preserve">
+    <value>تم قفل حساب المستخدم.</value>
+  </data>
+  <data name="ExternalUser" xml:space="preserve">
+    <value>مستخدم خارجي</value>
+  </data>
+  <data name="ExternalLoginInfoConfirmLoadError" xml:space="preserve">
+    <value>حدث خطأ أثناء تحميل معلومات تسجيل الدخول الخارجي أثناء التأكيد.</value>
+  </data>
+  <data name="ProfileUpdatedSuccessfully" xml:space="preserve">
+    <value>تم تحديث الملف الشخصي بنجاح.</value>
+  </data>
+  <data name="ImageTypeNotAllowed" xml:space="preserve">
+    <value>مسموح فقط بصور JPG وPNG وWebP.</value>
+  </data>
+  <data name="ProfileImageMaxSize" xml:space="preserve">
+    <value>يجب ألا تتجاوز صورة الملف الشخصي 5 ميجابايت.</value>
+  </data>
+  <data name="CroppedImageCouldNotBeProcessed" xml:space="preserve">
+    <value>تعذر معالجة الصورة بعد القص. من فضلك اختر الصورة مرة أخرى.</value>
+  </data>
+  <data name="InvalidCroppedImageFormat" xml:space="preserve">
+    <value>تنسيق الصورة المقصوصة غير صالح.</value>
+  </data>
+  <data name="InvalidCroppedImageData" xml:space="preserve">
+    <value>بيانات الصورة المقصوصة غير صالحة.</value>
+  </data>
+  <data name="EmptyCroppedImage" xml:space="preserve">
+    <value>الصورة المقصوصة فارغة.</value>
+  </data>
+  <data name="PasswordChangedSuccessfully" xml:space="preserve">
+    <value>تم تغيير كلمة المرور بنجاح.</value>
+  </data>
+  <data name="AddressAddedSuccessfully" xml:space="preserve">
+    <value>تم إضافة العنوان بنجاح.</value>
+  </data>
+  <data name="AddressUpdatedSuccessfully" xml:space="preserve">
+    <value>تم تحديث العنوان بنجاح.</value>
+  </data>
+  <data name="AddressDeleted" xml:space="preserve">
+    <value>تم حذف العنوان.</value>
+  </data>
+  <data name="DefaultAddressUpdatedSuccessfully" xml:space="preserve">
+    <value>تم تحديث العنوان الافتراضي بنجاح.</value>
+  </data>
+  <data name="DefaultError" xml:space="preserve">
+    <value>حدث خطأ غير معروف.</value>
+  </data>
+  <data name="ConcurrencyFailure" xml:space="preserve">
+    <value>تعذر حفظ التغييرات لأن البيانات تم تعديلها.</value>
+  </data>
+  <data name="PasswordMismatch" xml:space="preserve">
+    <value>كلمة المرور غير صحيحة.</value>
+  </data>
+  <data name="InvalidToken" xml:space="preserve">
+    <value>الرمز غير صالح.</value>
+  </data>
+  <data name="LoginAlreadyAssociated" xml:space="preserve">
+    <value>يوجد مستخدم مرتبط بهذه البيانات بالفعل.</value>
+  </data>
+  <data name="InvalidUserName" xml:space="preserve">
+    <value>اسم المستخدم '{0}' غير صالح.</value>
+  </data>
+  <data name="InvalidEmail" xml:space="preserve">
+    <value>البريد الإلكتروني '{0}' غير صالح.</value>
+  </data>
+  <data name="DuplicateUserName" xml:space="preserve">
+    <value>اسم المستخدم '{0}' مستخدم بالفعل.</value>
+  </data>
+  <data name="DuplicateEmail" xml:space="preserve">
+    <value>البريد الإلكتروني '{0}' مستخدم بالفعل.</value>
+  </data>
+  <data name="InvalidRoleName" xml:space="preserve">
+    <value>اسم الدور '{0}' غير صالح.</value>
+  </data>
+  <data name="DuplicateRoleName" xml:space="preserve">
+    <value>اسم الدور '{0}' مستخدم بالفعل.</value>
+  </data>
+  <data name="UserAlreadyHasPassword" xml:space="preserve">
+    <value>المستخدم لديه كلمة مرور بالفعل.</value>
+  </data>
+  <data name="UserLockoutNotEnabled" xml:space="preserve">
+    <value>خاصية قفل الحساب غير مفعلة لهذا المستخدم.</value>
+  </data>
+  <data name="UserAlreadyInRole" xml:space="preserve">
+    <value>المستخدم موجود بالفعل في الدور '{0}'.</value>
+  </data>
+  <data name="UserNotInRole" xml:space="preserve">
+    <value>المستخدم ليس ضمن الدور '{0}'.</value>
+  </data>
+  <data name="PasswordTooShort" xml:space="preserve">
+    <value>يجب أن تكون كلمة المرور على الأقل {0} أحرف.</value>
+  </data>
+  <data name="PasswordRequiresNonAlphanumeric" xml:space="preserve">
+    <value>يجب أن تحتوي كلمة المرور على رمز خاص واحد على الأقل.</value>
+  </data>
+  <data name="PasswordRequiresDigit" xml:space="preserve">
+    <value>يجب أن تحتوي كلمة المرور على رقم واحد على الأقل.</value>
+  </data>
+  <data name="PasswordRequiresLower" xml:space="preserve">
+    <value>يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل.</value>
+  </data>
+  <data name="PasswordRequiresUpper" xml:space="preserve">
+    <value>يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل.</value>
+  </data>
+  <data name="RecoveryCodeRedemptionFailed" xml:space="preserve">
+    <value>فشل استخدام كود الاسترداد.</value>
+  </data>
+  <data name="StandardShipping" xml:space="preserve">
+    <value>شحن عادي</value>
+  </data>
+  <data name="ViewDetails" xml:space="preserve">
+    <value>عرض التفاصيل</value>
+  </data>
+  <data name="CountryPlaceholder" xml:space="preserve">
+    <value>مصر</value>
+  </data>
+  <data name="RemoveFromWishlist" xml:space="preserve">
+    <value>إزالة من المفضلة</value>
+  </data>
+  <data name="OrderPlacedStatusPending" xml:space="preserve">
+    <value>تم تأكيد طلبك، وجارٍ الآن تجهيزه للشحن.</value>
+  </data>
+  <data name="DeleteAddress" xml:space="preserve">
+    <value>حذف العنوان</value>
+  </data>
+  <data name="YourEmailAddress" xml:space="preserve">
+    <value>بريدك الإلكتروني</value>
+  </data>
+  <data name="StripeIntegrationComingSoon" xml:space="preserve">
+    <value>ربط Stripe قريبًا</value>
+  </data>
+  <data name="CheckoutDescription" xml:space="preserve">
+    <value>راجع طلبك وأكمل بيانات الشحن.</value>
+  </data>
+  <data name="AddNewAddressHelp" xml:space="preserve">
+    <value>املأ هذا النموذج لاستخدام عنوان مختلف لهذا الطلب وحفظه في حسابك.</value>
+  </data>
+  <data name="SaveAsDefaultAddressForFutureOrders" xml:space="preserve">
+    <value>اجعل هذا عنواني الافتراضي للطلبات القادمة</value>
+  </data>
+  <data name="QuantityShort" xml:space="preserve">
+    <value>الكمية:</value>
+  </data>
+  <data name="PostalCodePlaceholder" xml:space="preserve">
+    <value>11728</value>
+  </data>
+  <data name="SaveAddress" xml:space="preserve">
+    <value>حفظ العنوان</value>
+  </data>
+  <data name="PayWithCashOnDelivery" xml:space="preserve">
+    <value>ادفع نقدًا عند الاستلام.</value>
+  </data>
+  <data name="OrderPlacedStatusPaid" xml:space="preserve">
+    <value>تم تأكيد الدفع، وجارٍ الآن تجهيز طلبك للشحن.</value>
+  </data>
+  <data name="FullNamePlaceholder" xml:space="preserve">
+    <value>مثال: أحمد محمد</value>
+  </data>
+  <data name="Default" xml:space="preserve">
+    <value>الافتراضي</value>
+  </data>
+  <data name="RedirectedToStripeSecurely" xml:space="preserve">
+    <value>سيتم تحويلك إلى Stripe لإكمال الدفع بأمان.</value>
+  </data>
+  <data name="PhoneNumberPlaceholder" xml:space="preserve">
+    <value>+20 10 0000 0000</value>
+  </data>
+  <data name="WishlistEmptyHint" xml:space="preserve">
+    <value>احفظ هنا المنتجات التي تعجبك لتشتريها لاحقًا.</value>
+  </data>
+  <data name="Applied" xml:space="preserve">
+    <value>تم التطبيق</value>
+  </data>
+  <data name="CityPlaceholder" xml:space="preserve">
+    <value>القاهرة</value>
+  </data>
+  <data name="DiscountCode" xml:space="preserve">
+    <value>كود الخصم</value>
+  </data>
+  <data name="OrderPlaced" xml:space="preserve">
+    <value>تم تأكيد الطلب!</value>
+  </data>
+  <data name="ConfirmationSentTo" xml:space="preserve">
+    <value>تم إرسال التأكيد إلى</value>
+  </data>
+  <data name="Tbd" xml:space="preserve">
+    <value>سيتم التحديد لاحقًا</value>
+  </data>
+  <data name="OrderNumber" xml:space="preserve">
+    <value>رقم الطلب</value>
+  </data>
+  <data name="StreetAddressPlaceholder" xml:space="preserve">
+    <value>123 شارع المثال، الدور 4</value>
+  </data>
+  <data name="EstimatedDelivery" xml:space="preserve">
+    <value>موعد التوصيل المتوقع</value>
+  </data>
+  <data name="TrackMyOrder" xml:space="preserve">
+    <value>تتبع طلبي</value>
+  </data>
+  <data name="StateProvincePlaceholder" xml:space="preserve">
+    <value>محافظة القاهرة</value>
+  </data>
+  <data name="CreditCard" xml:space="preserve">
+    <value>بطاقة ائتمان</value>
+  </data>
+  <data name="MyWishlist" xml:space="preserve">
+    <value>المفضلة</value>
+  </data>
+  <data name="Code" xml:space="preserve">
+    <value>الكود</value>
+  </data>
+  <data name="PaymentMethod" xml:space="preserve">
+    <value>طريقة الدفع</value>
+  </data>
+  <data name="ShippingAndPaymentUpdatesHere" xml:space="preserve">
+    <value>سنرسل تحديثات الشحن والدفع إلى هذا البريد.</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>حذف</value>
   </data>
 </root>

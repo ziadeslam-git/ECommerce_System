@@ -6,34 +6,34 @@ public class AddressVM
 {
     public int Id { get; set; }
 
-    [Required, MaxLength(100)]
-    [Display(Name = "Full Name")]
+    [Required(ErrorMessage = "RequiredField"), MaxLength(100, ErrorMessage = "MaximumLength")]
+    [Display(Name = "FullName")]
     public string FullName { get; set; } = string.Empty;
 
-    [Required, MaxLength(20)]
-    [Display(Name = "Phone Number")]
+    [Required(ErrorMessage = "RequiredField"), MaxLength(20, ErrorMessage = "MaximumLength")]
+    [Display(Name = "PhoneNumber")]
     public string PhoneNumber { get; set; } = string.Empty;
 
-    [Required, MaxLength(200)]
-    [Display(Name = "Street Address")]
+    [Required(ErrorMessage = "RequiredField"), MaxLength(200, ErrorMessage = "MaximumLength")]
+    [Display(Name = "StreetAddress")]
     public string Street { get; set; } = string.Empty;
 
-    [Required, MaxLength(100)]
+    [Required(ErrorMessage = "RequiredField"), MaxLength(100, ErrorMessage = "MaximumLength")]
     [Display(Name = "City")]
     public string City { get; set; } = string.Empty;
 
-    [StringLength(100)]
-    [Display(Name = "State / Province")]
+    [StringLength(100, ErrorMessage = "MaximumLength")]
+    [Display(Name = "StateProvince")]
     public string? State { get; set; }
 
-    [Required, MaxLength(100)]
+    [Required(ErrorMessage = "RequiredField"), MaxLength(100, ErrorMessage = "MaximumLength")]
     [Display(Name = "Country")]
     public string Country { get; set; } = string.Empty;
 
-    [Required, MaxLength(20)]
-    [Display(Name = "Postal Code")]
+    [Required(ErrorMessage = "RequiredField"), MaxLength(20, ErrorMessage = "MaximumLength")]
+    [Display(Name = "PostalCode")]
     public string PostalCode { get; set; } = string.Empty;
 
-    [Display(Name = "Set as Default")]
+    [Display(Name = "SetAsDefault")]
     public bool IsDefault { get; set; }
 }

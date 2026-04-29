@@ -10,6 +10,27 @@
     var currentArea = ViewContext.RouteData.Values["area"]?.ToString() ?? string.Empty;
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? string.Empty;
+    var localizedUiJson = System.Text.Json.JsonSerializer.Serialize(new
+    {
+        Successful = T("Successful", "تم بنجاح"),
+        Canceled = T("Canceled", "تم الإلغاء"),
+        Invalid = T("Invalid", "غير صالح"),
+        Failed = T("Failed", "فشل"),
+        Ok = T("OK", "حسنًا"),
+        ItemAddedToCartTitle = T("Item added to cart", "تمت إضافة المنتج إلى السلة"),
+        ItemAddedToCartDescription = T("Your Smart Store selection is ready.", "اختيارك أصبح جاهزًا داخل السلة."),
+        CouldNotAddItem = T("Could not add item", "تعذر إضافة المنتج"),
+        PleaseTryAgain = T("Please try again.", "حاول مرة أخرى."),
+        SavedToWishlist = T("Saved to wishlist", "تم الحفظ في المفضلة"),
+        WishlistUpdated = T("Wishlist updated", "تم تحديث المفضلة"),
+        WishlistWaitingThere = T("The item is waiting for you there.", "المنتج محفوظ هناك بانتظارك."),
+        WishlistRefreshed = T("Your wishlist has been refreshed.", "تم تحديث قائمة المفضلة."),
+        SomethingWentWrong = T("Something went wrong", "حدث خطأ ما"),
+        Done = T("Done", "تم"),
+        ViewCart = T("View Cart", "عرض السلة"),
+        Checkout = T("Checkout", "إتمام الطلب"),
+        GenericTryAgain = T("Something went wrong. Please try again.", "حدث خطأ ما. حاول مرة أخرى.")
+    });
     bool IsCurrent(string area, string controller, string? action = null)
     {
         if (!string.Equals(currentArea, area, StringComparison.OrdinalIgnoreCase) ||
@@ -47,6 +68,8 @@
     <title>@ViewData["Title"] - Smart Store</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="~/images/site-logo.png" asp-append-version="true" />
+    <link rel="shortcut icon" href="~/images/site-logo.png" asp-append-version="true" />
     <script>
         tailwind.config = {
             theme: { extend: { colors: { primary: '#6467f2' }, fontFamily: { sans: ['Inter','sans-serif'] } } }
@@ -58,7 +81,10 @@
     <div class="min-h-screen flex flex-col">
         <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-                <a asp-area="Customer" asp-controller="Home" asp-action="Index" class="text-xl font-extrabold text-primary">Smart Store</a>
+                <a asp-area="Customer" asp-controller="Home" asp-action="Index" class="inline-flex items-center gap-3 text-primary transition-opacity hover:opacity-90">
+                    <img src="~/images/site-logo.png" asp-append-version="true" alt="Smart Store logo" class="h-9 w-9 shrink-0 object-contain" />
+                    <span class="text-xl font-extrabold tracking-tight">Smart Store</span>
+                </a>
                 <nav class="hidden md:flex items-center gap-5 text-sm font-medium">
                     <a asp-area="Customer" asp-controller="Home" asp-action="Index" class="inline-flex items-center gap-1.5 @(homeActive ? "text-primary" : "hover:text-primary")">
                         <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' @(homeActive ? "1" : "0")">home</span>
@@ -104,6 +130,9 @@
                     }
                     else
                     {
+                        <a asp-area="Identity" asp-controller="Account" asp-action="Login" class="inline-flex md:hidden items-center justify-center h-10 px-4 rounded-full border border-slate-200 bg-white text-slate-700 hover:border-primary hover:text-primary transition text-sm font-semibold shadow-sm">
+                            @T("Login","تسجيل الدخول")
+                        </a>
                         <a asp-area="Identity" asp-controller="Account" asp-action="Login" class="hidden md:inline-flex items-center justify-center h-10 px-4 rounded-full border border-slate-200 hover:border-primary hover:text-primary transition text-sm font-medium">
                             @T("Login","تسجيل الدخول")
                         </a>
@@ -204,23 +233,24 @@
         const noticeAccent = document.getElementById('site-notice-accent');
         const noticeOkButton = document.getElementById('site-notice-ok');
         const inlineToastHost = document.getElementById('site-inline-toast-host');
+        const localizedUi = @Html.Raw(localizedUiJson);
 
         function getNoticeTitle(message, type = 'success') {
             const value = (message || '').toLowerCase();
 
             if (type === 'success') {
-                return 'Successful';
+                return localizedUi.Successful;
             }
 
             if (value.includes('cancel')) {
-                return 'Canceled';
+                return localizedUi.Canceled;
             }
 
             if (value.includes('invalid') || value.includes('expired') || value.includes('not valid')) {
-                return 'Invalid';
+                return localizedUi.Invalid;
             }
 
-            return 'Failed';
+            return localizedUi.Failed;
         }
 
         function applyNoticeTheme(type = 'success') {
@@ -254,16 +284,16 @@
             if (source === 'cart') {
                 if (type === 'success') {
                     return {
-                        title: 'Item added to cart',
-                        description: 'Your Smart Store selection is ready.',
+                        title: localizedUi.ItemAddedToCartTitle,
+                        description: localizedUi.ItemAddedToCartDescription,
                         icon: 'shopping_bag',
                         showActions: true
                     };
                 }
 
                 return {
-                    title: 'Could not add item',
-                    description: message || 'Please try again.',
+                    title: localizedUi.CouldNotAddItem,
+                    description: message || localizedUi.PleaseTryAgain,
                     icon: 'error',
                     showActions: false
                 };
@@ -272,15 +302,15 @@
             if (source === 'wishlist') {
                 const added = value.includes('added');
                 return {
-                    title: added ? 'Saved to wishlist' : 'Wishlist updated',
-                    description: message || (added ? 'The item is waiting for you there.' : 'Your wishlist has been refreshed.'),
+                    title: added ? localizedUi.SavedToWishlist : localizedUi.WishlistUpdated,
+                    description: message || (added ? localizedUi.WishlistWaitingThere : localizedUi.WishlistRefreshed),
                     icon: 'favorite',
                     showActions: false
                 };
             }
 
             return {
-                title: type === 'error' ? 'Something went wrong' : 'Done',
+                title: type === 'error' ? localizedUi.SomethingWentWrong : localizedUi.Done,
                 description: message || '',
                 icon: type === 'error' ? 'error' : 'check_circle',
                 showActions: false
@@ -318,8 +348,8 @@
                             <p class="mt-1 text-sm leading-6 text-slate-500">${escapeHtml(meta.description)}</p>
                             ${meta.showActions ? `
                                 <div class="mt-3 flex items-center gap-4 text-xs font-semibold">
-                                    <a href="/Customer/Cart" class="text-primary transition hover:text-indigo-700">View Cart</a>
-                                    <a href="/Customer/Orders/Checkout" class="text-slate-500 transition hover:text-slate-900">Checkout</a>
+                                    <a href="/Customer/Cart" class="text-primary transition hover:text-indigo-700">${escapeHtml(localizedUi.ViewCart)}</a>
+                                    <a href="/Customer/Orders/Checkout" class="text-slate-500 transition hover:text-slate-900">${escapeHtml(localizedUi.Checkout)}</a>
                                 </div>
                             ` : ''}
                         </div>
@@ -549,9 +579,9 @@
                 } catch {
                     const useInlineToast = this.dataset.ajaxForm === 'cart' || this.dataset.ajaxForm === 'wishlist';
                     if (useInlineToast) {
-                        showInlineToast('Something went wrong. Please try again.', 'error', { source: this.dataset.ajaxForm });
+                        showInlineToast(localizedUi.GenericTryAgain, 'error', { source: this.dataset.ajaxForm });
                     } else {
-                        showToast('Something went wrong. Please try again.', 'error');
+                        showToast(localizedUi.GenericTryAgain, 'error');
                     }
 
                     if (supportsStatefulButton && submitButton) {
@@ -570,6 +600,9 @@
         });
 
         noticeOkButton?.addEventListener('click', closeNoticeModal);
+        if (noticeOkButton) {
+            noticeOkButton.textContent = localizedUi.Ok;
+        }
 
         noticeModal?.addEventListener('click', function (event) {
             if (event.target === noticeModal) {

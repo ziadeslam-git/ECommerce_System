@@ -2,6 +2,7 @@ using ECommerce_System.Repositories.IRepositories;
 using ECommerce_System.ViewModels.Customer;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace ECommerce_System.Areas.Customer.Controllers;
 
@@ -9,10 +10,12 @@ namespace ECommerce_System.Areas.Customer.Controllers;
 public class HomeController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly RequestLocalizationOptions _localizationOptions;
 
-    public HomeController(IUnitOfWork unitOfWork)
+    public HomeController(IUnitOfWork unitOfWork, IOptions<RequestLocalizationOptions> localizationOptions)
     {
         _unitOfWork = unitOfWork;
+        _localizationOptions = localizationOptions.Value;
     }
 
     public async Task<IActionResult> Index()
@@ -63,14 +66,31 @@ public class HomeController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult SetLanguage(string culture, string returnUrl)
+    public IActionResult SetLanguage(string? culture, string? returnUrl)
     {
+        var supportedCultures = _localizationOptions.SupportedUICultures?
+            .Select(c => c.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+
+        if (string.IsNullOrWhiteSpace(culture) || !supportedCultures.Contains(culture))
+        {
+            culture = _localizationOptions.DefaultRequestCulture.UICulture.Name;
+        }
+
         Response.Cookies.Append(
             CookieRequestCultureProvider.DefaultCookieName,
             CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
             new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1) });
 
-        return LocalRedirect(returnUrl);
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return LocalRedirect(returnUrl);
+        }
+
+        return RedirectToAction(nameof(Index), "Home", new { area = "Customer" });
     }
+
+    [HttpGet]
+    public IActionResult Error() => View("~/Views/Shared/Error.cshtml");
 }
 

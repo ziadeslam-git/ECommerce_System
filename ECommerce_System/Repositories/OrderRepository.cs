@@ -12,6 +12,7 @@ public class OrderRepository : Repository<Order>, IOrderRepository
     /// <inheritdoc />
     public async Task<Order?> GetOrderWithDetailsAsync(int orderId)
         => await _context.Orders
+            .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.ProductVariant)
                     .ThenInclude(v => v.Product)
@@ -25,6 +26,7 @@ public class OrderRepository : Repository<Order>, IOrderRepository
     public async Task<IEnumerable<Order>> GetOrdersByUserAsync(string userId)
         => await _context.Orders
             .Where(o => o.UserId == userId)
+            .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.ProductVariant)
                     .ThenInclude(v => v.Product)
@@ -44,6 +46,7 @@ public class OrderRepository : Repository<Order>, IOrderRepository
         var totalCount = await query.CountAsync();
 
         var orders = await query
+            .AsSplitQuery()
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Include(o => o.OrderItems)

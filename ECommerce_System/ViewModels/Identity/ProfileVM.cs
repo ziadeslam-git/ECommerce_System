@@ -11,11 +11,14 @@ public class ProfileVM
 
     [EmailAddress]
     [Display(Name = "Email")]
-    public string Email { get; set; } = string.Empty;
+    public string? Email { get; set; }
 
     [Phone]
     [Display(Name = "Phone Number")]
     public string? PhoneNumber { get; set; }
+
+    [Display(Name = "Country Code")]
+    public string PhoneCountryCode { get; set; } = "+20";
 
     public string? ProfileImageUrl { get; set; }
 

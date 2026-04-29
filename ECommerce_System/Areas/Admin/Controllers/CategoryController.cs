@@ -57,6 +57,7 @@ public class CategoryController : Controller
             page = totalPages;
 
         var categories = await query
+            .AsSplitQuery()
             .Include(c => c.ParentCategory)
             .Include(c => c.SubCategories)
             .Include(c => c.Products)

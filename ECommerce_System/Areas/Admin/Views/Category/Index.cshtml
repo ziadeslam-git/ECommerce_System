@@ -34,7 +34,69 @@
 
     <!-- Table -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="overflow-x-auto">
+        <div class="space-y-3 p-4 md:hidden">
+            @if (!Model.Any())
+            {
+                <div class="rounded-[18px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                    No categories yet.
+                </div>
+            }
+            @{ int mobileRowIndex = (currentPage - 1) * pageSize; }
+            @foreach (var cat in Model)
+            {
+                mobileRowIndex++;
+                bool isSub = cat.ParentCategoryName is not null;
+                <article class="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            @if (isSub)
+                            {
+                                <span class="material-symbols-outlined text-slate-300">subdirectory_arrow_right</span>
+                            }
+                            else
+                            {
+                                <div class="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                    <span class="material-symbols-outlined text-[18px]">folder_open</span>
+                                </div>
+                            }
+                            <div>
+                                <p class="text-sm font-bold text-slate-900">@cat.Name</p>
+                                <p class="mt-1 text-xs text-slate-500">#@mobileRowIndex @(isSub ? $"· under {cat.ParentCategoryName}" : string.Empty)</p>
+                            </div>
+                        </div>
+                        <a asp-area="Admin" asp-controller="Category" asp-action="Details" asp-route-id="@cat.Id" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm transition hover:bg-slate-100">
+                            <span class="material-symbols-outlined text-[18px]">visibility</span>
+                        </a>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div class="col-span-2">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Slug</p>
+                            <code class="mt-1 inline-flex rounded bg-slate-100 px-2 py-1 text-xs text-slate-600">@cat.Slug</code>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Sub-categories</p>
+                            <p class="mt-1 font-bold text-primary">@cat.SubCategoriesCount</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Products</p>
+                            <p class="mt-1 font-bold text-emerald-600">@cat.ProductsCount</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-end gap-2">
+                        <a asp-area="Admin" asp-controller="Category" asp-action="Edit" asp-route-id="@cat.Id" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-primary shadow-sm transition hover:bg-slate-100">
+                            <span class="material-symbols-outlined text-[18px]">edit</span>
+                        </a>
+                        <a asp-area="Admin" asp-controller="Category" asp-action="Delete" asp-route-id="@cat.Id" class="inline-flex items-center rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-100">
+                            Delete
+                        </a>
+                    </div>
+                </article>
+            }
+        </div>
+
+        <div class="hidden overflow-x-auto md:block">
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">

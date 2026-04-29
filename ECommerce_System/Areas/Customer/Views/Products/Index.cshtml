@@ -5,6 +5,7 @@
     string T(string en, string ar) => isAr ? ar : en;
     ViewData["Title"] = T("Products", "المنتجات");
     var products = Model?.Products ?? [];
+    var productCount = products.Count();
     var returnUrl = Context.Request.Path + Context.Request.QueryString;
 }
 
@@ -19,62 +20,115 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        <aside class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-4 space-y-5 h-fit">
-            <h2 class="font-semibold">@T("Filters", "الفلاتر")</h2>
-            <form asp-area="Customer" asp-controller="Products" asp-action="Index" method="get" class="space-y-4">
-                <input type="search" name="search" value="@Model?.SearchQuery"
-                       placeholder="@(T("Search", "بحث"))..."
-                       class="w-full rounded-lg border-slate-300" />
-
-                <div>
-                    <p class="text-sm font-medium mb-2">@T("Category", "الفئة")</p>
-                    @if (Model?.Categories != null)
-                    {
-                        <select name="categoryId" class="w-full rounded-lg border-slate-300 text-sm">
-                            <option value="">@T("All Categories", "كل الفئات")</option>
-                            @foreach (var cat in Model.Categories)
-                            {
-                                <option value="@cat.Value"
-                                        selected="@(Model.SelectedCategoryId?.ToString() == cat.Value)">
-                                    @cat.Text
-                                </option>
-                            }
-                        </select>
-                    }
-                </div>
-
-                <div>
-                    <p class="text-sm font-medium mb-2">@T("Price", "السعر")</p>
-                    <div class="flex gap-2">
-                        <input type="number" name="minPrice" value="@Model?.MinPrice" placeholder="Min"
-                               class="w-full rounded-lg border-slate-300 text-sm" min="0" />
-                        <input type="number" name="maxPrice" value="@Model?.MaxPrice" placeholder="Max"
-                               class="w-full rounded-lg border-slate-300 text-sm" min="0" />
+        <aside class="lg:col-span-3">
+            <div class="lg:sticky lg:top-24 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/40">
+                <div class="mb-5 flex items-start justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-black tracking-tight text-slate-900">@T("Refine Products", "تخصيص النتائج")</h2>
+                        <p class="mt-1 text-sm leading-6 text-slate-500">@T("Use the filters below to narrow the collection quickly.", "استخدم الفلاتر بالأسفل لتضييق النتائج بسرعة.")</p>
+                    </div>
+                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                        <span class="material-symbols-outlined">tune</span>
                     </div>
                 </div>
 
-                <button class="w-full rounded-lg bg-primary text-white py-2 font-semibold">
-                    @T("Apply Filters", "تطبيق الفلاتر")
-                </button>
-            </form>
+                <form asp-area="Customer" asp-controller="Products" asp-action="Index" method="get" class="space-y-4">
+                    <input type="hidden" name="search" value="@Model?.SearchQuery" />
+
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <label class="mb-2 block text-sm font-bold text-slate-800">@T("Category", "الفئة")</label>
+                        @if (Model?.Categories != null)
+                        {
+                            <select name="categoryId" class="w-full rounded-xl border-slate-300 bg-white text-sm shadow-sm focus:border-primary focus:ring-primary">
+                                <option value="">@T("All Categories", "كل الفئات")</option>
+                                @foreach (var cat in Model.Categories)
+                                {
+                                    <option value="@cat.Value"
+                                            selected="@(Model.SelectedCategoryId?.ToString() == cat.Value)">
+                                        @cat.Text
+                                    </option>
+                                }
+                            </select>
+                        }
+                    </div>
+
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="mb-3 flex items-center justify-between gap-2">
+                            <label class="block text-sm font-bold text-slate-800">@T("Price Range", "نطاق السعر")</label>
+                            <span class="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-slate-500 shadow-sm">
+                                @T("EGP", "جنيه")
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="space-y-1.5">
+                                <span class="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">@T("Min", "من")</span>
+                                <input type="number"
+                                       name="minPrice"
+                                       value="@Model?.MinPrice"
+                                       placeholder="0"
+                                       class="w-full rounded-xl border-slate-300 bg-white text-sm shadow-sm focus:border-primary focus:ring-primary"
+                                       min="0" />
+                            </div>
+                            <div class="space-y-1.5">
+                                <span class="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">@T("Max", "إلى")</span>
+                                <input type="number"
+                                       name="maxPrice"
+                                       value="@Model?.MaxPrice"
+                                       placeholder="9999"
+                                       class="w-full rounded-xl border-slate-300 bg-white text-sm shadow-sm focus:border-primary focus:ring-primary"
+                                       min="0" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="mb-3 flex items-center justify-between gap-3">
+                            <label class="block text-sm font-bold text-slate-800">@T("Sort By", "ترتيب حسب")</label>
+                            <span class="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-slate-500 shadow-sm">
+                                @productCount @T("items", "عنصر")
+                            </span>
+                        </div>
+
+                        <select name="sort" class="w-full rounded-xl border-slate-300 bg-white text-sm shadow-sm focus:border-primary focus:ring-primary">
+                            <option value="newest"     selected="@(Model?.Sort == "newest")">@T("Newest", "الأحدث")</option>
+                            <option value="price_asc"  selected="@(Model?.Sort == "price_asc")">@T("Price ↑", "السعر ↑")</option>
+                            <option value="price_desc" selected="@(Model?.Sort == "price_desc")">@T("Price ↓", "السعر ↓")</option>
+                            <option value="rating"     selected="@(Model?.Sort == "rating")">@T("Rating", "التقييم")</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col gap-3 pt-1">
+                        <button class="w-full rounded-2xl bg-primary py-3 text-sm font-bold text-white shadow-lg shadow-primary/20 transition hover:bg-primary/90">
+                            @T("Apply Filters", "تطبيق الفلاتر")
+                        </button>
+
+                        <a asp-area="Customer"
+                           asp-controller="Products"
+                           asp-action="Index"
+                           class="inline-flex w-full items-center justify-center rounded-2xl border border-slate-300 py-3 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary">
+                            @T("Clear Filters", "مسح الفلاتر")
+                        </a>
+                    </div>
+                </form>
+            </div>
         </aside>
 
         <div class="lg:col-span-9 space-y-5">
             <form asp-area="Customer" asp-controller="Products" asp-action="Index" method="get"
-                  class="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-                <div class="flex-1">
-                    <input type="search" name="search" value="@Model?.SearchQuery"
-                           placeholder="@(T("Search", "بحث"))..."
-                           class="w-full rounded-lg border-slate-300" />
-                </div>
-                <div class="flex items-center gap-2">
-                    <select name="sort" class="rounded-lg border-slate-300 text-sm">
-                        <option value="newest"     selected="@(Model?.Sort == "newest")">@T("Newest", "الأحدث")</option>
-                        <option value="price_asc"  selected="@(Model?.Sort == "price_asc")">@T("Price ↑", "السعر ↑")</option>
-                        <option value="price_desc" selected="@(Model?.Sort == "price_desc")">@T("Price ↓", "السعر ↓")</option>
-                        <option value="rating"     selected="@(Model?.Sort == "rating")">@T("Rating", "التقييم")</option>
-                    </select>
-                </div>
+                  class="rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/40">
+                <input type="hidden" name="categoryId" value="@Model?.SelectedCategoryId" />
+                <input type="hidden" name="minPrice" value="@Model?.MinPrice" />
+                <input type="hidden" name="maxPrice" value="@Model?.MaxPrice" />
+                <input type="hidden" name="sort" value="@Model?.Sort" />
+
+                <label class="relative block">
+                    <span class="material-symbols-outlined pointer-events-none absolute @(isAr ? "right-4" : "left-4") top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                    <input type="search"
+                           name="search"
+                           value="@Model?.SearchQuery"
+                           placeholder="@(T("Search products, styles, categories...", "ابحث عن منتجات أو ستايلات أو فئات..."))"
+                           class="w-full rounded-2xl border-slate-300 bg-slate-50 py-3 @(isAr ? "pr-12 pl-4" : "pl-12 pr-4") text-sm shadow-sm focus:border-primary focus:ring-primary" />
+                </label>
             </form>
 
             @if (!products.Any())
@@ -95,6 +149,29 @@
                                     <img src="@(p.MainImageUrl ?? "https://placehold.co/600x700")"
                                          class="w-full h-full object-cover" alt="@p.Name" loading="lazy" />
                                 </a>
+                                <div class="absolute left-3 top-3">
+                                    @if (!p.HasStock)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-600 shadow-sm">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+                                            @T("Out of Stock", "نفد المخزون")
+                                        </span>
+                                    }
+                                    else if (p.AvailableStock <= 5)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-bold text-orange-600 shadow-sm">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-orange-500"></span>
+                                            @T("Low Stock", "مخزون منخفض")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-600 shadow-sm">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                            @T("In Stock", "متوفر")
+                                        </span>
+                                    }
+                                </div>
                                 <form asp-area="Customer" asp-controller="Wishlist" asp-action="Toggle"
                                       method="post"
                                       data-ajax-form="wishlist"
@@ -136,11 +213,6 @@
                                         }
                                         <span class="text-slate-500 ms-1">(@p.ReviewCount)</span>
                                     </div>
-
-                                    @if (!p.HasStock)
-                                    {
-                                        <span class="text-xs text-red-500 font-medium block">@T("Out of stock", "نفذ المخزون")</span>
-                                    }
                                 </div>
 
                                 <div class="mt-4 pt-3 border-t border-slate-100">
@@ -155,8 +227,19 @@
                                             <input type="hidden" name="quantity" value="1" />
                                             <input type="hidden" name="returnUrl" value="@returnUrl" />
                                             <button type="submit"
-                                                    class="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-white transition hover:bg-primary/90">
-                                                @T("Add to Cart", "أضف للسلة")
+                                                    data-idle-text="@T("Add to Cart", "أضف للسلة")"
+                                                    data-loading-text="@T("Adding...", "جارٍ الإضافة...")"
+                                                    data-success-text="@T("Added!", "تمت الإضافة!")"
+                                                    data-error-text="@T("Try again", "حاول مرة أخرى")"
+                                                    data-idle-class="w-full rounded-2xl bg-gradient-to-br from-primary to-indigo-500 px-4 py-3 text-sm font-bold text-white shadow-[0_8px_20px_rgba(100,103,242,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(100,103,242,0.30)]"
+                                                    data-loading-class="w-full rounded-2xl border border-slate-200 bg-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm cursor-wait"
+                                                    data-success-class="w-full rounded-2xl border border-emerald-700 bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-[0_8px_20px_rgba(20,108,46,0.24)]"
+                                                    data-error-class="w-full rounded-2xl border border-rose-600 bg-rose-600 px-4 py-3 text-sm font-bold text-white shadow-[0_8px_20px_rgba(225,29,72,0.24)]"
+                                                    class="w-full rounded-2xl bg-gradient-to-br from-primary to-indigo-500 px-4 py-3 text-sm font-bold text-white shadow-[0_8px_20px_rgba(100,103,242,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(100,103,242,0.30)]">
+                                                <span class="inline-flex items-center justify-center gap-2">
+                                                    <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">shopping_cart</span>
+                                                    <span>@T("Add to Cart", "أضف للسلة")</span>
+                                                </span>
                                             </button>
                                         </form>
                                     }
@@ -164,7 +247,7 @@
                                     {
                                         <button type="button"
                                                 disabled
-                                                class="w-full rounded-xl bg-slate-100 py-2.5 text-sm font-semibold text-slate-400 cursor-not-allowed">
+                                                class="w-full rounded-2xl bg-slate-100 py-3 text-sm font-semibold text-slate-400 cursor-not-allowed">
                                             @T("Out of stock", "نفذ المخزون")
                                         </button>
                                     }
@@ -173,7 +256,7 @@
                                 <div class="mt-2">
                                     <a asp-area="Customer" asp-controller="Products" asp-action="Details"
                                        asp-route-id="@p.Id"
-                                       class="block w-full rounded-xl border border-slate-300 py-2.5 text-center text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary">
+                                       class="block w-full rounded-2xl border border-slate-300 bg-white py-2.5 text-center text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
                                         @T("View Details", "عرض التفاصيل")
                                     </a>
                                 </div>

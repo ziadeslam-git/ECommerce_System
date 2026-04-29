@@ -127,6 +127,8 @@ public class Repository<T> : IRepository<T> where T : class
         if (string.IsNullOrWhiteSpace(includeProperties))
             return query;
 
+        query = query.AsSplitQuery();
+
         foreach (var prop in includeProperties.Split(',', StringSplitOptions.RemoveEmptyEntries))
             query = query.Include(prop.Trim());
 

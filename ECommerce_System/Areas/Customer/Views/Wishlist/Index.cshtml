@@ -86,15 +86,18 @@
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="productId" value="@item.ProductId" />
                                 <button type="submit"
-                                        class="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-white transition hover:bg-primary/90">
-                                    Add to Cart
+                                        class="w-full rounded-2xl bg-gradient-to-br from-primary to-indigo-500 px-4 py-3 text-sm font-bold text-white shadow-[0_8px_20px_rgba(100,103,242,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(100,103,242,0.30)]">
+                                    <span class="inline-flex items-center justify-center gap-2">
+                                        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">shopping_cart</span>
+                                        <span>Add to Cart</span>
+                                    </span>
                                 </button>
                             </form>
                         </div>
 
                         <div class="mt-2">
                             <a asp-area="Customer" asp-controller="Products" asp-action="Details" asp-route-id="@item.ProductId"
-                               class="block w-full rounded-xl border border-slate-300 py-2.5 text-center text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary">
+                               class="block w-full rounded-2xl border border-slate-300 bg-white py-2.5 text-center text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
                                 View Details
                             </a>
                         </div>

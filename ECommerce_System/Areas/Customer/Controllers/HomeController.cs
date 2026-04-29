@@ -27,7 +27,7 @@ public class HomeController : Controller
         {
             FeaturedProducts = featuredProducts
                 .OrderByDescending(p => p.CreatedAt)
-                .Take(8)
+                .Take(10)
                 .Select(p => new ProductCardVM
                 {
                     Id = p.Id,

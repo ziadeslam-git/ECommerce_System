@@ -33,6 +33,7 @@ public class ProductsController : Controller
 
         var query = _unitOfWork.Products
             .Query()
+            .AsSplitQuery()
             .Include(p => p.Category)
             .Include(p => p.Images)
             .Include(p => p.Variants)
@@ -132,7 +133,10 @@ public class ProductsController : Controller
                     ?? p.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.ImageUrl,
                 CategoryName = p.Category?.Name,
                 IsInWishlist = userId != null && wishlistIds.Contains(p.Id),
-                HasStock = p.Variants.Any(v => v.IsActive && v.Stock > 0)
+                HasStock = p.Variants.Any(v => v.IsActive && v.Stock > 0),
+                AvailableStock = p.Variants
+                    .Where(v => v.IsActive && v.Stock > 0)
+                    .Sum(v => v.Stock)
             }).ToList(),
             Categories = categorySelectList,
             CurrentPage = page,
@@ -153,6 +157,7 @@ public class ProductsController : Controller
         var product = await _unitOfWork.Products
             .Query()
             .Where(p => p.Id == id)
+            .AsSplitQuery()
             .Include(p => p.Category)
             .Include(p => p.Images)
             .Include(p => p.Variants)
@@ -174,6 +179,7 @@ public class ProductsController : Controller
             .Where(p => p.CategoryId == product.CategoryId &&
                         p.Id != product.Id &&
                         p.IsActive)
+            .AsSplitQuery()
             .Include(p => p.Category)
             .Include(p => p.Images)
             .Include(p => p.Variants)

@@ -26,7 +26,68 @@
     }
     else
     {
-        <div class="overflow-auto rounded-2xl border border-slate-200 bg-white">
+        <div class="space-y-4 md:hidden">
+            @foreach (var order in orders)
+            {
+                <article class="rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Order</p>
+                            <h2 class="mt-1 text-lg font-bold text-slate-900">#@order.Id</h2>
+                        </div>
+
+                        <a asp-area="Customer"
+                           asp-controller="Orders"
+                           asp-action="Details"
+                           asp-route-id="@order.Id"
+                           class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-primary/15 bg-primary/5 text-primary transition hover:border-primary/30 hover:bg-primary/10">
+                            <span class="material-symbols-outlined text-[18px]">visibility</span>
+                        </a>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-3 rounded-[16px] bg-slate-50 p-3">
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Date</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-800">@order.CreatedAt.ToString("dd MMM yyyy")</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Items</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-800">@order.ItemCount</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">@SR["Total"]</p>
+                            <p class="mt-1 text-sm font-bold text-slate-900">@order.TotalAmount.ToString("0.00") EGP</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Payment</p>
+                            <span class="mt-1 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold @Badge(order.PaymentStatus)">
+                                @order.PaymentStatus
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-between gap-3">
+                        <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold @Badge(order.Status)">
+                            @LocStatus(order.Status)
+                        </span>
+
+                        @if (order.Status == "Pending")
+                        {
+                            <form asp-area="Customer" asp-controller="Orders" asp-action="Cancel" method="post" data-loading="true" class="inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@order.Id" />
+                                <button type="submit"
+                                        class="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-100">
+                                    @TextOrFallback("CancelOrder", "Cancel")
+                                </button>
+                            </form>
+                        }
+                    </div>
+                </article>
+            }
+        </div>
+
+        <div class="hidden overflow-auto rounded-2xl border border-slate-200 bg-white md:block">
             <table class="w-full text-sm">
                 <thead class="bg-slate-50">
                     <tr class="text-left">

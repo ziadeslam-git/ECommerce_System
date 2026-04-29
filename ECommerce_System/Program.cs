@@ -2,8 +2,10 @@ using ECommerce_System.Data;
 using ECommerce_System.Models;
 using ECommerce_System.Repositories;
 using ECommerce_System.Repositories.IRepositories;
+using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
 using ECommerce_System.Utilities.DBInitializer;
+using ECommerce_System.Utilities.Localization;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -34,17 +36,21 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     options.SignIn.RequireConfirmedEmail = false;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
-.AddDefaultTokenProviders();
+.AddDefaultTokenProviders()
+.AddErrorDescriber<LocalizedIdentityErrorDescriber>();
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Identity/Account/Login";
     options.LogoutPath = "/Identity/Account/Logout";
     options.AccessDeniedPath = "/Identity/Account/AccessDenied";
-    options.ExpireTimeSpan = TimeSpan.FromDays(14);
+    options.ExpireTimeSpan = TimeSpan.FromDays(30);
     options.SlidingExpiration = true;
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    options.Cookie.MaxAge = TimeSpan.FromDays(30);
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 });
 
 // SecurityStamp validator: ASP.NET Identity re-validates the user's security stamp
@@ -132,21 +138,42 @@ else
 }
 
 // ──────────────────────────────────────────────────────────────────
-// 8. MVC with Views
+// 8. Localization — i18n (ar-EG / en-US)
 // ──────────────────────────────────────────────────────────────────
-builder.Services.AddMemoryCache();
-builder.Services.AddControllersWithViews()
-    .AddViewLocalization();
+// AddLocalization MUST be registered before AddControllersWithViews
+// so that AddViewLocalization() can resolve IStringLocalizerFactory.
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 builder.Services.Configure<RequestLocalizationOptions>(options =>
 {
     var supportedCultures = new[] { "ar-EG", "en-US" };
+
     options
         .SetDefaultCulture("en-US")
         .AddSupportedCultures(supportedCultures)
         .AddSupportedUICultures(supportedCultures);
-    options.RequestCultureProviders.Insert(0, new CookieRequestCultureProvider());
+
+    // Clear ALL default providers (QueryString, Cookie, AcceptLanguage).
+    // We only want the Cookie provider — no Accept-Language header leaking
+    // in, no ?culture= query-string overriding the user's saved preference.
+    options.RequestCultureProviders.Clear();
+    options.RequestCultureProviders.Add(new CookieRequestCultureProvider
+    {
+        // Use the standard ASP.NET Core cookie name (.AspNetCore.Culture)
+        // so the SetLanguage action and the middleware share the same key.
+        CookieName = CookieRequestCultureProvider.DefaultCookieName
+    });
 });
+
+// ──────────────────────────────────────────────────────────────────
+// 9. MVC with Views
+// ──────────────────────────────────────────────────────────────────
+builder.Services.AddMemoryCache();
+builder.Services.AddControllersWithViews()
+    .AddViewLocalization()  // picks up IStringLocalizerFactory registered above
+    .AddDataAnnotationsLocalization(options =>
+    {
+        options.DataAnnotationLocalizerProvider = (_, factory) => factory.Create(typeof(SharedResource));
+    }); // localizes [Required], [Display] etc.
 builder.Services.AddRazorPages();
 
 // ──────────────────────────────────────────────────────────────────

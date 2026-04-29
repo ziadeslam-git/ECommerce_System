@@ -5,25 +5,25 @@ namespace ECommerce_System.ViewModels.Identity;
 
 public class ProfileVM
 {
-    [Required, MaxLength(100)]
-    [Display(Name = "Full Name")]
+    [Required(ErrorMessage = "RequiredField"), MaxLength(100, ErrorMessage = "MaximumLength")]
+    [Display(Name = "FullName")]
     public string FullName { get; set; } = string.Empty;
 
-    [EmailAddress]
+    [EmailAddress(ErrorMessage = "InvalidEmailAddress")]
     [Display(Name = "Email")]
     public string? Email { get; set; }
 
-    [Phone]
-    [Display(Name = "Phone Number")]
+    [Phone(ErrorMessage = "InvalidPhoneNumber")]
+    [Display(Name = "PhoneNumber")]
     public string? PhoneNumber { get; set; }
 
-    [Display(Name = "Country Code")]
+    [Display(Name = "CountryCode")]
     public string PhoneCountryCode { get; set; } = "+20";
 
     public string? ProfileImageUrl { get; set; }
 
     public string? CroppedProfileImageDataUrl { get; set; }
 
-    [Display(Name = "Profile Photo")]
+    [Display(Name = "ProfilePhoto")]
     public IFormFile? ProfileImage { get; set; }
 }

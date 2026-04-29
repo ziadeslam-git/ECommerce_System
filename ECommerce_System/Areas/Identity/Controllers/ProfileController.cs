@@ -1,11 +1,13 @@
 using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
+using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 
 namespace ECommerce_System.Areas.Identity.Controllers;
 
@@ -16,16 +18,19 @@ public class ProfileController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICloudinaryService _cloudinaryService;
+    private readonly IStringLocalizer<SharedResource> _localizer;
 
     // ✅ FIX: Added IUnitOfWork for Address management
     public ProfileController(
         UserManager<ApplicationUser> userManager,
         IUnitOfWork unitOfWork,
-        ICloudinaryService cloudinaryService)
+        ICloudinaryService cloudinaryService,
+        IStringLocalizer<SharedResource> localizer)
     {
         _userManager = userManager;
         _unitOfWork  = unitOfWork;
         _cloudinaryService = cloudinaryService;
+        _localizer = localizer;
     }
 
     // ─── PROFILE INDEX ──────────────────────────────────────────
@@ -66,18 +71,18 @@ public class ProfileController : Controller
             var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp" };
             if (!allowedTypes.Contains(vm.ProfileImage.ContentType.ToLowerInvariant()))
             {
-                ModelState.AddModelError(nameof(vm.ProfileImage), "Only JPG, PNG and WebP images are allowed.");
+                ModelState.AddModelError(nameof(vm.ProfileImage), _localizer["ImageTypeNotAllowed"]);
             }
 
             if (vm.ProfileImage.Length > 5 * 1024 * 1024)
             {
-                ModelState.AddModelError(nameof(vm.ProfileImage), "Profile image must not exceed 5 MB.");
+                ModelState.AddModelError(nameof(vm.ProfileImage), _localizer["ProfileImageMaxSize"]);
             }
         }
 
         if (hasCroppedProfileImage && !TryBuildCroppedImageFile(vm.CroppedProfileImageDataUrl!, out _, out var cropError))
         {
-            ModelState.AddModelError(nameof(vm.ProfileImage), cropError ?? "The cropped image could not be processed. Please choose the photo again.");
+            ModelState.AddModelError(nameof(vm.ProfileImage), cropError ?? _localizer["CroppedImageCouldNotBeProcessed"]);
         }
 
         if (!ModelState.IsValid) return View(vm);
@@ -119,7 +124,7 @@ public class ProfileController : Controller
                 await _cloudinaryService.DeleteAsync(oldPublicId);
             }
 
-            TempData["success"] = "Profile updated successfully.";
+            TempData["success"] = _localizer["ProfileUpdatedSuccessfully"].Value;
             return RedirectToAction(nameof(Index));
         }
         else
@@ -167,7 +172,7 @@ public class ProfileController : Controller
         return $"{code}{local}";
     }
 
-    private static bool TryBuildCroppedImageFile(
+    private bool TryBuildCroppedImageFile(
         string dataUrl,
         out IFormFile? formFile,
         out string? errorMessage)
@@ -178,7 +183,7 @@ public class ProfileController : Controller
         var parts = dataUrl.Split(',', 2);
         if (parts.Length != 2 || !parts[0].StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
         {
-            errorMessage = "Invalid cropped image format.";
+            errorMessage = _localizer["InvalidCroppedImageFormat"];
             return false;
         }
 
@@ -208,19 +213,19 @@ public class ProfileController : Controller
         }
         catch (FormatException)
         {
-            errorMessage = "The cropped image data is invalid.";
+            errorMessage = _localizer["InvalidCroppedImageData"];
             return false;
         }
 
         if (bytes.Length == 0)
         {
-            errorMessage = "The cropped image is empty.";
+            errorMessage = _localizer["EmptyCroppedImage"];
             return false;
         }
 
         if (bytes.Length > 5 * 1024 * 1024)
         {
-            errorMessage = "Profile image must not exceed 5 MB.";
+            errorMessage = _localizer["ProfileImageMaxSize"];
             return false;
         }
 
@@ -251,7 +256,7 @@ public class ProfileController : Controller
 
         if (result.Succeeded)
         {
-            TempData["success"] = "Password changed successfully.";
+            TempData["success"] = _localizer["PasswordChangedSuccessfully"].Value;
             return RedirectToAction(nameof(Index));
         }
 
@@ -314,7 +319,7 @@ public class ProfileController : Controller
         await _unitOfWork.Addresses.AddAsync(address);
         await _unitOfWork.SaveAsync();
 
-        TempData["success"] = "Address added successfully.";
+        TempData["success"] = _localizer["AddressAddedSuccessfully"].Value;
         return RedirectToAction(nameof(Addresses));
     }
 
@@ -378,7 +383,7 @@ public class ProfileController : Controller
         _unitOfWork.Addresses.Update(address);
         await _unitOfWork.SaveAsync();
 
-        TempData["success"] = "Address updated successfully.";
+        TempData["success"] = _localizer["AddressUpdatedSuccessfully"].Value;
         return RedirectToAction(nameof(Addresses));
     }
 
@@ -392,10 +397,25 @@ public class ProfileController : Controller
         var address = await _unitOfWork.Addresses.GetByIdAsync(id);
         if (address is null || address.UserId != user.Id) return NotFound();
 
+        var hasRelatedOrders = _unitOfWork.Orders.Query().Any(o => o.AddressId == id);
+        if (hasRelatedOrders)
+        {
+            TempData["error"] = _localizer["AddressCannotBeDeletedUsedInPreviousOrders"].Value;
+            return RedirectToAction(nameof(Addresses));
+        }
+
         _unitOfWork.Addresses.Remove(address);
         await _unitOfWork.SaveAsync();
 
-        TempData["success"] = "Address deleted.";
+        var remainingAddresses = (await _unitOfWork.Addresses.FindAllAsync(a => a.UserId == user.Id)).ToList();
+        if (remainingAddresses.Any() && !remainingAddresses.Any(a => a.IsDefault))
+        {
+            remainingAddresses[0].IsDefault = true;
+            _unitOfWork.Addresses.Update(remainingAddresses[0]);
+            await _unitOfWork.SaveAsync();
+        }
+
+        TempData["success"] = _localizer["AddressDeleted"].Value;
         return RedirectToAction(nameof(Addresses));
     }
 
@@ -414,7 +434,7 @@ public class ProfileController : Controller
         }
 
         await _unitOfWork.SaveAsync();
-        TempData["Success"] = "Default address updated successfully.";
+        TempData["success"] = _localizer["DefaultAddressUpdatedSuccessfully"].Value;
         return RedirectToAction(nameof(Addresses));
     }
 }

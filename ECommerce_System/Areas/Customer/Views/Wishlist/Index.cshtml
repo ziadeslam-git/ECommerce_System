@@ -1,23 +1,24 @@
 @using ECommerce_System.ViewModels.Customer
+@inject Microsoft.Extensions.Localization.IStringLocalizer<ECommerce_System.Resources.SharedResource> SR
 @model WishlistIndexVM
 
 @{
-    ViewData["Title"] = "My Wishlist";
+    ViewData["Title"] = SR["MyWishlist"];
     var returnUrl = Context.Request.Path + Context.Request.QueryString;
 }
 
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-6">My Wishlist</h1>
+    <h1 class="text-3xl font-bold mb-6">@SR["MyWishlist"]</h1>
 
     @if (Model.IsEmpty)
     {
         <div class="bg-white p-8 rounded-lg shadow-sm border border-slate-200 text-center">
             <span class="material-symbols-outlined text-6xl text-slate-300 mb-4">favorite</span>
-            <h2 class="text-xl font-semibold text-slate-700">Your wishlist is empty.</h2>
-            <p class="text-slate-500 mt-2">Save items you like here to buy them later.</p>
+            <h2 class="text-xl font-semibold text-slate-700">@SR["WishlistEmpty"]</h2>
+            <p class="text-slate-500 mt-2">@SR["WishlistEmptyHint"]</p>
             <a asp-area="Customer" asp-controller="Products" asp-action="Index"
                class="mt-4 inline-block bg-primary text-white font-semibold px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors">
-                Browse Products
+                @SR["BrowseProducts"]
             </a>
         </div>
     }
@@ -60,7 +61,7 @@
                                     data-wishlist-button
                                     data-wishlist-style="icon"
                                     class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500 shadow-md transition hover:bg-rose-100"
-                                    title="Remove from Wishlist">
+                                    title="@SR["RemoveFromWishlist"]">
                                 <span data-heart-glyph class="text-2xl leading-none">♥</span>
                             </button>
                         </form>
@@ -89,7 +90,7 @@
                                         class="w-full rounded-2xl bg-gradient-to-br from-primary to-indigo-500 px-4 py-3 text-sm font-bold text-white shadow-[0_8px_20px_rgba(100,103,242,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(100,103,242,0.30)]">
                                     <span class="inline-flex items-center justify-center gap-2">
                                         <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">shopping_cart</span>
-                                        <span>Add to Cart</span>
+                                        <span>@SR["AddToCart"]</span>
                                     </span>
                                 </button>
                             </form>
@@ -98,7 +99,7 @@
                         <div class="mt-2">
                             <a asp-area="Customer" asp-controller="Products" asp-action="Details" asp-route-id="@item.ProductId"
                                class="block w-full rounded-2xl border border-slate-300 bg-white py-2.5 text-center text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
-                                View Details
+                                @SR["ViewDetails"]
                             </a>
                         </div>
                     </div>

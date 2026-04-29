@@ -17,7 +17,7 @@
 <div class="space-y-6">
 
     <!-- Breadcrumbs -->
-    <nav class="flex text-sm text-slate-500 items-center gap-2">
+    <nav class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
         <a asp-area="Admin" asp-controller="Product" asp-action="Index"
            class="hover:text-primary transition-colors">Products</a>
         <span class="material-symbols-outlined text-sm">chevron_right</span>
@@ -28,8 +28,9 @@
     </nav>
 
     <!-- Product Header Card -->
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex items-center justify-between">
-        <div class="flex items-center gap-6">
+    <div class="rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
             <div class="h-16 w-16 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
                 @{
                     var mainImg = Model.Images.FirstOrDefault(i => i.IsMain)
@@ -46,9 +47,9 @@
                     </div>
                 }
             </div>
-            <div>
-                <div class="flex items-center gap-3 mb-1">
-                    <h1 class="text-2xl font-bold tracking-tight text-slate-900">@Model.Name</h1>
+            <div class="min-w-0 flex-1">
+                <div class="mb-2 flex flex-wrap items-center gap-2 sm:gap-3">
+                    <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">@Model.Name</h1>
                     @if (Model.IsActive)
                     {
                         <span class="bg-emerald-50 text-emerald-700 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Active</span>
@@ -58,26 +59,27 @@
                         <span class="bg-slate-100 text-slate-500 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Inactive</span>
                     }
                 </div>
-                <div class="flex items-center gap-4 text-sm">
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
                     <span class="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded text-xs font-semibold">@Model.CategoryName</span>
                     <span class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Base Price:</span>
                     <span class="font-semibold text-slate-900">$@Model.BasePrice.ToString("0.00")</span>
                 </div>
             </div>
         </div>
-        <div class="flex gap-3">
+        <div class="flex w-full justify-end md:w-auto">
             <a asp-area="Admin" asp-controller="Product" asp-action="Details" asp-route-id="@Model.Id"
-               class="px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 rounded-lg
-                      flex items-center gap-2 border border-slate-200 transition-colors">
-                <span class="material-symbols-outlined text-lg">visibility</span>
-                Product Details
+               class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition-colors hover:bg-slate-100"
+               title="Product Details">
+                <span class="material-symbols-outlined text-[20px]">visibility</span>
             </a>
+        </div>
         </div>
     </div>
 
     <!-- Tab Navigation -->
-    <div class="flex gap-8 border-b border-slate-200">
-        <button class="pb-4 text-primary font-semibold border-b-2 border-primary flex items-center gap-2 transition-all">
+    <div class="overflow-x-auto border-b border-slate-200">
+        <div class="flex min-w-max gap-6">
+        <button class="flex items-center gap-2 border-b-2 border-primary pb-4 font-semibold text-primary transition-all">
             <span class="material-symbols-outlined text-xl">style</span>
             Variants
         </button>
@@ -93,11 +95,102 @@
                 </span>
             }
         </a>
+        </div>
     </div>
 
     <!-- Variants Table Section -->
     <section class="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200">
-        <div class="overflow-x-auto">
+        <div class="space-y-3 p-4 md:hidden">
+            @if (!Model.Variants.Any())
+            {
+                <div class="rounded-[18px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                    No variants yet.
+                </div>
+            }
+            @foreach (var v in Model.Variants)
+            {
+                var isLow = v.IsActive && v.Stock is > 0 and < 10;
+                var isOut = v.IsActive && v.Stock == 0;
+                var szClass = sizeColors.TryGetValue(v.Size.ToUpper(), out var sc) ? sc : "bg-slate-100 text-slate-600";
+
+                <article class="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm @(!v.IsActive ? "opacity-60" : "")">
+                    <div class="flex items-start gap-3">
+                        <div class="h-14 w-14 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                            @if (mainImg is not null)
+                            {
+                                <img src="@mainImg.ImageUrl" alt="@v.Size @v.Color" class="h-full w-full object-cover" />
+                            }
+                            else
+                            {
+                                <div class="flex h-full w-full items-center justify-center">
+                                    <span class="material-symbols-outlined text-slate-300">checkroom</span>
+                                </div>
+                            }
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-base font-bold text-slate-900">@v.Color / @v.Size</p>
+                                    <p class="mt-1 text-xs text-slate-500">@v.SKU</p>
+                                </div>
+                                <span class="rounded-full px-2.5 py-1 text-[10px] font-black uppercase @szClass">@v.Size</span>
+                            </div>
+
+                            <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Price</p>
+                                    <p class="mt-1 font-semibold text-slate-900">$@v.Price.ToString("0.00")</p>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Stock</p>
+                                    <div class="mt-1 flex items-center gap-2">
+                                        <span class="font-semibold @(isOut ? "text-red-600" : isLow ? "text-amber-600" : "text-slate-900")">@v.Stock</span>
+                                        @if (isOut)
+                                        {
+                                            <span class="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">OUT</span>
+                                        }
+                                        else if (isLow)
+                                        {
+                                            <span class="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600">LOW</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600">IN</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 flex items-center justify-end gap-2">
+                                <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Edit"
+                                   asp-route-id="@v.Id"
+                                   class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-primary shadow-sm transition hover:bg-slate-100"
+                                   title="Edit">
+                                    <span class="material-symbols-outlined text-[18px]">edit</span>
+                                </a>
+                                <form asp-area="Admin" asp-controller="ProductVariants" asp-action="ToggleActive"
+                                      asp-route-id="@v.Id" method="post" class="inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-amber-500 shadow-sm transition hover:bg-amber-50"
+                                            title="@(v.IsActive ? "Deactivate" : "Activate")">
+                                        <span class="material-symbols-outlined text-[18px]">@(v.IsActive ? "toggle_on" : "toggle_off")</span>
+                                    </button>
+                                </form>
+                                <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Delete"
+                                   asp-route-id="@v.Id"
+                                   class="inline-flex h-10 items-center rounded-xl bg-rose-50 px-4 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
+                                   title="Delete">
+                                    Delete
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+
+        <div class="hidden overflow-x-auto md:block">
             <table class="w-full border-collapse">
                 <thead>
                     <tr class="bg-slate-50 border-b border-slate-100">
@@ -234,10 +327,10 @@
         </div>
 
         <!-- Footer — Add Variant -->
-        <div class="p-6 bg-white border-t border-slate-100 flex justify-center">
+        <div class="flex justify-center border-t border-slate-100 bg-white p-4 sm:p-6">
             <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Create"
                asp-route-productId="@Model.Id"
-               class="flex items-center gap-2 px-8 py-3 text-sm font-bold text-primary
+               class="flex w-full items-center justify-center gap-2 px-6 py-3 text-sm font-bold text-primary sm:w-auto
                       hover:bg-primary/5 transition-all rounded-lg border-2 border-dashed border-primary/30">
                 <span class="material-symbols-outlined text-xl">add_circle</span>
                 Add Variant

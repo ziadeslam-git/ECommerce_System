@@ -27,6 +27,16 @@
     </div>
 }
 
+@if (TempData["error"] != null)
+{
+    <div class="bg-rose-100 dark:bg-rose-900/30 border border-rose-400 dark:border-rose-700 text-rose-700 dark:text-rose-400 px-4 py-3 rounded-xl relative mb-6 flex justify-between items-center" role="alert">
+        <span class="block sm:inline font-medium text-sm">@TempData["error"]</span>
+        <button type="button" class="text-rose-700 dark:text-rose-400 hover:opacity-75" onclick="this.parentElement.style.display='none';">
+            <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+    </div>
+}
+
 <!-- Address Grid -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     @if (!Model.Any())
@@ -84,6 +94,7 @@
                         <span class="material-symbols-outlined">edit</span>
                     </a>
                     <form asp-action="DeleteAddress" method="post" class="inline" onsubmit="return confirm('Are you sure you want to delete this address?');">
+                        @Html.AntiForgeryToken()
                         <input type="hidden" name="id" value="@address.Id" />
                         <button type="submit" class="text-rose-400 hover:text-rose-600 transition-colors" title="Delete">
                             <span class="material-symbols-outlined">delete</span>

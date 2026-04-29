@@ -10,17 +10,17 @@
     </style>
 }
 
-<div class="flex justify-between items-center mb-6">
-    <div>
-        <h2 class="text-2xl font-bold tracking-tight text-slate-900">Discounts &amp; Coupons</h2>
-        <p class="text-sm text-slate-500">Manage promotional offers and seasonal discounts</p>
+<div class="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div class="max-w-xl space-y-2">
+        <h2 class="text-2xl font-bold tracking-tight leading-tight text-slate-900 md:text-3xl">Discounts &amp; Coupons</h2>
+        <p class="text-sm text-slate-500 md:text-base">Manage promotional offers and seasonal discounts</p>
     </div>
-    <div class="flex gap-3">
-        <a asp-action="ExportWord" class="bg-white hover:bg-slate-50 transition-all text-slate-700 px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-sm active:scale-95 border border-slate-200">
+    <div class="flex w-full flex-wrap items-center justify-center gap-3 md:w-auto md:justify-end">
+        <a asp-action="ExportWord" class="inline-flex min-w-[150px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all active:scale-95 hover:bg-slate-50">
             <span class="material-symbols-outlined text-[20px]">download</span>
             Export Word
         </a>
-        <a asp-action="Create" class="bg-primary hover:opacity-90 transition-all text-white px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-sm active:scale-95" style="background: linear-gradient(135deg, #4648d4, #6063ee)">
+        <a asp-action="Create" class="inline-flex min-w-[170px] items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-95 hover:opacity-90" style="background: linear-gradient(135deg, #4648d4, #6063ee)">
             <span class="material-symbols-outlined text-[20px]">add</span>
             Create Coupon
         </a>

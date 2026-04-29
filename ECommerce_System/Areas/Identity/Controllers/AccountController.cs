@@ -1,10 +1,12 @@
 using ECommerce_System.Models;
+using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 
 namespace ECommerce_System.Areas.Identity.Controllers;
 
@@ -14,6 +16,7 @@ public class AccountController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IEmailSender _emailSender;
+    private readonly IStringLocalizer<SharedResource> _localizer;
 
     // ✅ FIX 1: Removed IRepository<ApplicationUserOTP> — لا وجود لـ ApplicationUserOTP في هذا المشروع
     // ✅ FIX 2: Removed wrong using (Microsoft.VisualStudio.Web.CodeGenerators...)
@@ -21,11 +24,13 @@ public class AccountController : Controller
     public AccountController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
-        IEmailSender emailSender)
+        IEmailSender emailSender,
+        IStringLocalizer<SharedResource> localizer)
     {
         _userManager  = userManager;
         _signInManager = signInManager;
         _emailSender  = emailSender;
+        _localizer = localizer;
     }
 
     // ─── LOGOUT ─────────────────────────────────────────────────
@@ -119,7 +124,7 @@ public class AccountController : Controller
             "Smart Store — Confirm Your Email",
             confirmEmailBody);
 
-        TempData["success"] = "Account created! Please check your email to confirm your account.";
+        TempData["success"] = _localizer["AccountCreatedCheckEmail"].Value;
         return RedirectToAction(nameof(Login));
     }
 
@@ -133,9 +138,9 @@ public class AccountController : Controller
         var result = await _userManager.ConfirmEmailAsync(user, token);
 
         if (result.Succeeded)
-            TempData["success"] = "Email confirmed successfully! You can now log in.";
+            TempData["success"] = _localizer["EmailConfirmedSuccess"].Value;
         else
-            TempData["error"] = "Email confirmation failed. The link may have expired.";
+            TempData["error"] = _localizer["EmailConfirmationFailed"].Value;
 
         return View();
     }
@@ -157,7 +162,7 @@ public class AccountController : Controller
 
         if (user is null)
         {
-            ModelState.AddModelError(string.Empty, "Invalid email or password.");
+            ModelState.AddModelError(string.Empty, _localizer["InvalidEmailOrPassword"]);
             return View(vm);
         }
 
@@ -175,11 +180,11 @@ public class AccountController : Controller
             return RedirectToAction("Index", "Home", new { area = "Customer" });
 
         if (result.IsLockedOut)
-            ModelState.AddModelError(string.Empty, "Account locked due to too many failed attempts. Try again later.");
+            ModelState.AddModelError(string.Empty, _localizer["AccountLockedOut"]);
         else if (result.IsNotAllowed)
-            ModelState.AddModelError(string.Empty, "Login is not allowed. Contact support if this persists.");
+            ModelState.AddModelError(string.Empty, _localizer["LoginNotAllowed"]);
         else
-            ModelState.AddModelError(string.Empty, "Invalid email or password.");
+            ModelState.AddModelError(string.Empty, _localizer["InvalidEmailOrPassword"]);
 
         return View(vm);
     }
@@ -258,7 +263,7 @@ public class AccountController : Controller
                 emailBody);
         }
 
-        TempData["success"] = "If that email exists, a reset link has been sent.";
+        TempData["success"] = _localizer["IfEmailExistsResetSent"].Value;
         return RedirectToAction(nameof(ForgotPasswordConfirmation));
     }
 
@@ -279,7 +284,7 @@ public class AccountController : Controller
         var user = await _userManager.FindByEmailAsync(vm.Email);
         if (user is null)
         {
-            TempData["success"] = "Password reset successfully.";
+            TempData["success"] = _localizer["PasswordResetSuccess"].Value;
             return RedirectToAction(nameof(Login));
         }
 
@@ -287,7 +292,7 @@ public class AccountController : Controller
 
         if (result.Succeeded)
         {
-            TempData["success"] = "Password reset successfully. Please log in.";
+            TempData["success"] = _localizer["PasswordResetPleaseLogin"].Value;
             return RedirectToAction(nameof(Login));
         }
 
@@ -357,7 +362,7 @@ public class AccountController : Controller
                 confirmEmailBody);
         }
 
-        TempData["success"] = "If that email exists and is not yet confirmed, a new confirmation link has been sent.";
+        TempData["success"] = _localizer["IfEmailExistsConfirmationSent"].Value;
         return RedirectToAction(nameof(Login));
     }
 }

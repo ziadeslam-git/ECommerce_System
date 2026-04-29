@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
+using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Customer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 
 namespace ECommerce_System.Areas.Customer.Controllers;
 
@@ -13,10 +15,12 @@ namespace ECommerce_System.Areas.Customer.Controllers;
 public class CartController : Controller
 {
     private readonly IUnitOfWork _uow;
+    private readonly IStringLocalizer<SharedResource> _localizer;
 
-    public CartController(IUnitOfWork uow)
+    public CartController(IUnitOfWork uow, IStringLocalizer<SharedResource> localizer)
     {
         _uow = uow;
+        _localizer = localizer;
     }
 
     // ─── INDEX ────────────────────────────────────────────────────────────────
@@ -58,7 +62,7 @@ public class CartController : Controller
     public async Task<IActionResult> AddToCart(int productVariantId, int quantity, string? returnUrl = null)
     {
         if (quantity < 1)
-            return BuildAddToCartResponse(false, "Quantity must be at least 1.", null, returnUrl);
+            return BuildAddToCartResponse(false, _localizer["QuantityMustBeAtLeastOne"], null, returnUrl);
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return Unauthorized();
@@ -66,17 +70,17 @@ public class CartController : Controller
         var variant = await _uow.ProductVariants.FindAsync(v => v.Id == productVariantId, "Product");
         if (variant == null || !variant.IsActive)
         {
-            return BuildAddToCartResponse(false, "This variant is unavailable right now.", null, returnUrl);
+            return BuildAddToCartResponse(false, _localizer["VariantUnavailableRightNow"], null, returnUrl);
         }
 
         if (variant.Stock <= 0)
         {
-            return BuildAddToCartResponse(false, "Out of stock. Restock soon.", null, returnUrl);
+            return BuildAddToCartResponse(false, _localizer["OutOfStockRestockSoon"], null, returnUrl);
         }
 
         if (variant.Stock < quantity)
         {
-            return BuildAddToCartResponse(false, $"Only {variant.Stock} left in stock.", null, returnUrl);
+            return BuildAddToCartResponse(false, _localizer["OnlyLeftInStock", variant.Stock], null, returnUrl);
         }
 
         var cart = await _uow.Carts.GetCartByUserIdAsync(userId);
@@ -93,7 +97,7 @@ public class CartController : Controller
         {
             if (cartItem.Quantity + quantity > variant.Stock)
             {
-                return BuildAddToCartResponse(false, $"Only {variant.Stock} available in stock. You already have {cartItem.Quantity} in your cart.", null, returnUrl);
+                return BuildAddToCartResponse(false, _localizer["AlreadyHaveInCartStockLimit", variant.Stock, cartItem.Quantity], null, returnUrl);
             }
             cartItem.Quantity += quantity;
             _uow.CartItems.Update(cartItem);
@@ -116,7 +120,7 @@ public class CartController : Controller
         var updatedCart = await _uow.Carts.GetCartByUserIdAsync(userId);
         var cartCount = updatedCart?.Items.Sum(i => i.Quantity) ?? 0;
 
-        return BuildAddToCartResponse(true, "Added to cart successfully.", cartCount, returnUrl);
+        return BuildAddToCartResponse(true, _localizer["AddedToCartSuccessfully"], cartCount, returnUrl);
     }
 
     // ─── UPDATE QUANTITY (JSON) ───────────────────────────────────────────────
@@ -132,12 +136,12 @@ public class CartController : Controller
 
         if (cartItem == null || cartItem.Cart.UserId != userId)
         {
-            return Json(new { success = false, message = "Invalid request." });
+            return Json(new { success = false, message = _localizer["InvalidRequest"].Value });
         }
 
         if (quantity < 1 || quantity > cartItem.ProductVariant.Stock)
         {
-            return Json(new { success = false, message = $"Invalid quantity. Available stock: {cartItem.ProductVariant.Stock}." });
+            return Json(new { success = false, message = _localizer["InvalidQuantityAvailableStock", cartItem.ProductVariant.Stock].Value });
         }
 
         cartItem.Quantity = quantity;
@@ -182,7 +186,7 @@ public class CartController : Controller
     public async Task<IActionResult> ApplyCoupon(string couponCode)
     {
         if (string.IsNullOrWhiteSpace(couponCode))
-            return Json(new { success = false, message = "Please enter a coupon code." });
+            return Json(new { success = false, message = _localizer["PleaseEnterCouponCode"].Value });
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return Unauthorized();
@@ -190,22 +194,26 @@ public class CartController : Controller
         var discount = await _uow.Discounts.FindAsync(d => d.CouponCode.ToLower() == couponCode.ToLower());
 
         if (discount == null || !discount.IsActive)
-            return Json(new { success = false, message = "Invalid or inactive coupon." });
+            return Json(new { success = false, message = _localizer["InvalidOrInactiveCoupon"].Value });
 
         if (discount.ExpiresAt.HasValue && discount.ExpiresAt.Value < DateTime.UtcNow)
-            return Json(new { success = false, message = "This coupon has expired." });
+            return Json(new { success = false, message = _localizer["CouponExpired"].Value });
 
         if (discount.UsageLimit.HasValue && discount.UsageCount >= discount.UsageLimit.Value)
-            return Json(new { success = false, message = "This coupon's usage limit has been reached." });
+            return Json(new { success = false, message = _localizer["CouponUsageLimitReached"].Value });
 
         var cart = await _uow.Carts.GetCartByUserIdAsync(userId);
         if (cart == null || !cart.Items.Any())
-            return Json(new { success = false, message = "Your cart is empty." });
+            return Json(new { success = false, message = _localizer["CartEmpty"].Value });
 
         decimal subtotal = cart.Items.Sum(i => i.Quantity * i.PriceSnapshot);
 
         if (discount.MinimumOrderAmount.HasValue && subtotal < discount.MinimumOrderAmount.Value)
-            return Json(new { success = false, message = $"Minimum order amount of ${discount.MinimumOrderAmount.Value:0.00} required." });
+            return Json(new
+            {
+                success = false,
+                message = _localizer["MinimumOrderAmountRequired", discount.MinimumOrderAmount.Value.ToString("C", System.Globalization.CultureInfo.CurrentCulture)].Value
+            });
 
         decimal discountAmount = 0;
         if (discount.Type == SD.Discount_Percentage)
@@ -225,7 +233,7 @@ public class CartController : Controller
         { 
             success = true, 
             discountAmount = discountAmount, 
-            message = "Coupon applied successfully!" 
+            message = _localizer["CouponAppliedSuccessfully"].Value
         });
     }
 

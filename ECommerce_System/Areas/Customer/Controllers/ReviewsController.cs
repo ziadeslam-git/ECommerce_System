@@ -1,7 +1,9 @@
 using ECommerce_System.Repositories.IRepositories;
+using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 
 namespace ECommerce_System.Areas.Customer.Controllers;
 
@@ -10,10 +12,12 @@ namespace ECommerce_System.Areas.Customer.Controllers;
 public class ReviewsController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IStringLocalizer<SharedResource> _localizer;
 
-    public ReviewsController(IUnitOfWork unitOfWork)
+    public ReviewsController(IUnitOfWork unitOfWork, IStringLocalizer<SharedResource> localizer)
     {
         _unitOfWork = unitOfWork;
+        _localizer = localizer;
     }
 
     [HttpPost]
@@ -22,14 +26,14 @@ public class ReviewsController : Controller
     {
         if (rating < 1 || rating > 5)
         {
-            TempData["error"] = "Rating must be between 1 and 5.";
+            TempData["error"] = _localizer["RatingMustBeBetweenOneAndFive"].Value;
             return RedirectToAction("Details", "Products", new { area = "Customer", id = productId });
         }
 
         var product = await _unitOfWork.Products.FindAsync(p => p.Id == productId && p.IsActive, tracked: false);
         if (product is null)
         {
-            TempData["error"] = "Product not found.";
+            TempData["error"] = _localizer["ProductNotFound"].Value;
             return RedirectToAction("Index", "Products", new { area = "Customer" });
         }
 
@@ -45,7 +49,7 @@ public class ReviewsController : Controller
 
         if (!hasPurchasedDelivered)
         {
-            TempData["error"] = "You can review only delivered products you purchased.";
+            TempData["error"] = _localizer["ReviewOnlyDeliveredPurchased"].Value;
             return RedirectToAction("Details", "Products", new { area = "Customer", id = productId });
         }
 
@@ -53,7 +57,7 @@ public class ReviewsController : Controller
             .FindAsync(r => r.UserId == userId && r.ProductId == productId, tracked: false, ignoreQueryFilters: true);
         if (existingReview is not null)
         {
-            TempData["error"] = "You already submitted a review for this product.";
+            TempData["error"] = _localizer["ReviewAlreadySubmitted"].Value;
             return RedirectToAction("Details", "Products", new { area = "Customer", id = productId });
         }
 
@@ -69,7 +73,7 @@ public class ReviewsController : Controller
 
         await _unitOfWork.SaveAsync();
 
-        TempData["success"] = "Review submitted and pending admin approval.";
+        TempData["success"] = _localizer["ReviewSubmittedPendingApproval"].Value;
         return RedirectToAction("Details", "Products", new { area = "Customer", id = productId });
     }
 }

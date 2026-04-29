@@ -1,6 +1,9 @@
 using ECommerce_System.Models;
+using ECommerce_System.Resources;
+using ECommerce_System.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 using System.Security.Claims;
 
 namespace ECommerce_System.Areas.Identity.Controllers;
@@ -10,11 +13,13 @@ public class ExternalLoginController : Controller
 {
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IStringLocalizer<SharedResource> _localizer;
 
-    public ExternalLoginController(SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager)
+    public ExternalLoginController(SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager, IStringLocalizer<SharedResource> localizer)
     {
         _signInManager = signInManager;
         _userManager = userManager;
+        _localizer = localizer;
     }
 
     [HttpPost]
@@ -32,26 +37,27 @@ public class ExternalLoginController : Controller
         returnUrl = returnUrl ?? Url.Content("~/");
         if (remoteError != null)
         {
-            TempData["error"] = $"Error from external provider: {remoteError}";
+            TempData["error"] = _localizer["ExternalProviderError", remoteError].Value;
             return RedirectToAction("Login", "Account");
         }
 
         var info = await _signInManager.GetExternalLoginInfoAsync();
         if (info == null)
         {
-            TempData["error"] = "Error loading external login information.";
+            TempData["error"] = _localizer["ExternalLoginInfoLoadError"].Value;
             return RedirectToAction("Login", "Account");
         }
 
         // Sign in the user with this external login provider if the user already has a login.
-        var result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: false, bypassTwoFactor: true);
+        var result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: true, bypassTwoFactor: true);
         if (result.Succeeded)
         {
+            await _signInManager.UpdateExternalAuthenticationTokensAsync(info);
             return LocalRedirect(returnUrl);
         }
         if (result.IsLockedOut)
         {
-            TempData["error"] = "User account locked out.";
+            TempData["error"] = _localizer["ExternalAccountLockedOut"].Value;
             return RedirectToAction("Login", "Account");
         }
         else
@@ -60,7 +66,7 @@ public class ExternalLoginController : Controller
             ViewData["ReturnUrl"] = returnUrl;
             ViewData["ProviderDisplayName"] = info.ProviderDisplayName;
             var email = info.Principal.FindFirstValue(ClaimTypes.Email);
-            var name = info.Principal.FindFirstValue(ClaimTypes.Name) ?? "External User";
+            var name = info.Principal.FindFirstValue(ClaimTypes.Name) ?? _localizer["ExternalUser"].Value;
             
             // If email is null (e.g. from Facebook when we don't request the email scope),
             // leave it empty so the user can fill it in on the Callback view.
@@ -79,7 +85,7 @@ public class ExternalLoginController : Controller
             var info = await _signInManager.GetExternalLoginInfoAsync();
             if (info == null)
             {
-                TempData["error"] = "Error loading external login information during confirmation.";
+                TempData["error"] = _localizer["ExternalLoginInfoConfirmLoadError"].Value;
                 return RedirectToAction("Login", "Account", new { ReturnUrl = returnUrl });
             }
 
@@ -92,8 +98,8 @@ public class ExternalLoginController : Controller
                 if (result.Succeeded)
                 {
                     // ✅ FIX: Assign Customer role to external login users
-                    await _userManager.AddToRoleAsync(user, "Customer");
-                    await _signInManager.SignInAsync(user, isPersistent: false, info.LoginProvider);
+                    await _userManager.AddToRoleAsync(user, SD.Role_Customer);
+                    await _signInManager.SignInAsync(user, isPersistent: true, info.LoginProvider);
                     return LocalRedirect(returnUrl);
                 }
             }

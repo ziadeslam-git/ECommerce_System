@@ -1,45 +1,224 @@
-# Smart E-commerce System
+# Smart Store
 
-An ASP.NET Core MVC e-commerce platform with a strong admin foundation, Identity-based authentication, and an expanding domain model for products, orders, payments, shipping, reviews, carts, and wishlists.
+Smart Store is a full-stack ASP.NET Core MVC e-commerce graduation project built around a real multi-area commerce workflow:
 
-This project is still in progress. The current codebase covers roughly the first third of the planned product: the admin panel and account system are significantly ahead of the customer storefront and checkout experience.
+- `Admin` area for operational control
+- `Customer` area for shopping and ordering
+- `Identity` area for authentication, profile, and addresses
 
-## Project Goals
+The project combines catalog management, stock-aware variants, carts, wishlists, coupons, order placement, shipment/payment tracking, review moderation, localization, media upload, and responsive dashboards in one codebase.
 
-- Build a smart e-commerce platform with a maintainable MVC architecture.
-- Provide admins with full catalog, order, payment, shipment, discount, review, and user management.
-- Support customer authentication, addresses, cart/order domain logic, and eventually a complete storefront flow.
-- Keep the codebase extensible for future features like checkout, wishlist UX, richer customer views, analytics, and recommendation/chat capabilities.
+## Why This Project Stands Out
 
-## Current Status
+- Built on `.NET 10` with a clear MVC + Areas architecture
+- Rich admin panel covering the full commerce lifecycle
+- Customer shopping flow with cart, wishlist, checkout, orders, and reviews
+- Stock-aware product variants with active/inactive state handling
+- Stripe sandbox checkout support plus Cash on Delivery
+- Cloudinary image upload for product and profile media
+- ASP.NET Core Identity with profile, password, and address management
+- AR / EN localization support
+- Responsive UI with mobile-friendly customer and admin experiences
+- Repository + Unit of Work pattern for structured data access
 
-Implemented or partially implemented today:
+## Core Features
 
-- Admin dashboard and management flows for categories, products, variants, images, orders, shipments, payments, discounts, reviews, and users.
-- ASP.NET Core Identity authentication with email confirmation, forgot/reset password, external login, profile, and address management.
-- EF Core domain model for the full commerce system:
-  `Category`, `Product`, `ProductVariant`, `ProductImage`, `ProductVariantImage`, `Cart`, `CartItem`, `Order`, `OrderItem`, `Payment`, `Shipment`, `Discount`, `Review`, `WishlistItem`, `Address`, `ApplicationUser`.
-- Repository + Unit of Work pattern across the admin/business layer.
-- Cloudinary-backed image upload service with local configuration support.
-- SMTP email sender for confirmation and password reset emails.
-- Automatic role/admin seeding and database migration on startup.
+### 1. Admin Dashboard
 
-Not complete yet:
+The admin side is not just CRUD screens. It is designed as an operational control center.
 
-- Customer storefront is still minimal and not connected end-to-end to the full shopping flow.
-- Cart, checkout, customer order history, wishlist UI, customer review flow, and online payment checkout are not finished as user-facing modules.
-- Automated tests are not established yet.
+Implemented admin modules:
+
+- Dashboard analytics
+  - revenue snapshot
+  - order counts
+  - customer counts
+  - top products
+  - recent orders
+- Category management
+- Product management
+- Product variants management
+- Product image galleries
+- Order management
+- Shipment management
+- Payment tracking
+- Discounts and coupon management
+- Review moderation
+- Customer account management
+
+### 2. Customer Storefront
+
+The customer side already covers the main shopping flow in a real MVC pattern.
+
+Implemented customer modules:
+
+- Home page with featured and latest product sections
+- Product browsing
+- Product details with:
+  - image gallery / slider
+  - variant selection
+  - stock-aware size/color behavior
+  - review section
+- Wishlist
+  - add/remove
+  - move to cart
+- Shopping cart
+  - quantity updates
+  - subtotal updates
+  - coupon application
+- Checkout
+  - saved addresses
+  - add new address inline
+  - payment method selection
+- Order placement
+  - Cash on Delivery
+  - Stripe sandbox checkout flow
+- Customer order history
+- Order details
+- Order cancellation
+- Review submission after purchase rules
+
+### 3. Identity & User Account
+
+Implemented account features:
+
+- Register / Login / Logout
+- Access denied flow
+- Forgot password / Reset password
+- Email confirmation / resend confirmation
+- Google and Facebook authentication hooks
+- Profile editing
+  - full name
+  - phone number
+  - country code + local number handling
+  - profile photo upload and crop
+- Address management
+  - add
+  - edit
+  - delete
+  - set default
+- Change password
+
+### 4. Commerce Domain Logic
+
+The project models real commerce relationships, not flat demo data.
+
+Current domain includes:
+
+- `Category`
+- `Product`
+- `ProductVariant`
+- `ProductImage`
+- `ProductVariantImage`
+- `Cart`
+- `CartItem`
+- `WishlistItem`
+- `Order`
+- `OrderItem`
+- `Payment`
+- `Shipment`
+- `Discount`
+- `Review`
+- `Address`
+- `ApplicationUser`
+
+Important business behaviors already represented in the code:
+
+- stock validation before cart and order actions
+- price snapshot support between cart and order flow
+- coupon validation rules
+- payment status lifecycle
+- shipment status lifecycle
+- order status transitions
+- review moderation and approval workflow
+- role-based access separation
+
+## Highlighted Features
+
+### Responsive UI
+
+The project is not desktop-only.
+
+It includes responsive work for:
+
+- customer navigation with mobile bottom nav
+- profile pages with mobile dropdown-style navigation
+- admin dashboard with mobile dropdown navigation
+- mobile card layouts for customer and admin tables
+
+### Localization
+
+The app supports:
+
+- English: `en-US`
+- Arabic: `ar-EG`
+
+Culture is persisted through the request localization cookie flow.
+
+### Media Handling
+
+Cloudinary is integrated for:
+
+- product images
+- profile images
+
+The profile page also supports image cropping before saving.
+
+### Payments
+
+Stripe is integrated in sandbox/test mode for checkout experimentation.
+
+Supported payment paths:
+
+- Cash on Delivery
+- Credit Card via Stripe sandbox flow
+
+### Notifications & UX Feedback
+
+The UI includes modern feedback patterns such as:
+
+- inline toasts
+- modal confirmations
+- cart count badges
+- stock indicators
+- status badges across admin/customer pages
 
 ## Tech Stack
 
 - Backend: ASP.NET Core MVC on `.NET 10`
 - Authentication: ASP.NET Core Identity
-- ORM: Entity Framework Core 10 + SQL Server
-- Architecture: Areas + Controllers + Repositories + Unit of Work + ViewModels
+- ORM: Entity Framework Core 10
+- Database: SQL Server
+- Architecture:
+  - Areas
+  - Controllers
+  - ViewModels
+  - Repositories
+  - Unit of Work
 - Media: Cloudinary
 - Email: MailKit SMTP
-- Payments: Stripe package is configured in the project, but full online checkout is not complete yet
-- Frontend: Razor Views, Bootstrap-style admin/customer UI, server-rendered MVC pages
+- Payments: Stripe.net
+- Frontend:
+  - Razor Views
+  - Tailwind-based utility styling
+  - Material Symbols
+- Localization: ASP.NET Core Localization
+
+## Architecture Overview
+
+The codebase follows a classic server-rendered MVC approach with structured separation between presentation, data access, and integrations.
+
+```mermaid
+flowchart LR
+    A["Browser / Client"] --> B["MVC Area Controller"]
+    B --> C["ViewModel Binding + Validation"]
+    C --> D["Unit of Work / Repositories"]
+    D --> E["ApplicationDbContext / EF Core"]
+    E --> F["SQL Server"]
+    D --> G["External Integrations"]
+    G --> H["Cloudinary / SMTP / Identity / Stripe"]
+    B --> I["Razor Views / JSON Responses"]
+```
 
 ## Solution Structure
 
@@ -53,6 +232,7 @@ ECommerce_System/
 │   ├── Data/
 │   ├── Models/
 │   ├── Repositories/
+│   ├── Resources/
 │   ├── Utilities/
 │   ├── ViewModels/
 │   ├── Views/
@@ -61,174 +241,173 @@ ECommerce_System/
 └── README.md
 ```
 
-### Areas
+### Area Breakdown
 
-- `Admin`: operational back office for managing catalog, users, orders, shipments, discounts, payments, and reviews.
-- `Identity`: authentication and account lifecycle.
-- `Customer`: public/customer-facing area. Right now it is much lighter than the admin side.
+- `Admin`
+  - dashboard
+  - products
+  - categories
+  - orders
+  - shipments
+  - payments
+  - discounts
+  - reviews
+  - users
 
-### Core Folders
+- `Customer`
+  - home
+  - products
+  - cart
+  - wishlist
+  - checkout
+  - orders
+  - review submission
 
-- `Data`: `ApplicationDbContext`, entity configurations, migrations.
-- `Models`: domain entities and relationships.
-- `Repositories`: generic repository, specialized repositories, unit of work.
-- `Utilities`: shared constants, email sender, cloudinary service, DB initializer, settings models.
-- `ViewModels`: request/view shaping for MVC views.
-- `Views` and `wwwroot`: server-rendered UI and static assets.
+- `Identity`
+  - account lifecycle
+  - profile
+  - addresses
+  - password management
 
-## Architecture and Flow
-
-The project follows a classic MVC flow with a repository abstraction on top of EF Core:
-
-```mermaid
-flowchart LR
-    A["Browser Request"] --> B["Area Controller"]
-    B --> C["ViewModel Validation"]
-    C --> D["Unit of Work / Repository"]
-    D --> E["ApplicationDbContext / EF Core"]
-    E --> F["SQL Server"]
-    D --> G["External Services"]
-    G --> H["Cloudinary / SMTP / Identity / Stripe Config"]
-    B --> I["Razor View Response"]
-```
-
-Typical request flow:
-
-1. The request enters an Area controller such as `Admin/OrdersController` or `Identity/AccountController`.
-2. The controller validates input using MVC model binding and ViewModels.
-3. Business/data access goes through `IUnitOfWork` and repositories.
-4. EF Core persists and loads entities from SQL Server.
-5. External integrations are used when needed: Cloudinary for images, SMTP for mail, Identity for auth, Stripe configuration for future payment integration.
-6. A view model is returned to a Razor view for rendering.
-
-## Main Modules
-
-### Admin
-
-- `DashboardController`: operational summary for products, orders, revenue, customers.
-- `CategoryController`: category CRUD.
-- `ProductController`: product CRUD and status handling.
-- `ProductVariantsController`: variant CRUD, stock/state behavior, variant image handling.
-- `ProductImagesController`: product gallery and main image behavior.
-- `OrdersController`: admin order creation, editing, status changes, coupon validation, payment sync.
-- `ShipmentsController`: shipment creation/editing and order shipment state sync.
-- `PaymentsController`: read-only payment tracking records.
-- `DiscountsController`: coupon and discount management.
-- `ReviewsController`: moderation workflow.
-- `UsersController`: user listing, state management, and activity summary.
-
-### Identity
-
-- Registration and login
-- Logout and access control
-- Email confirmation and resend confirmation
-- Forgot/reset password
-- External login callback/confirmation
-- Profile and address management
-
-### Customer
-
-- Home/landing entry point exists
-- Full product browsing and purchase flow is still under construction
-
-## Domain Model Snapshot
-
-The current schema already models the intended full commerce flow:
-
-- Catalog: `Category`, `Product`, `ProductVariant`, `ProductImage`, `ProductVariantImage`
-- User/account: `ApplicationUser`, `Address`
-- Shopping: `Cart`, `CartItem`, `WishlistItem`
-- Order lifecycle: `Order`, `OrderItem`, `Payment`, `Shipment`
-- Growth/quality: `Discount`, `Review`
-
-This is a good sign architecturally: the data model is ahead of the UI, which makes the next implementation stages easier.
-
-## Local Setup
+## Setup Guide
 
 ### 1. Prerequisites
 
 - .NET 10 SDK
-- SQL Server LocalDB or SQL Server
-- Visual Studio 2022 / Rider / VS Code
+- SQL Server / LocalDB
+- Visual Studio 2022 or any .NET-compatible IDE
 
-### 2. Configure settings
+### 2. Configure App Settings
 
-Update `ECommerce_System/appsettings.json` for local development as needed:
+Update `ECommerce_System/appsettings.json` for your local environment:
 
 - `ConnectionStrings:DefaultConnection`
 - `EmailSettings`
+- `Cloudinary`
+- `Stripe`
 - `Authentication:Google`
 - `Authentication:Facebook`
-- `Stripe`
-- `Cloudinary`
 
 Recommended:
 
-- Keep secrets in User Secrets or environment variables instead of committing real credentials.
-- The project already has a `UserSecretsId` configured in the `.csproj`.
+- use User Secrets for local development
+- do not commit real secrets
 
-### 3. Restore and build
+The project already has a `UserSecretsId` configured in the `.csproj`.
+
+### 3. Restore Dependencies
 
 ```powershell
 dotnet restore
+```
+
+### 4. Build the Project
+
+```powershell
 dotnet build ECommerce_System.slnx
 ```
 
-### 4. Apply database migrations
-
-The app applies pending migrations automatically on startup through `DBInitializer`, but you can also manage them manually with EF Core tools when needed.
-
-### 5. Run the app
+### 5. Run the Application
 
 ```powershell
 dotnet run --project ECommerce_System/ECommerce_System.csproj
 ```
 
-Default routes:
+### 6. Database Initialization
 
-- Customer area: `/`
-- Admin area: `/Admin`
-- Identity login: `/Identity/Account/Login`
+The app uses a startup database initializer that:
+
+- applies pending migrations
+- creates roles
+- seeds the default admin account
 
 ## Default Admin Account
 
-The initializer seeds a default admin user for development:
+The seeded development admin is:
 
 - Email: `admin@ecommerce.com`
 - Password: `Admin@123456`
 
-This comes from `ECommerce_System/Utilities/SD.cs` and should be changed for any shared or production-like environment.
+These values come from:
 
-## Engineering Notes
+- `ECommerce_System/Utilities/SD.cs`
 
-- The current local build succeeds on the reviewed working tree.
-- The codebase has a solid domain foundation, but some lifecycle and status-transition rules still need tightening.
-- The repository paging abstraction currently handles paging well, but some screens still sort after pagination in controller code.
-- The largest delivery gap is not the data model, but the unfinished customer-side experience and the lack of automated tests.
+Change them for any shared environment.
 
-## Planned Direction
+## Configuration Notes
 
-The next major implementation phases should focus on:
+### Stripe
 
-- Completing customer product browsing and product details
-- Cart and wishlist UX
-- Checkout and payment flow
-- Customer order history and review submission
-- Automated tests for critical admin and order workflows
-- Hardening business rules around order/shipment/payment state transitions
+Use test/sandbox keys in:
 
-## Repository Health Summary
+- `Stripe:PublishableKey`
+- `Stripe:SecretKey`
+- `Stripe:WebhookSecret`
 
-What is already strong:
+### Cloudinary
 
-- Clear separation with Areas
-- Consistent Unit of Work usage in admin flows
-- Rich commerce domain model
-- Identity and admin features are meaningfully progressed
+Configure:
 
-What still needs work:
+- cloud name
+- api key
+- api secret
 
-- Customer-facing completeness
-- Automated testing
-- Some business rule enforcement and workflow guards
-- A bit more consistency between repository abstractions and controller behavior
+for product and profile image uploads.
+
+### External Login
+
+Optional providers:
+
+- Google
+- Facebook
+
+If secrets are missing, the app skips provider setup gracefully.
+
+## What Is Already Strong
+
+- Clean area-based separation
+- Full commerce-oriented domain model
+- Strong admin workflow coverage
+- Identity and profile management
+- Variant-aware catalog structure
+- Cart / wishlist / checkout flow presence
+- Responsive UI work on both admin and customer sides
+- Real external integrations instead of placeholders only
+
+## Current Focus / Still Evolving
+
+These parts are still good candidates for further polishing:
+
+- broader automated test coverage
+- stronger webhook/payment hardening for production-like scenarios
+- advanced recommendation / chat modules
+- more reporting depth and analytics
+- further UX polishing on selected flows
+
+## Suggested Demo Flow
+
+If you want to showcase the project quickly:
+
+1. Log in as admin
+2. Create categories, products, variants, and images
+3. Open the customer storefront
+4. Add items to wishlist and cart
+5. Apply a coupon
+6. Place an order
+7. Review it from the admin dashboard
+8. Track payment / shipment / review lifecycle
+
+## Project Identity
+
+This project is more than a CRUD demo.
+
+It is a multi-module commerce system that demonstrates:
+
+- architecture
+- business flow thinking
+- role separation
+- responsive UI design
+- real integrations
+- and end-to-end e-commerce domain modeling
+
+That makes it especially suitable as a graduation or capstone project because it shows both engineering structure and product workflow depth.

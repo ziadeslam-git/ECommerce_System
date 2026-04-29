@@ -11,6 +11,7 @@ public class CartRepository : Repository<Cart>, ICartRepository
 
     public async Task<Cart?> GetCartByUserIdAsync(string userId)
         => await _context.Carts
+            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(ci => ci.ProductVariant)
                     .ThenInclude(v => v.Product)

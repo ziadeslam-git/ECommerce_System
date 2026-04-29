@@ -58,7 +58,95 @@
 
     <!-- Table -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="overflow-x-auto">
+        <div class="space-y-3 p-4 md:hidden">
+            @if (!pagedProducts.Any())
+            {
+                <div class="rounded-[18px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                    No products yet.
+                </div>
+            }
+            @foreach (var p in pagedProducts)
+            {
+                <article class="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm @(!p.IsActive ? "opacity-70" : "")">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="size-14 overflow-hidden rounded-xl bg-slate-100">
+                                @if (p.MainImageUrl is not null)
+                                {
+                                    <img src="@p.MainImageUrl" alt="@p.Name" class="h-full w-full object-cover" />
+                                }
+                                else
+                                {
+                                    <div class="flex h-full w-full items-center justify-center">
+                                        <span class="material-symbols-outlined text-2xl text-slate-300">image</span>
+                                    </div>
+                                }
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-900">@p.Name</p>
+                                <p class="mt-1 text-xs text-slate-500">@p.CategoryName</p>
+                                @if (p.AverageRating > 0)
+                                {
+                                    <div class="mt-1 flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-sm text-amber-400" style="font-variation-settings:'FILL' 1">star</span>
+                                        <span class="text-xs text-slate-400">@p.AverageRating.ToString("0.0")</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        <span class="inline-flex rounded-full px-3 py-1 text-[10px] font-bold @(p.IsActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600")">
+                            @(p.IsActive ? "Active" : "Inactive")
+                        </span>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Base Price</p>
+                            <p class="mt-1 font-bold text-slate-900">$@p.BasePrice.ToString("0.00")</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Variants</p>
+                            <p class="mt-1 font-bold text-primary">@p.VariantCount</p>
+                        </div>
+                        <div class="col-span-2">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Stock</p>
+                            <div class="mt-1 flex items-center justify-between">
+                                @if (p.TotalStock > 10)
+                                {
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-600"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>In Stock</span>
+                                }
+                                else if (p.TotalStock > 0)
+                                {
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-600"><span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span>Low Stock</span>
+                                }
+                                else
+                                {
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-600"><span class="h-1.5 w-1.5 rounded-full bg-slate-500"></span>Out of Stock</span>
+                                }
+                                <span class="text-xs font-semibold text-slate-500">@p.TotalStock.ToString("N0") units</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-end gap-2">
+                        <a asp-area="Admin" asp-controller="Product" asp-action="Details" asp-route-id="@p.Id" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm transition hover:bg-slate-100">
+                            <span class="material-symbols-outlined text-[18px]">visibility</span>
+                        </a>
+                        <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index" asp-route-productId="@p.Id" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm transition hover:bg-indigo-50">
+                            <span class="material-symbols-outlined text-[18px]">layers</span>
+                        </a>
+                        <a asp-area="Admin" asp-controller="ProductImages" asp-action="Index" asp-route-productId="@p.Id" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-teal-600 shadow-sm transition hover:bg-teal-50">
+                            <span class="material-symbols-outlined text-[18px]">image</span>
+                        </a>
+                        <a asp-area="Admin" asp-controller="Product" asp-action="Edit" asp-route-id="@p.Id" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-primary shadow-sm transition hover:bg-slate-100">
+                            <span class="material-symbols-outlined text-[18px]">edit</span>
+                        </a>
+                    </div>
+                </article>
+            }
+        </div>
+
+        <div class="hidden overflow-x-auto md:block">
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">
@@ -134,9 +222,30 @@
                                 </a>
                             </td>
                             <td class="py-4 px-6 text-center">
-                                <span class="text-sm font-semibold @(p.TotalStock > 10 ? "text-emerald-600" : p.TotalStock > 0 ? "text-amber-500" : "text-rose-500")">
-                                    @p.TotalStock.ToString("N0")
-                                </span>
+                                <div class="inline-flex flex-col items-center gap-1.5">
+                                    @if (p.TotalStock > 10)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-600">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                            In Stock
+                                        </span>
+                                    }
+                                    else if (p.TotalStock > 0)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-600">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+                                            Low Stock
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-600">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-slate-500"></span>
+                                            Out of Stock
+                                        </span>
+                                    }
+                                    <span class="text-xs font-semibold text-slate-500">@p.TotalStock.ToString("N0") units</span>
+                                </div>
                             </td>
                             <td class="py-4 px-6 text-center">
                                 <form asp-area="Admin" asp-controller="Product" asp-action="ToggleActive" method="post" class="inline-block">

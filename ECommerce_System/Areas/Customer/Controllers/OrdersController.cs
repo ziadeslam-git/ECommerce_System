@@ -21,6 +21,7 @@ public class OrdersController : Controller
     private const    int                            PageSize = 10;
     private const    string                         PaymentMethodCashOnDelivery = "CashOnDelivery";
     private const    string                         PaymentMethodCreditCard     = "CreditCard";
+    private const    string                         CheckoutViewPath            = "~/Areas/Customer/Views/Cart/Checkout.cshtml";
 
     public OrdersController(IUnitOfWork unitOfWork, ILogger<OrdersController> logger, IOptions<StripeSettings> stripeOptions)
     {
@@ -33,7 +34,7 @@ public class OrdersController : Controller
     //  GET  /Customer/Orders/Checkout
     // ──────────────────────────────────────────────────────────────────────────
     [HttpGet]
-    public async Task<IActionResult> Checkout(string? couponCode = null, int? addressId = null, string? paymentMethod = null)
+    public async Task<IActionResult> Checkout([FromQuery] CheckoutVM? request)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return Unauthorized();
@@ -45,55 +46,106 @@ public class OrdersController : Controller
             return RedirectToAction("Index", "Cart");
         }
 
-        var addresses = await _unitOfWork.Addresses.FindAllAsync(a => a.UserId == userId);
+        var vm = await BuildCheckoutViewModelAsync(userId, request);
+        return View(CheckoutViewPath, vm);
+    }
 
-        var vm = new CheckoutVM
+    // ──────────────────────────────────────────────────────────────────────────
+    //  POST /Customer/Orders/UseNewAddress
+    // ──────────────────────────────────────────────────────────────────────────
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UseNewAddress(CheckoutVM vm)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        vm.PaymentMethod = NormalizePaymentMethod(vm.PaymentMethod);
+        vm.CouponCode = vm.CouponCode?.Trim();
+        vm.ShowNewAddressForm = true;
+
+        if (!TryValidateInlineAddress(vm))
         {
-            Items = cart.Items.Select(ci => new CheckoutItemCustomerVM
-            {
-                CartItemId       = ci.Id,
-                ProductVariantId = ci.ProductVariantId,
-                Quantity         = ci.Quantity,
-                PriceSnapshot    = ci.PriceSnapshot,
-                CurrentPrice     = ci.PriceSnapshot,
-                ProductName      = ci.ProductVariant.Product.Name,
-                Size             = ci.ProductVariant.Size,
-                Color            = ci.ProductVariant.Color,
-                ImageUrl         = ci.ProductVariant.Product.Images
-                                     .FirstOrDefault(i => i.IsMain)?.ImageUrl
-                                   ?? ci.ProductVariant.Product.Images
-                                     .OrderBy(i => i.DisplayOrder)
-                                     .FirstOrDefault()?.ImageUrl,
-                Stock            = ci.ProductVariant.Stock
-            }).ToList(),
-            Subtotal         = cart.Items.Sum(ci => ci.Quantity * ci.PriceSnapshot),
-            Addresses        = addresses.Select(a => new AddressOptionCustomerVM
-            {
-                Id          = a.Id,
-                FullName    = a.FullName,
-                PhoneNumber = a.PhoneNumber,
-                Street      = a.Street,
-                City        = a.City,
-                State       = a.State,
-                Country     = a.Country,
-                PostalCode  = a.PostalCode,
-                IsDefault   = a.IsDefault,
-                DisplayLine = BuildAddressLine(a)
-            }).ToList(),
-            DefaultAddressId = addresses.FirstOrDefault(a => a.IsDefault)?.Id,
-            AddressId        = addressId,
-            CouponCode       = couponCode?.Trim(),
-            PaymentMethod    = NormalizePaymentMethod(paymentMethod)
-        };
+            var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
+            invalidVm.ShowNewAddressForm = true;
+            return View(CheckoutViewPath, invalidVm);
+        }
 
-        var (_, discountAmount, couponError, appliedCode) = await ResolveCouponAsync(userId, vm.CouponCode, vm.Subtotal);
-        vm.DiscountAmount = discountAmount;
-        vm.CouponCode = appliedCode ?? vm.CouponCode;
-        vm.CouponApplied = string.IsNullOrWhiteSpace(couponError) && discountAmount > 0 && !string.IsNullOrWhiteSpace(vm.CouponCode);
-        vm.CouponMessage = couponError ?? (vm.CouponApplied ? $"Coupon '{vm.CouponCode}' applied successfully." : null);
+        var existingAddresses = await _unitOfWork.Addresses.FindAllAsync(a => a.UserId == userId);
+        var makeDefault = !existingAddresses.Any() || vm.SaveNewAddress;
+        var address = await CreateInlineAddressAsync(userId, vm, makeDefault);
 
-        // Checkout.cshtml lives under Cart/, not Orders/ — specify path explicitly
-        return View("~/Areas/Customer/Views/Cart/Checkout.cshtml", vm);
+        return RedirectToAction(nameof(Checkout), new
+        {
+            addressId = address.Id,
+            couponCode = vm.CouponCode,
+            paymentMethod = vm.PaymentMethod,
+            showNewAddressForm = false
+        });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    //  POST /Customer/Orders/SelectSavedAddress
+    // ──────────────────────────────────────────────────────────────────────────
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SelectSavedAddress(CheckoutVM vm)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        vm.PaymentMethod = NormalizePaymentMethod(vm.PaymentMethod);
+        vm.CouponCode = vm.CouponCode?.Trim();
+
+        if (!vm.AddressId.HasValue || vm.AddressId.Value <= 0)
+        {
+            return RedirectToAction(nameof(Checkout), new
+            {
+                couponCode = vm.CouponCode,
+                paymentMethod = vm.PaymentMethod,
+                showNewAddressForm = false
+            });
+        }
+
+        var selectedAddress = await _unitOfWork.Addresses.FindAsync(
+            a => a.Id == vm.AddressId.Value && a.UserId == userId);
+
+        if (selectedAddress == null)
+        {
+            return RedirectToAction(nameof(Checkout), new
+            {
+                couponCode = vm.CouponCode,
+                paymentMethod = vm.PaymentMethod,
+                showNewAddressForm = false
+            });
+        }
+
+        var userAddresses = await _unitOfWork.Addresses.FindAllAsync(a => a.UserId == userId);
+        var changed = false;
+
+        foreach (var address in userAddresses)
+        {
+            var shouldBeDefault = address.Id == selectedAddress.Id;
+            if (address.IsDefault != shouldBeDefault)
+            {
+                address.IsDefault = shouldBeDefault;
+                _unitOfWork.Addresses.Update(address);
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            await _unitOfWork.SaveAsync();
+        }
+
+        return RedirectToAction(nameof(Checkout), new
+        {
+            addressId = selectedAddress.Id,
+            couponCode = vm.CouponCode,
+            paymentMethod = vm.PaymentMethod,
+            showNewAddressForm = false
+        });
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -101,22 +153,63 @@ public class OrdersController : Controller
     // ──────────────────────────────────────────────────────────────────────────
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> PlaceOrder(int addressId, string? couponCode, string? paymentMethod)
+    public async Task<IActionResult> PlaceOrder(CheckoutVM vm)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return Unauthorized();
-        paymentMethod = NormalizePaymentMethod(paymentMethod);
+        vm.PaymentMethod = NormalizePaymentMethod(vm.PaymentMethod);
+        vm.CouponCode = vm.CouponCode?.Trim();
+        var addressId = vm.AddressId ?? 0;
+        var existingAddresses = await _unitOfWork.Addresses.FindAllAsync(a => a.UserId == userId);
 
         _logger.LogInformation("PlaceOrder started. UserId={UserId}, AddressId={AddressId}, Coupon={Coupon}, PaymentMethod={PaymentMethod}",
-            userId, addressId, couponCode ?? "none", paymentMethod);
+            userId, addressId, vm.CouponCode ?? "none", vm.PaymentMethod);
 
-        // ── Step 1: Validate Address ─────────────────────────────────────────
-        if (addressId <= 0)
+        var wantsInlineAddress = !existingAddresses.Any() || (vm.ShowNewAddressForm && vm.HasNewAddressInput);
+
+        if (wantsInlineAddress)
         {
-            TempData["Error"] = "Please select a valid delivery address.";
-            return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
+            if (!TryValidateInlineAddress(vm))
+            {
+                vm.ShowNewAddressForm = true;
+                var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
+                return View(CheckoutViewPath, invalidVm);
+            }
+
+            var makeDefault = !existingAddresses.Any() || vm.SaveNewAddress;
+            var inlineAddress = await CreateInlineAddressAsync(userId, vm, makeDefault);
+            addressId = inlineAddress.Id;
+            vm.AddressId = addressId;
+        }
+        else if (addressId <= 0)
+        {
+            ModelState.AddModelError(nameof(vm.AddressId), "Please select a delivery address.");
+            var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
+            return View(CheckoutViewPath, invalidVm);
         }
 
+        var userAddresses = existingAddresses.ToList();
+        if (userAddresses.Any())
+        {
+            var changedDefault = false;
+            foreach (var existingAddress in userAddresses)
+            {
+                var shouldBeDefault = existingAddress.Id == addressId;
+                if (existingAddress.IsDefault != shouldBeDefault)
+                {
+                    existingAddress.IsDefault = shouldBeDefault;
+                    _unitOfWork.Addresses.Update(existingAddress);
+                    changedDefault = true;
+                }
+            }
+
+            if (changedDefault)
+            {
+                await _unitOfWork.SaveAsync();
+            }
+        }
+
+        // ── Step 1: Validate Address ─────────────────────────────────────────
         var address = await _unitOfWork.Addresses.FindAsync(
             a => a.Id == addressId && a.UserId == userId);
 
@@ -124,8 +217,9 @@ public class OrdersController : Controller
         {
             _logger.LogWarning("PlaceOrder blocked: Address {AddressId} not found for user {UserId}.",
                 addressId, userId);
-            TempData["Error"] = "The selected address is invalid or does not belong to your account.";
-            return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
+            ModelState.AddModelError(nameof(vm.AddressId), "The selected address is invalid or does not belong to your account.");
+            var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
+            return View(CheckoutViewPath, invalidVm);
         }
 
         // ── Step 2: Load Cart ─────────────────────────────────────────────────
@@ -166,14 +260,17 @@ public class OrdersController : Controller
         }
 
         // ── Step 5: Validate & Apply Coupon ──────────────────────────────────
-        var (appliedCoupon, discountAmount, couponError, appliedCode) = await ResolveCouponAsync(userId, couponCode, subtotal);
-        couponCode = appliedCode ?? couponCode?.Trim();
+        var (appliedCoupon, discountAmount, couponError, appliedCode) = await ResolveCouponAsync(userId, vm.CouponCode, subtotal);
+        var couponCode = appliedCode ?? vm.CouponCode?.Trim();
         if (!string.IsNullOrWhiteSpace(couponError))
         {
             _logger.LogWarning("PlaceOrder: Coupon validation failed. Coupon={Coupon}, UserId={UserId}, Reason={Reason}",
                 couponCode ?? "none", userId, couponError);
-            TempData["Error"] = couponError;
-            return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
+            ModelState.AddModelError(nameof(vm.CouponCode), couponError);
+            vm.CouponCode = couponCode;
+            vm.AddressId = addressId;
+            var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
+            return View(CheckoutViewPath, invalidVm);
         }
 
         if (appliedCoupon != null)
@@ -184,12 +281,13 @@ public class OrdersController : Controller
 
         var totalAmount = subtotal - discountAmount;
 
-        if (paymentMethod == PaymentMethodCreditCard)
+        if (vm.PaymentMethod == PaymentMethodCreditCard)
         {
             if (!IsStripeConfigured())
             {
-                TempData["Error"] = "Stripe payment is not configured yet. Add the Stripe Secret Key first, then try again.";
-                return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
+                ModelState.AddModelError(string.Empty, "Stripe payment is not configured yet. Add the Stripe Secret Key first, then try again.");
+                var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
+                return View(CheckoutViewPath, invalidVm);
             }
 
             try
@@ -197,8 +295,9 @@ public class OrdersController : Controller
                 var session = await CreateStripeCheckoutSessionAsync(cart, userId, addressId, couponCode, subtotal, discountAmount, totalAmount);
                 if (string.IsNullOrWhiteSpace(session.Url))
                 {
-                    TempData["Error"] = "Could not start the Stripe checkout session. Please try again.";
-                    return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
+                    ModelState.AddModelError(string.Empty, "Could not start the Stripe checkout session. Please try again.");
+                    var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
+                    return View(CheckoutViewPath, invalidVm);
                 }
 
                 return Redirect(session.Url);
@@ -206,8 +305,9 @@ public class OrdersController : Controller
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PlaceOrder failed while creating Stripe session. UserId={UserId}.", userId);
-                TempData["Error"] = "Unable to start card payment right now. Please try again.";
-                return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
+                ModelState.AddModelError(string.Empty, "Unable to start card payment right now. Please try again.");
+                var invalidVm = await BuildCheckoutViewModelAsync(userId, vm);
+                return View(CheckoutViewPath, invalidVm);
             }
         }
 
@@ -243,7 +343,7 @@ public class OrdersController : Controller
         {
             _logger.LogError(ex, "PlaceOrder failed for UserId={UserId}.", userId);
             TempData["Error"] = "Something went wrong while placing your order. Please try again.";
-            return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod });
+            return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod = vm.PaymentMethod });
         }
     }
 
@@ -625,6 +725,148 @@ public class OrdersController : Controller
         return paymentMethod == PaymentMethodCreditCard
             ? PaymentMethodCreditCard
             : PaymentMethodCashOnDelivery;
+    }
+
+    private async Task<CheckoutVM> BuildCheckoutViewModelAsync(string userId, CheckoutVM? request = null)
+    {
+        var cart = await _unitOfWork.Carts.GetCartByUserIdAsync(userId);
+        var addresses = await _unitOfWork.Addresses.FindAllAsync(a => a.UserId == userId);
+
+        var defaultAddressId = addresses.FirstOrDefault(a => a.IsDefault)?.Id
+                               ?? addresses.FirstOrDefault()?.Id;
+
+        var vm = new CheckoutVM
+        {
+            Items = cart?.Items.Select(ci => new CheckoutItemCustomerVM
+            {
+                CartItemId       = ci.Id,
+                ProductVariantId = ci.ProductVariantId,
+                Quantity         = ci.Quantity,
+                PriceSnapshot    = ci.PriceSnapshot,
+                CurrentPrice     = ci.PriceSnapshot,
+                ProductName      = ci.ProductVariant.Product.Name,
+                Size             = ci.ProductVariant.Size,
+                Color            = ci.ProductVariant.Color,
+                ImageUrl         = ci.ProductVariant.Product.Images
+                                     .FirstOrDefault(i => i.IsMain)?.ImageUrl
+                                   ?? ci.ProductVariant.Product.Images
+                                     .OrderBy(i => i.DisplayOrder)
+                                     .FirstOrDefault()?.ImageUrl,
+                Stock            = ci.ProductVariant.Stock
+            }).ToList() ?? [],
+            Subtotal = cart?.Items.Sum(ci => ci.Quantity * ci.PriceSnapshot) ?? 0m,
+            Addresses = addresses.Select(a => new AddressOptionCustomerVM
+            {
+                Id          = a.Id,
+                FullName    = a.FullName,
+                PhoneNumber = a.PhoneNumber,
+                Street      = a.Street,
+                City        = a.City,
+                State       = a.State,
+                Country     = a.Country,
+                PostalCode  = a.PostalCode,
+                IsDefault   = a.IsDefault,
+                DisplayLine = BuildAddressLine(a)
+            }).ToList(),
+            DefaultAddressId   = defaultAddressId,
+            AddressId          = request?.AddressId ?? defaultAddressId,
+            CouponCode         = request?.CouponCode?.Trim(),
+            PaymentMethod      = NormalizePaymentMethod(request?.PaymentMethod),
+            ShowNewAddressForm = request?.ShowNewAddressForm ?? !addresses.Any(),
+            SaveNewAddress     = request?.SaveNewAddress ?? true,
+            NewAddressFullName = request?.NewAddressFullName ?? string.Empty,
+            NewAddressPhoneNumber = request?.NewAddressPhoneNumber ?? string.Empty,
+            NewAddressStreet   = request?.NewAddressStreet ?? string.Empty,
+            NewAddressCity     = request?.NewAddressCity ?? string.Empty,
+            NewAddressState    = request?.NewAddressState,
+            NewAddressCountry  = string.IsNullOrWhiteSpace(request?.NewAddressCountry)
+                                    ? "Egypt"
+                                    : request!.NewAddressCountry,
+            NewAddressPostalCode = request?.NewAddressPostalCode ?? string.Empty
+        };
+
+        var (_, discountAmount, couponError, appliedCode) = await ResolveCouponAsync(userId, vm.CouponCode, vm.Subtotal);
+        vm.DiscountAmount = discountAmount;
+        vm.CouponCode = appliedCode ?? vm.CouponCode;
+        vm.CouponApplied = string.IsNullOrWhiteSpace(couponError) && discountAmount > 0 && !string.IsNullOrWhiteSpace(vm.CouponCode);
+        vm.CouponMessage = couponError ?? (vm.CouponApplied ? $"Coupon '{vm.CouponCode}' applied successfully." : null);
+
+        return vm;
+    }
+
+    private bool TryValidateInlineAddress(CheckoutVM vm)
+    {
+        var isValid = true;
+
+        if (string.IsNullOrWhiteSpace(vm.NewAddressFullName))
+        {
+            ModelState.AddModelError(nameof(vm.NewAddressFullName), "Full name is required.");
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(vm.NewAddressPhoneNumber))
+        {
+            ModelState.AddModelError(nameof(vm.NewAddressPhoneNumber), "Phone number is required.");
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(vm.NewAddressStreet))
+        {
+            ModelState.AddModelError(nameof(vm.NewAddressStreet), "Street address is required.");
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(vm.NewAddressCity))
+        {
+            ModelState.AddModelError(nameof(vm.NewAddressCity), "City is required.");
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(vm.NewAddressCountry))
+        {
+            ModelState.AddModelError(nameof(vm.NewAddressCountry), "Country is required.");
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(vm.NewAddressPostalCode))
+        {
+            ModelState.AddModelError(nameof(vm.NewAddressPostalCode), "Postal code is required.");
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    private async Task<Address> CreateInlineAddressAsync(string userId, CheckoutVM vm, bool makeDefault)
+    {
+        if (makeDefault)
+        {
+            var existingDefaults = await _unitOfWork.Addresses
+                .FindAllAsync(a => a.UserId == userId && a.IsDefault);
+
+            foreach (var existing in existingDefaults)
+            {
+                existing.IsDefault = false;
+                _unitOfWork.Addresses.Update(existing);
+            }
+        }
+
+        var address = new Address
+        {
+            UserId = userId,
+            FullName = vm.NewAddressFullName.Trim(),
+            PhoneNumber = vm.NewAddressPhoneNumber.Trim(),
+            Street = vm.NewAddressStreet.Trim(),
+            City = vm.NewAddressCity.Trim(),
+            State = string.IsNullOrWhiteSpace(vm.NewAddressState) ? null : vm.NewAddressState.Trim(),
+            Country = vm.NewAddressCountry.Trim(),
+            PostalCode = vm.NewAddressPostalCode.Trim(),
+            IsDefault = makeDefault
+        };
+
+        await _unitOfWork.Addresses.AddAsync(address);
+        await _unitOfWork.SaveAsync();
+        return address;
     }
 
     private bool IsStripeConfigured()

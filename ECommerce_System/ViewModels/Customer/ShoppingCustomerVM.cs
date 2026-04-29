@@ -10,11 +10,29 @@ public class CheckoutVM
     public bool CouponApplied { get; set; }
     public string? CouponMessage { get; set; }
     public int? AddressId { get; set; }
+    public bool ShowNewAddressForm { get; set; }
+    public bool SaveNewAddress { get; set; } = true;
+    public string NewAddressFullName { get; set; } = string.Empty;
+    public string NewAddressPhoneNumber { get; set; } = string.Empty;
+    public string NewAddressStreet { get; set; } = string.Empty;
+    public string NewAddressCity { get; set; } = string.Empty;
+    public string? NewAddressState { get; set; }
+    public string NewAddressCountry { get; set; } = string.Empty;
+    public string NewAddressPostalCode { get; set; } = string.Empty;
     public decimal Subtotal { get; set; }
     public decimal DiscountAmount { get; set; }
 
     public decimal Total => Subtotal - DiscountAmount;
     public int ItemsCount => Items.Sum(i => i.Quantity);
+
+    public bool HasNewAddressInput =>
+        !string.IsNullOrWhiteSpace(NewAddressFullName) ||
+        !string.IsNullOrWhiteSpace(NewAddressPhoneNumber) ||
+        !string.IsNullOrWhiteSpace(NewAddressStreet) ||
+        !string.IsNullOrWhiteSpace(NewAddressCity) ||
+        !string.IsNullOrWhiteSpace(NewAddressState) ||
+        !string.IsNullOrWhiteSpace(NewAddressCountry) ||
+        !string.IsNullOrWhiteSpace(NewAddressPostalCode);
 }
 
 public class CheckoutItemCustomerVM

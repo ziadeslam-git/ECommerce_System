@@ -66,7 +66,7 @@
                 <!-- Email -->
                 <div class="space-y-2">
                     <label asp-for="Email" class="text-[13px] font-semibold text-slate-700 dark:text-slate-300 ml-1"></label>
-                    <input asp-for="Email" disabled class="w-full h-11 px-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-sm cursor-not-allowed outline-none" />
+                    <input asp-for="Email" readonly class="w-full h-11 px-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-sm cursor-default outline-none" />
                 </div>
 
                 <!-- Phone -->
@@ -74,10 +74,10 @@
                     <label asp-for="PhoneNumber" class="text-[13px] font-semibold text-slate-700 dark:text-slate-300 ml-1"></label>
                     <div class="flex">
                         <div class="relative">
-                            <select class="h-11 pl-4 pr-8 rounded-l-lg border-y border-l border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:ring-0 focus:border-slate-200 dark:focus:border-slate-700 appearance-none">
-                                <option>+1</option>
-                                <option>+44</option>
-                                <option>+20</option>
+                            <select asp-for="PhoneCountryCode" class="h-11 pl-4 pr-8 rounded-l-lg border-y border-l border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:ring-0 focus:border-slate-200 dark:focus:border-slate-700 appearance-none">
+                                <option value="+1">+1</option>
+                                <option value="+44">+44</option>
+                                <option value="+20">+20</option>
                             </select>
                         </div>
                         <input asp-for="PhoneNumber" class="w-full h-11 px-4 rounded-r-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" placeholder="1234567890" />

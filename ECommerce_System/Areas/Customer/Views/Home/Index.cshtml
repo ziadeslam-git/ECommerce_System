@@ -6,67 +6,428 @@
     var categories = Model?.Categories ?? [];
     var isAr = System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("ar", StringComparison.OrdinalIgnoreCase);
     string T(string en, string ar) => isAr ? ar : en;
+
+    var heroProduct = featured.FirstOrDefault();
+    var heroImage = heroProduct?.MainImageUrl ?? "https://placehold.co/900x1100/eef2ff/4648d4?text=Smart+Store";
+    var galleryCards = featured.Take(6).ToList();
+    var bundleCards = featured.Skip(1).Take(3).ToList();
+    var freshDropCards = featured.Take(10).ToList();
+
+    while (galleryCards.Count < 6)
+    {
+        galleryCards.AddRange(featured.Take(Math.Max(1, 6 - galleryCards.Count)));
+        if (!featured.Any()) break;
+    }
+
+    galleryCards = galleryCards.Take(6).ToList();
+
+    while (bundleCards.Count < 3)
+    {
+        bundleCards.AddRange(featured.Take(Math.Max(1, 3 - bundleCards.Count)));
+        if (!featured.Any()) break;
+    }
+
+    bundleCards = bundleCards.Take(3).ToList();
+
+    var bundleBaseTotal = bundleCards.Sum(item => item.MinVariantPrice > 0 ? item.MinVariantPrice : item.BasePrice);
+    var bundleDiscountedTotal = bundleBaseTotal > 0 ? Math.Round(bundleBaseTotal * 0.85m, 2) : 0m;
 }
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="rounded-3xl bg-gradient-to-r from-primary/10 to-indigo-100 p-8 md:p-12">
-        <h1 class="text-3xl md:text-5xl font-black text-slate-900">@T("Welcome to Smart Store","مرحباً بك في سمارت ستور")</h1>
-        <p class="text-slate-600 mt-3">@T("Discover curated products and gifts picked for you.","اكتشف منتجات وهدايا مختارة خصيصاً لك.")</p>
-        <div class="mt-6 flex gap-3">
-            <a asp-area="Customer" asp-controller="Products" asp-action="Index" class="px-5 py-3 rounded-lg bg-primary text-white font-semibold">@T("Products","المنتجات")</a>
-            <a asp-area="Customer" asp-controller="Wishlist" asp-action="Index" class="px-5 py-3 rounded-lg border border-slate-300 bg-white font-semibold">@T("Wishlist","المفضلة")</a>
-        </div>
-    </div>
-</section>
-
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-2xl font-bold">@T("Featured Products","المنتجات الحديثة")</h2>
-        <a asp-area="Customer" asp-controller="Products" asp-action="Index" class="text-primary text-sm font-semibold hover:underline">@T("View all","عرض الكل")</a>
-    </div>
-
-    @if (!featured.Any())
-    {
-        <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center text-slate-500">@T("No featured products yet.","لا توجد منتجات مميزة حالياً.")</div>
+<style>
+    @@keyframes fresh-drops-scroll {
+        from {
+            transform: translate3d(0, 0, 0);
+        }
+        to {
+            transform: translate3d(-50%, 0, 0);
+        }
     }
-    else
-    {
-        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-            @foreach (var p in featured)
-            {
-                <article class="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition">
-                    <a asp-area="Customer" asp-controller="Products" asp-action="Details" asp-route-id="@p.Id" class="block aspect-[4/5] bg-slate-100">
-                        <img src="@(p.MainImageUrl ?? "https://placehold.co/600x700")" alt="@p.Name" class="w-full h-full object-cover" />
-                    </a>
-                    <div class="p-3 space-y-1">
-                        <a asp-area="Customer" asp-controller="Products" asp-action="Details" asp-route-id="@p.Id" class="font-semibold line-clamp-1 hover:text-primary">@p.Name</a>
-                        <p class="text-xs text-slate-500">@p.CategoryName</p>
-                        <p class="font-bold text-primary">@((p.MinVariantPrice > 0 ? p.MinVariantPrice : p.BasePrice).ToString("0.00")) EGP</p>
-                        <div class="text-amber-500 text-sm">@(new string('★', (int)Math.Round(p.AverageRating == 0 ? 5 : p.AverageRating)))</div>
+
+    .fresh-drops-marquee {
+        mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+        -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+    }
+
+    .fresh-drops-track {
+        width: max-content;
+        animation: fresh-drops-scroll 34s linear infinite;
+        will-change: transform;
+    }
+
+    .fresh-drops-marquee:hover .fresh-drops-track {
+        animation-play-state: paused;
+    }
+</style>
+
+<div class="relative flex min-h-screen flex-col overflow-x-hidden bg-slate-50 text-slate-900">
+    <main class="flex-grow">
+        <section class="px-6 py-8 md:px-12 xl:px-20">
+            <div class="mx-auto max-w-7xl">
+                <div class="relative flex flex-col items-center gap-10 overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary/10 via-white to-pink-100/60 p-8 md:flex-row md:p-14 xl:p-16">
+                    <div class="absolute -right-16 top-8 h-56 w-56 rounded-full bg-primary/20 blur-3xl"></div>
+                    <div class="absolute -bottom-20 left-12 h-64 w-64 rounded-full bg-pink-200/35 blur-3xl"></div>
+
+                    <div class="relative z-10 flex-1 space-y-6">
+                        <span class="inline-block rounded-full bg-white px-4 py-1 text-xs font-black uppercase tracking-[0.22em] text-primary shadow-sm">
+                            @T("Collection 2026", "مجموعة 2026")
+                        </span>
+
+                        <div class="space-y-4">
+                            <h1 class="max-w-3xl text-4xl font-black leading-none tracking-[-0.06em] text-slate-950 sm:text-5xl lg:text-7xl">
+                                @T("Wear Your Story.", "البس قصتك.")
+                                <span class="block text-primary">@T("Gift It Boldly.", "وقدمها بهدية جريئة.")</span>
+                            </h1>
+                            <p class="max-w-xl text-base font-medium leading-7 text-slate-600 sm:text-lg">
+                                @T("Discover premium t-shirts, curated gift picks, and expressive drops built for people who like their style loud and personal.",
+                                   "اكتشف تيشيرتات مميزة وهدايا مختارة ومنتجات تعبر عن شخصيتك بأسلوب واضح وجذاب.")
+                            </p>
+                        </div>
+
+                        <div class="flex flex-wrap gap-4 pt-2">
+                            <a asp-area="Customer"
+                               asp-controller="Products"
+                               asp-action="Index"
+                               class="inline-flex items-center justify-center rounded-2xl bg-primary px-8 py-4 text-base font-black text-white shadow-xl shadow-primary/30 transition-all hover:-translate-y-0.5 hover:shadow-primary/40">
+                                @T("Shop Products", "تسوق المنتجات")
+                            </a>
+                            <a asp-area="Customer"
+                               asp-controller="Wishlist"
+                               asp-action="Index"
+                               class="inline-flex items-center justify-center rounded-2xl border-2 border-primary bg-white px-8 py-4 text-base font-black text-primary transition-colors hover:bg-primary/5">
+                                @T("My Wishlist", "المفضلة")
+                            </a>
+                        </div>
                     </div>
-                </article>
-            }
-        </div>
-    }
-</section>
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <h2 class="text-2xl font-bold mb-4">@T("Categories","الفئات")</h2>
-    @if (!categories.Any())
-    {
-        <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center text-slate-500">@T("No categories available.","لا توجد فئات متاحة.")</div>
-    }
-    else
-    {
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            @foreach (var c in categories)
-            {
-                <a asp-area="Customer" asp-controller="Products" asp-action="Index" asp-route-category="@c.Name"
-                   class="bg-white rounded-2xl border border-slate-200 p-5 hover:border-primary hover:shadow-md transition">
-                    <p class="text-lg font-bold">@c.Name</p>
-                    <p class="text-sm text-slate-500 mt-1">@c.ProductCount @T("products","منتج")</p>
-                </a>
-            }
-        </div>
-    }
-</section>
+                    <div class="relative z-10 w-full max-w-md flex-1">
+                        <div class="relative aspect-square rotate-3 overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary to-pink-400 shadow-2xl">
+                            <img src="@heroImage"
+                                 alt="@(heroProduct?.Name ?? "Smart Store")"
+                                 class="h-full w-full -rotate-3 scale-110 object-cover" />
+                            <div class="absolute inset-x-4 bottom-4 rounded-2xl bg-white/90 p-4 shadow-lg backdrop-blur">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">@T("Featured Pick", "الاختيار المميز")</p>
+                                        <p class="text-lg font-black text-slate-900">@(heroProduct?.Name ?? T("Smart Store Drop", "إصدار سمارت ستور"))</p>
+                                    </div>
+                                    <span class="text-lg font-black text-primary">
+                                        @(((heroProduct?.MinVariantPrice > 0 ? heroProduct.MinVariantPrice : heroProduct?.BasePrice) ?? 0m).ToString("0.00")) EGP
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="px-6 py-10 md:px-12 xl:px-20">
+            <div class="mx-auto max-w-7xl">
+                <div class="relative overflow-hidden rounded-[2.5rem] bg-slate-950 p-8 text-white md:p-12">
+                    <div class="absolute right-0 top-0 h-full w-1/3 rounded-full bg-primary/20 blur-[120px]"></div>
+                    <div class="relative z-10 grid items-center gap-12 md:grid-cols-2">
+                        <div class="space-y-6">
+                            <div class="flex items-center gap-2 text-yellow-300">
+                                <span class="material-symbols-outlined">featured_seasonal_and_gifts</span>
+                                <span class="text-sm font-black uppercase tracking-[0.18em]">@T("Gift Experience", "تجربة الهدايا")</span>
+                            </div>
+
+                            <h2 class="text-3xl font-extrabold tracking-tight md:text-5xl">
+                                @T("Build the perfect gift mood.", "كوّن الهدية المثالية.")
+                            </h2>
+
+                            <p class="text-lg leading-8 text-slate-300">
+                                @T("Pair your favorite tees with creative picks and standout details to create a shopping experience that feels personal from the first click.",
+                                   "امزج بين التيشيرتات المفضلة لديك واختيارات مميزة ولمسات قوية لتجربة تسوق شخصية من أول ضغطة.")
+                            </p>
+
+                            <div class="space-y-4 py-2">
+                                <div class="flex items-center gap-4">
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 font-black">1</div>
+                                    <p class="font-bold">@T("Choose a standout product", "اختر منتجك المميز")</p>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 font-black">2</div>
+                                    <p class="font-bold">@T("Save your favorites for later", "احفظ المفضلات لوقت لاحق")</p>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 font-black">3</div>
+                                    <p class="font-bold">@T("Checkout with your preferred flow", "أكمل الطلب بالطريقة المناسبة لك")</p>
+                                </div>
+                            </div>
+
+                            <a asp-area="Customer"
+                               asp-controller="Products"
+                               asp-action="Index"
+                               class="inline-flex items-center justify-center gap-3 rounded-2xl bg-primary px-10 py-5 text-lg font-black transition hover:bg-primary/90">
+                                @T("Start Shopping", "ابدأ التسوق")
+                                <span class="material-symbols-outlined">arrow_forward</span>
+                            </a>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            @foreach (var item in featured.Take(3))
+                            {
+                                <a asp-area="Customer"
+                                   asp-controller="Products"
+                                   asp-action="Details"
+                                   asp-route-id="@item.Id"
+                                   class="flex aspect-square flex-col items-center justify-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-primary/50">
+                                    <img src="@(item.MainImageUrl ?? "https://placehold.co/300x300/e5e7eb/0f172a?text=Item")"
+                                         alt="@item.Name"
+                                         class="h-24 w-24 rounded-2xl object-cover shadow-md" />
+                                    <span class="text-center text-xs font-bold uppercase tracking-[0.14em] text-slate-300">@item.Name</span>
+                                </a>
+                            }
+                            <div class="flex aspect-square flex-col items-center justify-center gap-4 rounded-2xl border border-primary/30 bg-primary/15 p-4">
+                                <span class="material-symbols-outlined text-5xl text-primary">redeem</span>
+                                <span class="text-xs font-bold uppercase tracking-[0.14em] text-primary">@T("Preview the vibe", "عاين الستايل")</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="px-6 py-10 md:px-12 xl:px-20">
+            <div class="mx-auto max-w-7xl">
+                <div class="mb-10 flex items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-3xl font-black italic tracking-[-0.05em]">@T("Fresh Drops", "أحدث الإضافات")</h2>
+                        <p class="mt-2 text-sm font-medium text-slate-500">@T("Our newest featured pieces, ready to shop now.", "أحدث المنتجات المميزة الجاهزة للتسوق الآن.")</p>
+                    </div>
+                    <a asp-area="Customer"
+                       asp-controller="Products"
+                       asp-action="Index"
+                       class="inline-flex items-center gap-1 font-bold text-primary hover:underline">
+                        @T("View All", "عرض الكل")
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </a>
+                </div>
+
+                @if (!freshDropCards.Any())
+                {
+                    <div class="rounded-[2rem] border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">
+                        @T("No featured products are available right now.", "لا توجد منتجات مميزة متاحة حاليًا.")
+                    </div>
+                }
+                else
+                {
+                    <div class="fresh-drops-marquee overflow-hidden">
+                        <div class="fresh-drops-track flex items-stretch gap-6 py-2">
+                            @foreach (var item in freshDropCards.Concat(freshDropCards))
+                            {
+                                var price = item.MinVariantPrice > 0 ? item.MinVariantPrice : item.BasePrice;
+                                var rating = (int)Math.Round(item.AverageRating);
+                                var productImage = item.MainImageUrl ?? "https://placehold.co/700x900/e5e7eb/0f172a?text=Product";
+                                <article class="group w-[260px] flex-shrink-0 sm:w-[280px] lg:w-[300px]">
+                                    <div class="relative mb-4 aspect-[3/4] overflow-hidden rounded-[2rem] bg-slate-100 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-2xl">
+                                        <a asp-area="Customer"
+                                           asp-controller="Products"
+                                           asp-action="Details"
+                                           asp-route-id="@item.Id"
+                                           class="block h-full w-full">
+                                            <img src="@productImage" alt="@item.Name" class="h-full w-full object-cover" />
+                                        </a>
+
+                                        @if (item.DefaultVariantId.HasValue)
+                                        {
+                                            <form asp-area="Customer"
+                                                  asp-controller="Cart"
+                                                  asp-action="AddToCart"
+                                                  method="post"
+                                                  data-ajax-form="cart"
+                                                  class="absolute bottom-4 right-4">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="productVariantId" value="@item.DefaultVariantId" />
+                                                <input type="hidden" name="quantity" value="1" />
+                                                <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                                                <button type="submit"
+                                                        class="rounded-full bg-white p-3 text-slate-900 shadow-md opacity-0 transition-opacity group-hover:opacity-100">
+                                                    <span class="material-symbols-outlined">add_shopping_cart</span>
+                                                </button>
+                                            </form>
+                                        }
+
+                                        <div class="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white">
+                                            @(item.CategoryName ?? T("Featured", "مميز"))
+                                        </div>
+                                    </div>
+
+                                    <div class="space-y-2 px-2">
+                                        <a asp-area="Customer"
+                                           asp-controller="Products"
+                                           asp-action="Details"
+                                           asp-route-id="@item.Id"
+                                           class="block text-lg font-bold transition-colors hover:text-primary">
+                                            @item.Name
+                                        </a>
+                                        <div class="flex items-center justify-between gap-3">
+                                            <div class="flex items-center gap-1 text-amber-400">
+                                                @for (int star = 1; star <= 5; star++)
+                                                {
+                                                    <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' @(star <= rating ? "1" : "0")">star</span>
+                                                }
+                                            </div>
+                                            <span class="text-lg font-black text-primary">@price.ToString("0.00") EGP</span>
+                                        </div>
+                                    </div>
+                                </article>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+
+        <section class="bg-white/80 px-6 py-16 md:px-12 xl:px-20">
+            <div class="mx-auto max-w-7xl">
+                <div class="mb-12 text-center">
+                    <h2 class="text-4xl font-black italic tracking-[-0.05em]">@T("Shop by Category", "تسوق حسب الفئة")</h2>
+                    <p class="mt-3 text-slate-500">@T("Jump into the collections your customers care about most.", "ادخل مباشرة على الفئات الأهم داخل المتجر.")</p>
+                </div>
+
+                @if (!categories.Any())
+                {
+                    <div class="rounded-[2rem] border border-dashed border-slate-300 bg-slate-50 p-12 text-center text-slate-500">
+                        @T("No categories available right now.", "لا توجد فئات متاحة الآن.")
+                    </div>
+                }
+                else
+                {
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        @foreach (var category in categories)
+                        {
+                            <a asp-area="Customer"
+                               asp-controller="Products"
+                               asp-action="Index"
+                               asp-route-categoryId="@category.Id"
+                               class="group rounded-[1.75rem] border border-slate-200 bg-slate-50 p-6 transition-all hover:-translate-y-1 hover:border-primary/30 hover:bg-white hover:shadow-lg">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p class="text-2xl font-black tracking-tight text-slate-900">@category.Name</p>
+                                        <p class="mt-2 text-sm font-medium text-slate-500">@category.ProductCount @T("products available", "منتج متاح")</p>
+                                    </div>
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                                        <span class="material-symbols-outlined">arrow_outward</span>
+                                    </div>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
+
+        @if (galleryCards.Any())
+        {
+            <section class="px-6 py-16 md:px-12 xl:px-20">
+                <div class="mx-auto max-w-7xl">
+                    <div class="mb-12 text-center">
+                        <h2 class="text-4xl font-black italic tracking-[-0.05em]">@T("Style Highlights", "لقطات مميزة")</h2>
+                        <p class="mt-3 text-slate-500">@T("A visual slice of the current store mood and featured picks.", "لمحة بصرية عن مود المتجر الحالي والمنتجات البارزة.")</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+                        @foreach (var item in galleryCards)
+                        {
+                            <a asp-area="Customer"
+                               asp-controller="Products"
+                               asp-action="Details"
+                               asp-route-id="@item.Id"
+                               class="group relative aspect-square overflow-hidden rounded-2xl">
+                                <img src="@(item.MainImageUrl ?? "https://placehold.co/400x400/e5e7eb/0f172a?text=Look")"
+                                     alt="@item.Name"
+                                     class="h-full w-full object-cover" />
+                                <div class="absolute inset-0 flex items-center justify-center bg-primary/40 opacity-0 transition-opacity group-hover:opacity-100">
+                                    <span class="material-symbols-outlined text-3xl text-white">favorite</span>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                </div>
+            </section>
+        }
+
+        @if (bundleCards.Any())
+        {
+            <section class="px-6 py-8 md:px-12 xl:px-20">
+                <div class="mx-auto max-w-7xl rounded-[2rem] border border-primary/10 bg-gradient-to-br from-indigo-50 via-slate-50 to-white p-6 shadow-[0_20px_40px_rgba(15,23,42,0.04)] md:p-8">
+                    <div class="flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="max-w-md space-y-5">
+                            <h2 class="text-4xl font-black leading-tight tracking-[-0.05em] text-slate-950">
+                                @T("Frequently Bought Together", "يُشترى معًا كثيرًا")
+                            </h2>
+                            <p class="text-base leading-8 text-slate-600">
+                                @T("Complete the look with a hand-picked bundle of standout pieces from the current collection and save on the combined mood.",
+                                   "أكمل الستايل بحزمة مختارة من القطع المميزة في التشكيلة الحالية واستفد من سعر أفضل للمجموعة.")
+                            </p>
+                            <div class="flex items-end gap-3">
+                                <span class="text-4xl font-black text-primary">@bundleDiscountedTotal.ToString("0.00") EGP</span>
+                                @if (bundleBaseTotal > 0)
+                                {
+                                    <span class="pb-1 text-lg text-slate-400 line-through">@bundleBaseTotal.ToString("0.00") EGP</span>
+                                }
+                            </div>
+                            <a asp-area="Customer"
+                               asp-controller="Products"
+                               asp-action="Index"
+                               class="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-8 py-4 text-base font-black text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90">
+                                <span class="material-symbols-outlined">auto_fix_high</span>
+                                @T("Explore Bundle Picks", "استكشف عناصر الحزمة")
+                            </a>
+                        </div>
+
+                        <div class="flex flex-wrap items-center justify-center gap-4">
+                            @for (int i = 0; i < bundleCards.Count; i++)
+                            {
+                                var item = bundleCards[i];
+                                <text>
+                                    <a asp-area="Customer"
+                                       asp-controller="Products"
+                                       asp-action="Details"
+                                       asp-route-id="@item.Id"
+                                       class="group flex h-32 w-32 items-center justify-center overflow-hidden rounded-[1.5rem] border-2 border-white bg-slate-100 shadow-xl transition hover:-translate-y-1 sm:h-40 sm:w-40">
+                                        <img src="@(item.MainImageUrl ?? "https://placehold.co/400x400/e5e7eb/0f172a?text=Bundle")"
+                                             alt="@item.Name"
+                                             class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                    </a>
+                                </text>
+                                @if (i < bundleCards.Count - 1)
+                                {
+                                    <span class="material-symbols-outlined text-3xl font-light text-slate-400">add</span>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            </section>
+        }
+
+        <section class="px-6 py-16 md:px-12 xl:px-20">
+            <div class="mx-auto max-w-4xl rounded-[2rem] bg-primary p-8 text-center text-white md:p-12">
+                <div class="space-y-6">
+                    <h2 class="text-3xl font-black tracking-tight md:text-4xl">@T("Join the Smart Store community", "انضم لمجتمع سمارت ستور")</h2>
+                    <p class="text-lg font-medium text-white/80">
+                        @T("Explore the newest drops, keep your wishlist close, and jump back into your favorite picks anytime.",
+                           "استكشف أحدث الإضافات واحتفظ بمفضلتك وارجع لمنتجاتك المفضلة في أي وقت.")
+                    </p>
+                    <div class="flex flex-col justify-center gap-4 pt-2 sm:flex-row">
+                        <a asp-area="Customer"
+                           asp-controller="Products"
+                           asp-action="Index"
+                           class="inline-flex items-center justify-center rounded-2xl bg-white px-8 py-4 text-sm font-black uppercase tracking-[0.16em] text-primary transition-colors hover:bg-slate-100">
+                            @T("Explore Now", "استكشف الآن")
+                        </a>
+                        <a asp-area="Customer"
+                           asp-controller="Orders"
+                           asp-action="Index"
+                           class="inline-flex items-center justify-center rounded-2xl border border-white/30 px-8 py-4 text-sm font-black uppercase tracking-[0.16em] text-white transition-colors hover:bg-white/10">
+                            @T("My Orders", "طلباتي")
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>

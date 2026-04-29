@@ -2,16 +2,16 @@
     ViewData["Title"] = "Dashboard";
 }
 
-<div class="relative overflow-hidden rounded-[32px] border border-slate-200/80 bg-gradient-to-br from-[#eef2ff] via-white to-[#edf7ff] p-6 shadow-sm dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 md:p-8">
+<div class="relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-gradient-to-br from-[#eef2ff] via-white to-[#edf7ff] p-4 shadow-sm dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 sm:rounded-[28px] sm:p-5 md:rounded-[32px] md:p-8">
     <div class="pointer-events-none absolute -left-12 top-6 h-36 w-36 rounded-full bg-indigo-200/40 blur-3xl dark:bg-indigo-500/10"></div>
     <div class="pointer-events-none absolute -right-10 bottom-6 h-40 w-40 rounded-full bg-sky-200/40 blur-3xl dark:bg-sky-500/10"></div>
     <div class="pointer-events-none absolute inset-x-1/4 top-0 h-24 rounded-full bg-white/40 blur-3xl dark:bg-white/5"></div>
 
     <div class="relative space-y-8">
 <!-- Section 1: Stats Cards -->
-<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+<div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-4">
     <!-- Revenue Card -->
-    <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col">
+    <div class="flex flex-col rounded-xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-6">
         <div class="flex justify-between items-start mb-4">
             <div class="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400">
                 <span class="material-symbols-outlined">payments</span>
@@ -24,7 +24,7 @@
     </div>
     
     <!-- Orders Card -->
-    <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col">
+    <div class="flex flex-col rounded-xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-6">
         <div class="flex justify-between items-start mb-4">
             <div class="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg text-amber-600 dark:text-amber-400">
                 <span class="material-symbols-outlined">shopping_cart</span>
@@ -37,7 +37,7 @@
     </div>
     
     <!-- Products Card -->
-    <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col">
+    <div class="flex flex-col rounded-xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-6">
         <div class="flex justify-between items-start mb-4">
             <div class="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg text-purple-600 dark:text-purple-400">
                 <span class="material-symbols-outlined">package</span>
@@ -48,7 +48,7 @@
     </div>
     
     <!-- Customers Card -->
-    <div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col">
+    <div class="flex flex-col rounded-xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-6">
         <div class="flex justify-between items-start mb-4">
             <div class="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-lg text-teal-600 dark:text-teal-400">
                 <span class="material-symbols-outlined">groups</span>
@@ -63,15 +63,62 @@
 <div class="grid grid-cols-1 gap-8 lg:grid-cols-10">
     
     <!-- Left: Recent Orders Table (60%) -->
-    <div class="lg:col-span-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col max-h-[460px]">
-        <div class="p-6 flex justify-between items-center border-b border-slate-100 dark:border-slate-800">
+    <div class="flex max-h-[460px] flex-col overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-6">
+        <div class="flex items-center justify-between gap-3 border-b border-slate-100 p-4 dark:border-slate-800 md:p-6">
             <h3 class="text-slate-800 dark:text-slate-100 font-bold">Recent Orders</h3>
-            <a asp-controller="Orders" asp-action="Index" asp-area="Admin" class="text-primary text-sm font-medium hover:underline flex items-center gap-1">
+            <a asp-controller="Orders" asp-action="Index" asp-area="Admin" class="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline sm:text-sm">
                 View all <span class="material-symbols-outlined !text-sm">arrow_forward</span>
             </a>
         </div>
+
+        <div class="space-y-3 p-4 md:hidden">
+            @if (ViewBag.RecentOrders != null && ((IEnumerable<ECommerce_System.Models.Order>)ViewBag.RecentOrders).Any())
+            {
+                foreach (var order in (IEnumerable<ECommerce_System.Models.Order>)ViewBag.RecentOrders)
+                {
+                    string statusBg, statusText, statusDarkBg, statusDarkText;
+                    switch (order.Status)
+                    {
+                        case ECommerce_System.Utilities.SD.Status_Delivered:
+                            statusBg = "bg-green-100"; statusText = "text-green-700"; statusDarkBg = "dark:bg-green-900/40"; statusDarkText = "dark:text-green-400"; break;
+                        case ECommerce_System.Utilities.SD.Status_Processing:
+                            statusBg = "bg-amber-100"; statusText = "text-amber-700"; statusDarkBg = "dark:bg-amber-900/40"; statusDarkText = "dark:text-amber-400"; break;
+                        case ECommerce_System.Utilities.SD.Status_Cancelled:
+                            statusBg = "bg-red-100"; statusText = "text-red-700"; statusDarkBg = "dark:bg-red-900/40"; statusDarkText = "dark:text-red-400"; break;
+                        default:
+                            statusBg = "bg-slate-100"; statusText = "text-slate-700"; statusDarkBg = "dark:bg-slate-800"; statusDarkText = "dark:text-slate-400"; break;
+                    }
+
+                    <article class="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-bold text-primary">#ORD-@order.Id</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">@(order.User?.FullName ?? order.Address?.FullName ?? "Unknown")</p>
+                            </div>
+                            <span class="rounded-full px-2.5 py-1 text-[10px] font-bold @statusBg @statusText @statusDarkBg @statusDarkText">@order.Status</span>
+                        </div>
+                        <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Amount</p>
+                                <p class="mt-1 font-bold text-slate-900 dark:text-slate-100">@order.TotalAmount.ToString("C")</p>
+                            </div>
+                            <div>
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Date</p>
+                                <p class="mt-1 font-semibold text-slate-600 dark:text-slate-300">@order.CreatedAt.ToString("dd MMM yyyy")</p>
+                            </div>
+                        </div>
+                    </article>
+                }
+            }
+            else
+            {
+                <div class="rounded-[18px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                    No recent orders found.
+                </div>
+            }
+        </div>
         
-        <div class="overflow-y-auto flex-1">
+        <div class="hidden flex-1 overflow-y-auto md:block">
             <table class="w-full text-left border-collapse">
                 <thead class="sticky top-0 bg-slate-50 dark:bg-slate-800/80 backdrop-blur-sm z-10">
                     <tr>
@@ -125,20 +172,20 @@
     </div>
     
     <!-- Right: Top Products (40%) -->
-    <div class="lg:col-span-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 max-h-[460px] overflow-y-auto">
+    <div class="max-h-[460px] overflow-y-auto rounded-xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-6 lg:col-span-4">
         <h3 class="text-slate-800 dark:text-slate-100 font-bold mb-6">Top Products</h3>
         <div class="space-y-5">
             @if (ViewBag.TopProducts != null && ((IEnumerable<ECommerce_System.ViewModels.Admin.TopProductVM>)ViewBag.TopProducts).Any())
             {
                 foreach (var product in (IEnumerable<ECommerce_System.ViewModels.Admin.TopProductVM>)ViewBag.TopProducts)
                 {
-                    <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-3 md:gap-4">
                         <div class="size-10 rounded-lg bg-cover bg-center bg-slate-100 dark:bg-slate-800" style="background-image: url('@(string.IsNullOrEmpty(product.ImageUrl) ? "https://ui-avatars.com/api/?name=" + Uri.EscapeDataString(product.ProductName) + "&background=random&color=fff" : product.ImageUrl)')"></div>
-                        <div class="flex-1">
-                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@product.ProductName</p>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">@product.ProductName</p>
                             <p class="text-[12px] text-slate-400">@product.CategoryName</p>
                         </div>
-                        <p class="text-sm font-bold text-primary">@product.TotalSold sold</p>
+                        <p class="shrink-0 text-sm font-bold text-primary">@product.TotalSold sold</p>
                     </div>
                 }
             }
@@ -151,7 +198,7 @@
 </div>
 
 <!-- Section 3: Monthly Revenue Bar Chart (Full Width) -->
-<div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm p-8">
+<div class="rounded-xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-8">
     <h3 class="text-slate-800 dark:text-slate-100 font-bold mb-8">Monthly Revenue</h3>
     <div class="h-64 flex flex-col justify-end">
         <div class="flex-1 flex items-end justify-between gap-4 px-2 relative">

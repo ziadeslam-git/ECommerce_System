@@ -16,6 +16,7 @@ public class ProductCardVM
     public string? CategoryName { get; set; }
     public bool IsInWishlist { get; set; }
     public bool HasStock { get; set; }
+    public int AvailableStock { get; set; }
 }
 
 public class ProductIndexCustomerVM

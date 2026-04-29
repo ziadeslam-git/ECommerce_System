@@ -1,5 +1,7 @@
+@using System.Security.Claims
 @using ECommerce_System.Models
 @using Microsoft.AspNetCore.Identity
+@inject ECommerce_System.Repositories.IRepositories.IUnitOfWork Uow
 @inject UserManager<ApplicationUser> UserManager
 @{
     var profileUser = User.Identity?.IsAuthenticated == true ? await UserManager.GetUserAsync(User) : null;
@@ -7,6 +9,43 @@
         ? profileUser!.FullName
         : User.Identity?.Name ?? "My Profile";
     var profileImageUrl = profileUser?.ProfileImageUrl;
+    var currentArea = ViewContext.RouteData.Values["area"]?.ToString() ?? string.Empty;
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    var currentAction = ViewContext.RouteData.Values["Action"]?.ToString();
+    var cartCount = 0;
+    bool IsCurrent(string area, string controller, string? action = null)
+    {
+        if (!string.Equals(currentArea, area, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return string.IsNullOrWhiteSpace(action) ||
+               string.Equals(currentAction, action, StringComparison.OrdinalIgnoreCase);
+    }
+    var homeActive = IsCurrent("Customer", "Home");
+    var productsActive = IsCurrent("Customer", "Products");
+    var wishlistActive = IsCurrent("Customer", "Wishlist");
+    var cartActive = IsCurrent("Customer", "Cart");
+    var profileActive = IsCurrent("Identity", "Profile") || IsCurrent("Identity", "Account", "Login");
+    var ordersActive = IsCurrent("Customer", "Orders");
+
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            var currentCart = await Uow.Carts.GetCartByUserIdAsync(userId);
+            cartCount = currentCart?.Items.Sum(i => i.Quantity) ?? 0;
+        }
+    }
+    var currentSectionLabel = currentAction switch
+    {
+        "ChangePassword" => "Password",
+        "Addresses" or "AddAddress" or "EditAddress" => "Addresses",
+        _ => "Personal Info"
+    };
 }
 <!DOCTYPE html>
 <html lang="en" class="light">
@@ -33,6 +72,10 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .mobile-profile-menu summary::-webkit-details-marker { display: none; }
+        .mobile-profile-menu[open] .mobile-profile-chevron { transform: rotate(180deg); }
         .active-tab {
             background-color: rgba(100, 103, 242, 0.14);
             color: #ffffff;
@@ -64,9 +107,9 @@
                         <a asp-action="Index" asp-controller="Profile" asp-area="Identity" class="text-primary text-sm font-bold border-b-2 border-primary py-1">Profile</a>
                     </nav>
                     <div class="flex items-center gap-2">
-                        <button class="flex size-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-colors">
+                        <a asp-area="Customer" asp-controller="Cart" asp-action="Index" class="flex size-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-colors" title="Cart">
                             <span class="material-symbols-outlined">shopping_cart</span>
-                        </button>
+                        </a>
                         @if (User.Identity!.IsAuthenticated)
                         {
                             @if (User.IsInRole("Admin"))
@@ -95,11 +138,11 @@
                 </div>
             </header>
             
-            <main class="flex flex-1 justify-center py-8 px-4 md:px-10 lg:px-20">
+            <main class="flex flex-1 justify-center px-4 py-8 pb-28 md:px-10 md:pb-8 lg:px-20">
                 <div class="layout-content-container flex flex-col md:flex-row max-w-[1200px] flex-1 gap-8">
                     
                     <!-- Left Panel: Navigation Sidebar -->
-                    <aside class="w-full md:w-64 lg:w-[280px] shrink-0">
+                    <aside class="hidden w-full shrink-0 md:block md:w-64 lg:w-[280px]">
                         <div class="bg-sidebar-dark rounded-[18px] shadow-sm border border-white/10 overflow-hidden flex flex-col h-full min-h-[500px]">
                             
                             <!-- User Profile Header -->
@@ -119,9 +162,6 @@
                             
                             <!-- Navigation Tabs -->
                             <nav class="flex-grow py-4 flex flex-col" id="sidebar-nav">
-                                @{
-                                    var currentAction = ViewContext.RouteData.Values["Action"]?.ToString();
-                                }
                                 <a asp-action="Index" asp-controller="Profile" asp-area="Identity" 
                                    class="@(currentAction == "Index" ? "active-tab" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-r-[18px]") flex items-center gap-3 px-6 py-3 text-sm font-semibold transition-colors">
                                     <span class="material-symbols-outlined text-[20px] @(currentAction == "Index" ? "text-white" : "text-slate-400")">person</span>
@@ -153,6 +193,57 @@
                     
                     <!-- Right Panel: Main Content -->
                     <section class="flex-1 flex flex-col gap-6">
+                        <div class="md:hidden sticky top-[76px] z-30">
+                            <details class="mobile-profile-menu overflow-hidden rounded-[18px] border border-white/10 bg-sidebar-dark/95 text-white shadow-[0_18px_45px_rgba(15,23,42,0.22)] backdrop-blur">
+                                <summary class="flex cursor-pointer list-none items-center gap-3 px-4 py-4">
+                                    <div class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-white/5 ring-2 ring-white/10">
+                                        @if (!string.IsNullOrWhiteSpace(profileImageUrl))
+                                        {
+                                            <img src="@profileImageUrl" alt="@profileDisplayName" class="h-full w-full object-cover" />
+                                        }
+                                        else
+                                        {
+                                            <span class="material-symbols-outlined text-[28px] text-primary">person</span>
+                                        }
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="truncate text-sm font-bold">@profileDisplayName</p>
+                                        <div class="mt-1 inline-flex items-center rounded-full bg-white/8 px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+                                            @currentSectionLabel
+                                        </div>
+                                    </div>
+                                    <span class="material-symbols-outlined mobile-profile-chevron text-slate-300 transition-transform duration-200">expand_more</span>
+                                </summary>
+
+                                <div class="border-t border-white/10 px-3 pb-3 pt-2">
+                                    <div class="space-y-2">
+                                        <a asp-action="Index" asp-controller="Profile" asp-area="Identity"
+                                           class="@(currentAction == "Index" ? "bg-primary/90 text-white shadow-primary/30" : "bg-white/5 text-slate-300") flex items-center gap-3 rounded-[14px] px-4 py-3 text-sm font-semibold shadow-sm transition hover:bg-white/10">
+                                            <span class="material-symbols-outlined text-[18px]">person</span>
+                                            <span>Personal Info</span>
+                                        </a>
+                                        <a asp-action="ChangePassword" asp-controller="Profile" asp-area="Identity"
+                                           class="@(currentAction == "ChangePassword" ? "bg-primary/90 text-white shadow-primary/30" : "bg-white/5 text-slate-300") flex items-center gap-3 rounded-[14px] px-4 py-3 text-sm font-semibold shadow-sm transition hover:bg-white/10">
+                                            <span class="material-symbols-outlined text-[18px]">lock</span>
+                                            <span>Password</span>
+                                        </a>
+                                        <a asp-action="Addresses" asp-controller="Profile" asp-area="Identity"
+                                           class="@((currentAction == "Addresses" || currentAction == "AddAddress" || currentAction == "EditAddress") ? "bg-primary/90 text-white shadow-primary/30" : "bg-white/5 text-slate-300") flex items-center gap-3 rounded-[14px] px-4 py-3 text-sm font-semibold shadow-sm transition hover:bg-white/10">
+                                            <span class="material-symbols-outlined text-[18px]">location_on</span>
+                                            <span>Addresses</span>
+                                        </a>
+                                        <form asp-action="Logout" asp-controller="Account" asp-area="Identity" method="post" class="m-0">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="flex w-full items-center gap-3 rounded-[14px] bg-white/5 px-4 py-3 text-sm font-semibold text-slate-300 shadow-sm transition hover:bg-rose-500/15 hover:text-white">
+                                                <span class="material-symbols-outlined text-[18px]">logout</span>
+                                                <span>Sign Out</span>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+
                         @if (TempData["success"] != null)
                         {
                             <div class="bg-emerald-100 border border-emerald-400 text-emerald-700 px-4 py-3 rounded relative" role="alert">
@@ -174,6 +265,51 @@
             <footer class="mt-auto py-8 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-center">
                 <p class="text-slate-500 text-xs">© 2026 Smart Store. All rights reserved.</p>
             </footer>
+
+            <nav class="md:hidden fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3">
+                <div class="mx-auto max-w-lg rounded-[1.75rem] border border-slate-200/80 bg-white/95 px-2 py-2 shadow-[0_-10px_35px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+                    <div class="grid grid-cols-6 gap-1">
+                        <a asp-area="Customer" asp-controller="Home" asp-action="Index"
+                           class="flex min-w-0 flex-col items-center justify-center rounded-2xl px-1.5 py-2 text-[10px] font-semibold transition @(homeActive ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-500 hover:bg-slate-100")">
+                            <span class="material-symbols-outlined text-[21px]" style="font-variation-settings:'FILL' @(homeActive ? "1" : "0")">home</span>
+                            <span class="mt-1 leading-none">Home</span>
+                        </a>
+
+                        <a asp-area="Customer" asp-controller="Products" asp-action="Index"
+                           class="flex min-w-0 flex-col items-center justify-center rounded-2xl px-1.5 py-2 text-[10px] font-semibold transition @(productsActive ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-500 hover:bg-slate-100")">
+                            <span class="material-symbols-outlined text-[21px]" style="font-variation-settings:'FILL' @(productsActive ? "1" : "0")">storefront</span>
+                            <span class="mt-1 leading-none">Shop</span>
+                        </a>
+
+                        <a asp-area="Customer" asp-controller="Orders" asp-action="Index"
+                           class="flex min-w-0 flex-col items-center justify-center rounded-2xl px-1.5 py-2 text-[10px] font-semibold transition @(ordersActive ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-500 hover:bg-slate-100")">
+                            <span class="material-symbols-outlined text-[21px]" style="font-variation-settings:'FILL' @(ordersActive ? "1" : "0")">receipt_long</span>
+                            <span class="mt-1 leading-none">Orders</span>
+                        </a>
+
+                        <a asp-area="Customer" asp-controller="Wishlist" asp-action="Index"
+                           class="flex min-w-0 flex-col items-center justify-center rounded-2xl px-1.5 py-2 text-[10px] font-semibold transition @(wishlistActive ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-500 hover:bg-slate-100")">
+                            <span class="material-symbols-outlined text-[21px]" style="font-variation-settings:'FILL' @(wishlistActive ? "1" : "0")">favorite</span>
+                            <span class="mt-1 leading-none">Wishlist</span>
+                        </a>
+
+                        <a asp-area="Customer" asp-controller="Cart" asp-action="Index"
+                           class="relative flex min-w-0 flex-col items-center justify-center rounded-2xl px-1.5 py-2 text-[10px] font-semibold transition @(cartActive ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-500 hover:bg-slate-100")">
+                            <span class="material-symbols-outlined text-[21px]" style="font-variation-settings:'FILL' @(cartActive ? "1" : "0")">shopping_cart</span>
+                            <span class="absolute right-3 top-1.5 min-w-5 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white @(cartCount > 0 ? "inline-block" : "hidden")">@(cartCount > 99 ? "99+" : cartCount)</span>
+                            <span class="mt-1 leading-none">Cart</span>
+                        </a>
+
+                        <a asp-area="Identity"
+                           asp-controller="@(User.Identity?.IsAuthenticated == true ? "Profile" : "Account")"
+                           asp-action="@(User.Identity?.IsAuthenticated == true ? "Index" : "Login")"
+                           class="flex min-w-0 flex-col items-center justify-center rounded-2xl px-1.5 py-2 text-[10px] font-semibold transition @(profileActive ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-500 hover:bg-slate-100")">
+                            <span class="material-symbols-outlined text-[21px]" style="font-variation-settings:'FILL' @(profileActive ? "1" : "0")">person</span>
+                            <span class="mt-1 leading-none">Profile</span>
+                        </a>
+                    </div>
+                </div>
+            </nav>
         </div>
     </div>
     

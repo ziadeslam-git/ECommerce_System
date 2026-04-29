@@ -35,11 +35,14 @@ public class ProfileController : Controller
         var user = await _userManager.GetUserAsync(User);
         if (user is null) return NotFound();
 
+        var (phoneCountryCode, phoneNumber) = SplitPhoneNumber(user.PhoneNumber);
+
         var vm = new ProfileVM
         {
             FullName    = user.FullName,
             Email       = user.Email ?? string.Empty,
-            PhoneNumber = user.PhoneNumber,
+            PhoneNumber = phoneNumber,
+            PhoneCountryCode = phoneCountryCode,
             ProfileImageUrl = user.ProfileImageUrl
         };
 
@@ -81,7 +84,7 @@ public class ProfileController : Controller
 
         // ✅ FIX: FullName بدل Name / مفيش user.Address
         user.FullName   = vm.FullName;
-        user.PhoneNumber = vm.PhoneNumber;
+        user.PhoneNumber = BuildPhoneNumber(vm.PhoneCountryCode, vm.PhoneNumber);
 
         string? oldPublicId = null;
         string? uploadedPublicId = null;
@@ -132,6 +135,36 @@ public class ProfileController : Controller
 
         vm.ProfileImageUrl = user.ProfileImageUrl;
         return View(vm);
+    }
+
+    private static (string CountryCode, string? LocalNumber) SplitPhoneNumber(string? phoneNumber)
+    {
+        if (string.IsNullOrWhiteSpace(phoneNumber))
+            return ("+20", string.Empty);
+
+        var normalized = phoneNumber.Trim();
+        var knownCodes = new[] { "+20", "+1", "+44" };
+
+        foreach (var code in knownCodes.OrderByDescending(c => c.Length))
+        {
+            if (normalized.StartsWith(code, StringComparison.Ordinal))
+            {
+                return (code, normalized[code.Length..].TrimStart());
+            }
+        }
+
+        return ("+20", normalized);
+    }
+
+    private static string? BuildPhoneNumber(string? countryCode, string? localNumber)
+    {
+        var code = string.IsNullOrWhiteSpace(countryCode) ? "+20" : countryCode.Trim();
+        var local = string.IsNullOrWhiteSpace(localNumber) ? string.Empty : localNumber.Trim();
+
+        if (string.IsNullOrWhiteSpace(local))
+            return null;
+
+        return $"{code}{local}";
     }
 
     private static bool TryBuildCroppedImageFile(

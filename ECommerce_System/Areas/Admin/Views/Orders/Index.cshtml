@@ -78,7 +78,98 @@
 
 @* ── Orders Table ── *@
 <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-    <div class="overflow-x-auto">
+    <div class="space-y-3 p-4 md:hidden">
+        @if (!Model.Any())
+        {
+            <div class="rounded-[18px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                No orders found.
+            </div>
+        }
+        else
+        {
+            @foreach (var order in Model)
+            {
+                var initials = string.Concat(order.CustomerName.Split(' ').Take(2).Select(p => p.FirstOrDefault().ToString())).ToUpper();
+                <article class="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="flex size-10 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+                                @initials
+                            </div>
+                            <div>
+                                <p class="font-mono text-sm font-semibold text-primary">#ORD-@order.Id</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">@order.CustomerName</p>
+                                <p class="text-xs text-slate-400">@order.CustomerEmail</p>
+                            </div>
+                        </div>
+                        <a asp-action="Details" asp-route-id="@order.Id" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm transition hover:bg-slate-100">
+                            <span class="material-symbols-outlined text-[18px]">visibility</span>
+                        </a>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Total</p>
+                            <p class="mt-1 font-bold text-slate-900 dark:text-slate-100">@order.TotalAmount.ToString("C")</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Items</p>
+                            <p class="mt-1 font-semibold text-slate-600 dark:text-slate-300">@order.ItemCount @(order.ItemCount == 1 ? "item" : "items")</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Payment</p>
+                            <span class="mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase @PaymentBadge(order.PaymentStatus)">
+                                @order.PaymentStatus
+                            </span>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Status</p>
+                            <span class="mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase @StatusBadge(order.Status)">
+                                @order.Status
+                            </span>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Shipment</p>
+                            @if (order.ShipmentId is not null)
+                            {
+                                <a asp-controller="Shipments" asp-action="Edit" asp-route-id="@order.ShipmentId"
+                                   class="mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase @ShipBadge(order.ShipmentStatus)">
+                                    <span class="material-symbols-outlined text-[11px]">local_shipping</span>
+                                    @order.ShipmentStatus
+                                </a>
+                            }
+                            else
+                            {
+                                <a asp-controller="Shipments" asp-action="Create" asp-route-orderId="@order.Id"
+                                   class="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-primary transition-colors">
+                                    <span class="material-symbols-outlined text-sm">add_circle_outline</span>
+                                    Add
+                                </a>
+                            }
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Date</p>
+                            <p class="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">@order.CreatedAt.ToString("MMM dd, yyyy")</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-end gap-2">
+                        <a asp-action="Edit" asp-route-id="@order.Id" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition hover:bg-emerald-100">
+                            <span class="material-symbols-outlined text-[18px]">edit</span>
+                        </a>
+                        <a asp-action="UpdateStatus" asp-route-id="@order.Id" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition hover:bg-blue-100">
+                            <span class="material-symbols-outlined text-[18px]">swap_horiz</span>
+                        </a>
+                        <button type="button" onclick="confirmDelete(@order.Id, '#ORD-@order.Id')" class="inline-flex items-center rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-100">
+                            Cancel
+                        </button>
+                    </div>
+                </article>
+            }
+        }
+    </div>
+
+    <div class="hidden overflow-x-auto md:block">
         <table class="w-full text-left text-sm border-collapse">
             <thead>
                 <tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">

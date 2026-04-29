@@ -9,150 +9,403 @@
     var selectedAddressId = Model?.AddressId ?? Model?.DefaultAddressId;
     var couponCode = Model?.CouponCode ?? string.Empty;
     var paymentMethod = Model?.PaymentMethod ?? "CashOnDelivery";
+    var showNewAddressForm = Model?.ShowNewAddressForm == true || !addresses.Any();
 }
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-bold">@SR["Checkout"]</h1>
-        <a asp-area="Customer" asp-controller="Cart" asp-action="Index" class="inline-flex items-center gap-1 text-sm text-primary hover:underline"><span class="material-symbols-outlined text-base">arrow_back</span>@SR["BackToCart"]</a>
+
+<section class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div class="mb-6 flex items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900">@SR["Checkout"]</h1>
+            <p class="mt-2 text-sm text-slate-500">Please review your order and complete your shipping details.</p>
+        </div>
+        <a asp-area="Customer"
+           asp-controller="Cart"
+           asp-action="Index"
+           class="inline-flex items-center gap-1 text-sm font-medium text-primary transition hover:underline">
+            <span class="material-symbols-outlined text-base">arrow_back</span>
+            @SR["BackToCart"]
+        </a>
     </div>
 
-    <form id="place-order-form" asp-area="Customer" asp-controller="Orders" asp-action="PlaceOrder" method="post" data-loading="true" class="grid gap-6 lg:grid-cols-5">
+    <form id="place-order-form"
+          asp-area="Customer"
+          asp-controller="Orders"
+          asp-action="PlaceOrder"
+          method="post"
+          data-loading="true"
+          class="flex flex-col gap-8 lg:flex-row lg:items-start">
         @Html.AntiForgeryToken()
-        <div class="space-y-6 rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-3">
-            <div>
-                <h2 class="mb-3 font-semibold">@SR["ShippingAddress"]</h2>
-                @if (!addresses.Any())
+
+        <input type="hidden" asp-for="ShowNewAddressForm" value="@(showNewAddressForm ? "true" : "false")" />
+
+        <div class="flex-1 space-y-8">
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div asp-validation-summary="All" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"></div>
+            }
+
+            <section class="rounded-[1.75rem] bg-slate-100/80 p-5 sm:p-6 lg:p-8">
+                <div class="mb-6 flex items-center gap-3">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary font-bold text-white">1</div>
+                    <h2 class="text-xl font-semibold text-slate-900">@SR["ShippingAddress"]</h2>
+                </div>
+
+                @if (addresses.Any())
                 {
-                    <div class="space-y-3 rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600">
-                        <p>@SR["AddNewAddress"]</p>
-                        <a asp-area="Identity" asp-controller="Profile" asp-action="AddAddress" class="inline-flex rounded-lg bg-primary px-4 py-2 font-semibold text-white">
-                            + @SR["AddNewAddress"]
-                        </a>
-                    </div>
-                }
-                else
-                {
-                    <div class="space-y-3">
+                    <div class="space-y-4">
                         @foreach (var address in addresses)
                         {
-                            <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-3 @(address.Id == selectedAddressId ? "border-primary bg-indigo-50" : "")">
-                                <input type="radio" name="addressId" value="@address.Id" class="mt-1" @(address.Id == selectedAddressId ? "checked" : null) />
-                                <span class="space-y-1 text-sm">
-                                    <span class="block font-semibold text-slate-900">
-                                        @address.FullName
-                                        @if (address.IsDefault)
-                                        {
-                                            <span class="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">Default</span>
-                                        }
-                                    </span>
-                                    <span class="block text-slate-600">@address.PhoneNumber</span>
-                                    <span class="block text-slate-500">@address.DisplayLine</span>
-                                </span>
+                            <label class="relative block cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_20px_40px_rgba(15,23,42,0.04)] transition hover:border-primary/30 @(address.Id == selectedAddressId ? "border-primary/30 ring-2 ring-primary/10" : "")"
+                                   data-address-card>
+                                <input type="radio"
+                                       asp-for="AddressId"
+                                       value="@address.Id"
+                                       class="sr-only"
+                                       data-saved-address-radio />
+
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <p class="font-semibold text-slate-900">@address.FullName</p>
+                                            @if (address.IsDefault)
+                                            {
+                                                <span class="rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary" data-default-badge>Default</span>
+                                            }
+                                        </div>
+                                        <p class="mt-2 text-sm leading-6 text-slate-500">
+                                            @address.PhoneNumber<br />
+                                            @address.DisplayLine
+                                        </p>
+                                    </div>
+
+                                    <div class="mt-1 flex h-5 w-5 items-center justify-center rounded-full border-2 @(address.Id == selectedAddressId ? "border-primary" : "border-slate-300")" data-address-indicator>
+                                        <div class="h-2.5 w-2.5 rounded-full bg-primary @(address.Id == selectedAddressId ? "" : "hidden")" data-address-indicator-dot></div>
+                                    </div>
+                                </div>
                             </label>
                         }
+
+                        <span asp-validation-for="AddressId" class="block text-sm text-rose-600"></span>
                     </div>
-                    <div class="pt-2">
-                        <a asp-area="Identity" asp-controller="Profile" asp-action="AddAddress" class="text-sm text-primary hover:underline">+ @SR["AddNewAddress"]</a>
+
+                    <button type="submit"
+                            id="select-saved-address-submit"
+                            formaction="@Url.Action("SelectSavedAddress", "Orders", new { area = "Customer" })"
+                            formmethod="post"
+                            class="hidden">
+                    </button>
+
+                    <div class="mt-4">
+                        <button type="button"
+                                id="toggle-new-address"
+                                class="inline-flex items-center gap-2 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/10">
+                            <span class="material-symbols-outlined text-[18px]">add_circle</span>
+                            Add New Address
+                        </button>
                     </div>
                 }
-            </div>
+                <div id="new-address-panel" class="@(showNewAddressForm ? "mt-5" : "hidden mt-5")">
+                    <div class="space-y-5 rounded-[1.5rem] border border-primary/20 bg-white p-5 shadow-[0_20px_40px_rgba(15,23,42,0.06)]">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2">
+                                <div class="flex h-5 w-5 items-center justify-center rounded-full border-2 border-primary">
+                                    <div class="h-2.5 w-2.5 rounded-full bg-primary"></div>
+                                </div>
+                                <h3 class="font-semibold text-primary">Add New Address</h3>
+                            </div>
 
-            <div class="space-y-3">
-                <h2 class="font-semibold">@SR["OrderSummary"]</h2>
-                @foreach (var item in items)
-                {
-                    <div class="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
-                        <img src="@(item.ImageUrl ?? "https://placehold.co/100")" alt="@item.ProductName" class="h-16 w-16 rounded-lg bg-white object-cover" />
-                        <div class="flex-1 text-sm">
-                            <p class="font-semibold text-slate-900">@item.ProductName</p>
-                            <p class="text-slate-500">@item.Size / @item.Color</p>
-                            <p class="text-slate-500">@item.Quantity x @item.DisplayPrice.ToString("0.00") EGP</p>
+                            @if (addresses.Any())
+                            {
+                                <button type="button"
+                                        id="cancel-new-address"
+                                        class="rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-200">
+                                    Use Saved Address
+                                </button>
+                            }
                         </div>
-                        <p class="font-semibold text-slate-900">@item.LineTotal.ToString("0.00") EGP</p>
-                    </div>
-                }
-            </div>
 
-            <div class="space-y-3">
-                <h2 class="font-semibold text-slate-900">Payment Method</h2>
-                <div class="grid gap-3 sm:grid-cols-2">
+                        @if (addresses.Any())
+                        {
+                            <p class="text-sm leading-6 text-slate-500">Fill this form to use a different address for this order and save it to your account.</p>
+                        }
+
+                        <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                            <div class="space-y-1.5">
+                                <label asp-for="NewAddressFullName" class="text-sm font-medium text-slate-800">Full Name</label>
+                                <input asp-for="NewAddressFullName" class="w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm focus:border-primary focus:ring-primary/20" placeholder="e.g. Jane Doe" />
+                                <span asp-validation-for="NewAddressFullName" class="text-sm text-rose-600"></span>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label asp-for="NewAddressPhoneNumber" class="text-sm font-medium text-slate-800">Phone Number</label>
+                                <input asp-for="NewAddressPhoneNumber" class="w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm focus:border-primary focus:ring-primary/20" placeholder="+20 10 0000 0000" />
+                                <span asp-validation-for="NewAddressPhoneNumber" class="text-sm text-rose-600"></span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label asp-for="NewAddressStreet" class="text-sm font-medium text-slate-800">Street Address</label>
+                            <input asp-for="NewAddressStreet" class="w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm focus:border-primary focus:ring-primary/20" placeholder="123 Main St, Apt 4B" />
+                            <span asp-validation-for="NewAddressStreet" class="text-sm text-rose-600"></span>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
+                            <div class="space-y-1.5">
+                                <label asp-for="NewAddressCity" class="text-sm font-medium text-slate-800">City</label>
+                                <input asp-for="NewAddressCity" class="w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm focus:border-primary focus:ring-primary/20" placeholder="Cairo" />
+                                <span asp-validation-for="NewAddressCity" class="text-sm text-rose-600"></span>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label asp-for="NewAddressState" class="text-sm font-medium text-slate-800">State / Province</label>
+                                <input asp-for="NewAddressState" class="w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm focus:border-primary focus:ring-primary/20" placeholder="Cairo Governorate" />
+                                <span asp-validation-for="NewAddressState" class="text-sm text-rose-600"></span>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label asp-for="NewAddressPostalCode" class="text-sm font-medium text-slate-800">ZIP / Postal Code</label>
+                                <input asp-for="NewAddressPostalCode" class="w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm focus:border-primary focus:ring-primary/20" placeholder="11728" />
+                                <span asp-validation-for="NewAddressPostalCode" class="text-sm text-rose-600"></span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label asp-for="NewAddressCountry" class="text-sm font-medium text-slate-800">Country</label>
+                            <input asp-for="NewAddressCountry" class="w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm focus:border-primary focus:ring-primary/20" placeholder="Egypt" />
+                            <span asp-validation-for="NewAddressCountry" class="text-sm text-rose-600"></span>
+                        </div>
+
+                        <label class="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                            <input asp-for="SaveNewAddress" class="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" />
+                            <span>Make this my default address for future orders</span>
+                        </label>
+
+                        <div class="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-2">
+                            @if (addresses.Any())
+                            {
+                                <button type="button"
+                                        id="cancel-new-address-footer"
+                                        class="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-200">
+                                    Use Saved Address
+                                </button>
+                            }
+
+                            <button type="submit"
+                                    formaction="@Url.Action("UseNewAddress", "Orders", new { area = "Customer" })"
+                                    formmethod="post"
+                                    class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-primary to-primary px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(70,72,212,0.16)] transition hover:opacity-95">
+                                <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                                Use This Address
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="rounded-[1.75rem] bg-slate-100/80 p-5 sm:p-6 lg:p-8">
+                <div class="mb-6 flex items-center gap-3">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary font-bold text-white">2</div>
+                    <h2 class="text-xl font-semibold text-slate-900">Payment Method</h2>
+                </div>
+
+                <div class="space-y-4">
                     <label class="cursor-pointer">
-                        <input type="radio" name="paymentMethod" value="CashOnDelivery" class="sr-only peer" @(paymentMethod == "CashOnDelivery" ? "checked" : null) />
-                        <span class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm transition peer-checked:border-primary peer-checked:bg-primary/5">
-                            <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-primary">
-                                <span class="material-symbols-outlined text-[20px]">payments</span>
+                        <input asp-for="PaymentMethod" type="radio" value="CashOnDelivery" class="sr-only peer" />
+                        <span class="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-[0_20px_40px_rgba(15,23,42,0.04)] transition peer-checked:border-primary peer-checked:bg-white peer-checked:ring-2 peer-checked:ring-primary/10">
+                            <span class="flex items-center gap-4">
+                                <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white shadow-md shadow-primary/20">
+                                    <span class="material-symbols-outlined text-[22px]">local_shipping</span>
+                                </span>
+                                <span class="space-y-1">
+                                    <span class="block text-xl font-semibold text-slate-900">@SR["CashOnDelivery"]</span>
+                                    <span class="block text-sm leading-6 text-slate-500">Pay with cash upon delivery.</span>
+                                </span>
                             </span>
-                            <span class="space-y-1">
-                                <span class="block font-semibold text-slate-900">@SR["CashOnDelivery"]</span>
-                                <span class="block text-xs text-slate-500">Pay when your order arrives.</span>
+                            <span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-300 peer-checked:border-primary">
+                                <span class="h-3.5 w-3.5 rounded-full bg-primary opacity-0 transition peer-checked:opacity-100"></span>
                             </span>
                         </span>
                     </label>
 
                     <label class="cursor-pointer">
-                        <input type="radio" name="paymentMethod" value="CreditCard" class="sr-only peer" @(paymentMethod == "CreditCard" ? "checked" : null) />
-                        <span class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm transition peer-checked:border-primary peer-checked:bg-primary/5">
-                            <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
-                                <span class="material-symbols-outlined text-[20px]">credit_card</span>
+                        <input asp-for="PaymentMethod" type="radio" value="CreditCard" class="sr-only peer" />
+                        <span class="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-100/90 px-5 py-5 shadow-[0_20px_40px_rgba(15,23,42,0.03)] transition peer-checked:border-primary peer-checked:bg-white peer-checked:ring-2 peer-checked:ring-primary/10">
+                            <span class="flex items-center gap-4">
+                                <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-200 text-slate-600">
+                                    <span class="material-symbols-outlined text-[22px]">credit_card</span>
+                                </span>
+                                <span class="space-y-1">
+                                    <span class="block text-xl font-semibold text-slate-700">Credit Card</span>
+                                    <span class="inline-flex rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary">Stripe integration coming soon</span>
+                                </span>
                             </span>
-                            <span class="space-y-1">
-                                <span class="block font-semibold text-slate-900">Payment Credit Card</span>
-                                <span class="block text-xs text-slate-500">Stripe gateway checkout option.</span>
+                            <span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-300 peer-checked:border-primary">
+                                <span class="h-3.5 w-3.5 rounded-full bg-primary opacity-0 transition peer-checked:opacity-100"></span>
                             </span>
                         </span>
                     </label>
                 </div>
+
                 @if (paymentMethod == "CreditCard")
                 {
-                    <p class="text-xs text-slate-500">You will be redirected to Stripe to complete your card payment securely.</p>
+                    <p class="mt-4 text-sm text-slate-500">You will be redirected to Stripe to complete your card payment securely.</p>
                 }
-            </div>
+            </section>
         </div>
 
-        <aside class="h-fit space-y-4 rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2">
-            <h2 class="font-semibold">@SR["OrderSummary"]</h2>
-            <div class="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div class="flex items-center justify-between gap-2">
-                    <label for="couponCode" class="text-sm font-semibold text-slate-800">Discount Code</label>
-                    @if (Model?.CouponApplied == true)
+        <aside class="w-full lg:w-96 lg:flex-shrink-0">
+            <div class="sticky top-24 rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_20px_40px_rgba(15,23,42,0.05)]">
+                <h2 class="mb-6 text-lg font-semibold text-slate-900">@SR["OrderSummary"]</h2>
+
+                <div class="mb-6 space-y-4">
+                    @foreach (var item in items)
                     {
-                        <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">Applied</span>
+                        <div class="flex gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                            <div class="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-white">
+                                <img src="@(item.ImageUrl ?? "https://placehold.co/100")"
+                                     alt="@item.ProductName"
+                                     class="h-full w-full object-cover" />
+                            </div>
+                            <div class="flex flex-1 flex-col justify-between">
+                                <div>
+                                    <h3 class="line-clamp-1 font-medium text-slate-900">@item.ProductName</h3>
+                                    <p class="mt-1 text-sm text-slate-500">@item.Size / @item.Color</p>
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-sm text-slate-500">Qty: @item.Quantity</span>
+                                    <span class="font-semibold text-slate-900">@item.LineTotal.ToString("0.00") EGP</span>
+                                </div>
+                            </div>
+                        </div>
                     }
                 </div>
 
-                <div class="flex gap-2">
-                    <input id="couponCode"
-                           name="couponCode"
-                           value="@couponCode"
-                           placeholder="Enter coupon code"
-                           class="w-full rounded-xl border-slate-300 text-sm" />
-                    <button type="submit"
-                            formmethod="get"
-                            formaction="@Url.Action("Checkout", "Orders", new { area = "Customer" })"
-                            class="rounded-xl border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/10">
-                        Apply
-                    </button>
+                <div class="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div class="mb-3 flex items-center justify-between gap-2">
+                        <label asp-for="CouponCode" class="text-sm font-semibold text-slate-800">Discount code</label>
+                        @if (Model?.CouponApplied == true)
+                        {
+                            <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">Applied</span>
+                        }
+                    </div>
+
+                    <div class="flex gap-2">
+                        <input asp-for="CouponCode"
+                               placeholder="Discount code"
+                               class="w-full rounded-xl border-slate-300 bg-white text-sm shadow-sm focus:border-primary focus:ring-primary/20" />
+                        <button type="submit"
+                                formmethod="get"
+                                formaction="@Url.Action("Checkout", "Orders", new { area = "Customer" })"
+                                class="rounded-xl bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-300">
+                            Apply
+                        </button>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(Model?.CouponMessage))
+                    {
+                        <p class="mt-3 text-sm @(Model?.CouponApplied == true ? "text-emerald-600" : "text-rose-600")">
+                            @Model?.CouponMessage
+                        </p>
+                    }
                 </div>
 
-                @if (!string.IsNullOrWhiteSpace(Model?.CouponMessage))
-                {
-                    <p class="text-sm @(Model?.CouponApplied == true ? "text-emerald-600" : "text-rose-600")">
-                        @Model?.CouponMessage
-                    </p>
-                }
-            </div>
+                <div class="mb-6 space-y-3 border-b border-slate-200 pb-5 text-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500">@SR["ItemsCount"]</span>
+                        <span class="font-medium text-slate-900">@Model?.ItemsCount</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500">@SR["Subtotal"]</span>
+                        <span class="font-medium text-slate-900">@subtotal.ToString("0.00") EGP</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500">@SR["Discount"]</span>
+                        <span class="font-medium text-slate-900">@((Model?.DiscountAmount ?? 0m).ToString("0.00")) EGP</span>
+                    </div>
+                    @if (Model?.CouponApplied == true && !string.IsNullOrWhiteSpace(Model.CouponCode))
+                    {
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500">Code</span>
+                            <span class="font-medium text-emerald-600">@Model.CouponCode</span>
+                        </div>
+                    }
+                </div>
 
-            <div class="space-y-1 text-sm text-slate-600">
-                <p>@SR["ItemsCount"]: @Model?.ItemsCount</p>
-                <p>@SR["Subtotal"]: @subtotal.ToString("0.00") EGP</p>
-                <p>@SR["Discount"]: @((Model?.DiscountAmount ?? 0m).ToString("0.00")) EGP</p>
-                @if (Model?.CouponApplied == true && !string.IsNullOrWhiteSpace(Model.CouponCode))
-                {
-                    <p class="text-emerald-600">Code: @Model.CouponCode</p>
-                }
+                <div class="mb-6 flex items-end justify-between gap-3">
+                    <span class="text-lg font-semibold text-slate-900">@SR["Total"]</span>
+                    <div class="text-right">
+                        <span class="mr-1 text-xs text-slate-400">EGP</span>
+                        <span class="text-2xl font-bold text-slate-900">@total.ToString("0.00")</span>
+                    </div>
+                </div>
+
+                <button type="submit"
+                        class="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-primary to-primary py-3.5 text-base font-semibold text-white shadow-[0_10px_20px_rgba(70,72,212,0.18)] transition hover:opacity-95">
+                    <span class="material-symbols-outlined text-xl" style="font-variation-settings:'FILL' 1">lock</span>
+                    @SR["PlaceOrder"]
+                </button>
             </div>
-            <div class="flex justify-between text-lg font-bold"><span>@SR["Total"]</span><span>@total.ToString("0.00") EGP</span></div>
-            <button type="submit" class="w-full rounded-lg bg-primary py-3 font-semibold text-white">@SR["PlaceOrder"]</button>
         </aside>
     </form>
 </section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const showNewAddressInput = document.getElementById('ShowNewAddressForm');
+        const newAddressPanel = document.getElementById('new-address-panel');
+        const toggleNewAddressButton = document.getElementById('toggle-new-address');
+        const cancelNewAddressButton = document.getElementById('cancel-new-address');
+        const cancelNewAddressFooterButton = document.getElementById('cancel-new-address-footer');
+        const selectSavedAddressSubmit = document.getElementById('select-saved-address-submit');
+        const savedAddressRadios = Array.from(document.querySelectorAll('[data-saved-address-radio]'));
+
+        function setNewAddressPanelState(visible) {
+            if (!newAddressPanel || !showNewAddressInput) return;
+
+            newAddressPanel.classList.toggle('hidden', !visible);
+            showNewAddressInput.value = visible ? 'true' : 'false';
+        }
+
+        function refreshAddressSelectionUi() {
+            savedAddressRadios.forEach(function (radio) {
+                const card = radio.closest('[data-address-card]');
+                const indicator = card?.querySelector('[data-address-indicator]');
+                const indicatorDot = card?.querySelector('[data-address-indicator-dot]');
+
+                if (!card || !indicator || !indicatorDot) return;
+
+                card.classList.toggle('border-primary/30', radio.checked);
+                card.classList.toggle('ring-2', radio.checked);
+                card.classList.toggle('ring-primary/10', radio.checked);
+                card.classList.toggle('border-slate-200', !radio.checked);
+
+                indicator.classList.toggle('border-primary', radio.checked);
+                indicator.classList.toggle('border-slate-300', !radio.checked);
+                indicatorDot.classList.toggle('hidden', !radio.checked);
+            });
+        }
+
+        toggleNewAddressButton?.addEventListener('click', function () {
+            setNewAddressPanelState(true);
+        });
+
+        cancelNewAddressButton?.addEventListener('click', function () {
+            setNewAddressPanelState(false);
+        });
+
+        cancelNewAddressFooterButton?.addEventListener('click', function () {
+            setNewAddressPanelState(false);
+        });
+
+        savedAddressRadios.forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                setNewAddressPanelState(false);
+                refreshAddressSelectionUi();
+                selectSavedAddressSubmit?.click();
+            });
+        });
+
+        refreshAddressSelectionUi();
+    </script>
+}

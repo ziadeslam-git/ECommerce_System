@@ -47,6 +47,7 @@ public class ProductController : Controller
             page = totalPages;
 
         var products = await query
+            .AsSplitQuery()
             .Include(p => p.Category)
             .Include(p => p.Variants)
             .Include(p => p.Images)

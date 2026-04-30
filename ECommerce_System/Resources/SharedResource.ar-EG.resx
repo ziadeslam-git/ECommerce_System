@@ -735,4 +735,22 @@
   <data name="Delete" xml:space="preserve">
     <value>حذف</value>
   </data>
+  <data name="Edit" xml:space="preserve">
+    <value>تعديل</value>
+  </data>
+  <data name="MyAddresses" xml:space="preserve">
+    <value>عناويني</value>
+  </data>
+  <data name="ManageYourDeliveryLocations" xml:space="preserve">
+    <value>إدارة عناوين التوصيل الخاصة بك</value>
+  </data>
+  <data name="NoSavedAddressesYet" xml:space="preserve">
+    <value>لا توجد عناوين محفوظة في حسابك حتى الآن.</value>
+  </data>
+  <data name="MainDeliveryPoint" xml:space="preserve">
+    <value>نقطة التوصيل الرئيسية</value>
+  </data>
+  <data name="DeleteAddressConfirmation" xml:space="preserve">
+    <value>هل أنت متأكد أنك تريد حذف هذا العنوان؟</value>
+  </data>
 </root>

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Localization;
 
 namespace ECommerce_System.Areas.Identity.Controllers;
@@ -17,6 +18,7 @@ public class AccountController : Controller
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IEmailSender _emailSender;
     private readonly IStringLocalizer<SharedResource> _localizer;
+    private readonly IConfiguration _configuration;
 
     // ✅ FIX 1: Removed IRepository<ApplicationUserOTP> — لا وجود لـ ApplicationUserOTP في هذا المشروع
     // ✅ FIX 2: Removed wrong using (Microsoft.VisualStudio.Web.CodeGenerators...)
@@ -25,12 +27,14 @@ public class AccountController : Controller
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         IEmailSender emailSender,
-        IStringLocalizer<SharedResource> localizer)
+        IStringLocalizer<SharedResource> localizer,
+        IConfiguration configuration)
     {
         _userManager  = userManager;
         _signInManager = signInManager;
         _emailSender  = emailSender;
         _localizer = localizer;
+        _configuration = configuration;
     }
 
     // ─── LOGOUT ─────────────────────────────────────────────────
@@ -78,8 +82,11 @@ public class AccountController : Controller
 
         // Send email confirmation link
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+        var publicBaseUrl = _configuration["App:PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         var link  = Url.Action(nameof(ConfirmEmail), "Account",
-                        new { area = "Identity", token, email = user.Email }, Request.Scheme);
+                        new { area = "Identity", token, email = user.Email },
+                        protocol: "https",
+                        host: new Uri(publicBaseUrl).Host);
 
         var confirmEmailBody = $"""
             <!DOCTYPE html>
@@ -153,6 +160,7 @@ public class AccountController : Controller
     public IActionResult AccessDenied() => View();
 
     [HttpPost]
+    [EnableRateLimiting("auth")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginVM vm)
     {
@@ -199,6 +207,7 @@ public class AccountController : Controller
     public IActionResult ForgotPassword() => View();
 
     [HttpPost]
+    [EnableRateLimiting("auth")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordVM vm)
     {
@@ -214,8 +223,11 @@ public class AccountController : Controller
             // ✅ FIX 7: استخدمنا GeneratePasswordResetTokenAsync (Identity standard)
             // بدل OTP system القديمة اللي كانت بتحتاج ApplicationUserOTP من DB
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var publicBaseUrl = _configuration["App:PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
             var link  = Url.Action(nameof(ResetPassword), "Account",
-                            new { area = "Identity", token, email = user.Email }, Request.Scheme);
+                            new { area = "Identity", token, email = user.Email },
+                            protocol: "https",
+                            host: new Uri(publicBaseUrl).Host);
 
             var emailBody = $"""
                 <!DOCTYPE html>
@@ -307,6 +319,7 @@ public class AccountController : Controller
     public IActionResult ResendConfirmation() => View();
 
     [HttpPost]
+    [EnableRateLimiting("auth")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ResendConfirmation(ForgotPasswordVM vm)
     {
@@ -318,8 +331,11 @@ public class AccountController : Controller
         if (user is not null && !await _userManager.IsEmailConfirmedAsync(user))
         {
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var publicBaseUrl = _configuration["App:PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
             var link  = Url.Action(nameof(ConfirmEmail), "Account",
-                            new { area = "Identity", token, email = user.Email }, Request.Scheme);
+                            new { area = "Identity", token, email = user.Email },
+                            protocol: "https",
+                            host: new Uri(publicBaseUrl).Host);
 
             var confirmEmailBody = $"""
                 <!DOCTYPE html>

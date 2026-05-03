@@ -1,0 +1,37 @@
+@model ECommerce_System.ViewModels.Identity.ChangeEmailVM
+@{
+    ViewData["Title"] = "Change Email";
+    Layout = "_ProfileLayout";
+    var currentEmail = ViewBag.CurrentEmail as string ?? string.Empty;
+}
+
+<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+    <div class="p-6 md:p-8 border-b border-slate-100 dark:border-slate-800">
+        <h1 class="text-slate-900 dark:text-white text-2xl font-bold leading-tight">Change Email</h1>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">We will send a confirmation link to your new email address before updating your account.</p>
+    </div>
+
+    <div class="p-6 md:p-8">
+        <form asp-action="ChangeEmail" method="post" class="space-y-6">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="text-rose-500 text-sm font-semibold"></div>
+
+            <div class="max-w-xl rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Current Email</p>
+                <p class="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">@currentEmail</p>
+            </div>
+
+            <div class="max-w-xl space-y-2">
+                <label asp-for="NewEmail" class="text-sm font-semibold text-slate-700 dark:text-slate-300"></label>
+                <input asp-for="NewEmail" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-primary focus:border-primary py-3 px-4 transition-all" placeholder="name@example.com" />
+                <span asp-validation-for="NewEmail" class="text-rose-500 text-xs mt-1 block"></span>
+            </div>
+
+            <div class="pt-4">
+                <button type="submit" class="px-8 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg font-bold text-sm transition-all shadow-md shadow-primary/20">
+                    Send Confirmation Link
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

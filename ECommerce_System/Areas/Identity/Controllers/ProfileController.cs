@@ -6,6 +6,7 @@ using ECommerce_System.ViewModels.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 
@@ -18,6 +19,7 @@ public class ProfileController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICloudinaryService _cloudinaryService;
+    private readonly IEmailSender _emailSender;
     private readonly IStringLocalizer<SharedResource> _localizer;
 
     // ✅ FIX: Added IUnitOfWork for Address management
@@ -25,11 +27,13 @@ public class ProfileController : Controller
         UserManager<ApplicationUser> userManager,
         IUnitOfWork unitOfWork,
         ICloudinaryService cloudinaryService,
+        IEmailSender emailSender,
         IStringLocalizer<SharedResource> localizer)
     {
         _userManager = userManager;
         _unitOfWork  = unitOfWork;
         _cloudinaryService = cloudinaryService;
+        _emailSender = emailSender;
         _localizer = localizer;
     }
 
@@ -140,6 +144,60 @@ public class ProfileController : Controller
 
         vm.ProfileImageUrl = user.ProfileImageUrl;
         return View(vm);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ChangeEmail()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null) return NotFound();
+
+        ViewBag.CurrentEmail = user.Email;
+        return View(new ChangeEmailVM());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangeEmail(ChangeEmailVM vm)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null) return NotFound();
+
+        ViewBag.CurrentEmail = user.Email;
+        if (!ModelState.IsValid) return View(vm);
+
+        var token = await _userManager.GenerateChangeEmailTokenAsync(user, vm.NewEmail);
+        var link  = Url.Action(nameof(ConfirmEmailChange), "Profile",
+                        new { area = "Identity", token, newEmail = vm.NewEmail },
+                        Request.Scheme);
+
+        await _emailSender.SendEmailAsync(vm.NewEmail,
+            "Smart Store — Confirm Your New Email",
+            $"<p>Click to confirm your new email: <a href='{link}'>Confirm</a></p>");
+
+        TempData["success"] = "A confirmation link has been sent to your new email address.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ConfirmEmailChange(string token, string newEmail)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null) return NotFound();
+
+        var result = await _userManager.ChangeEmailAsync(user, newEmail, token);
+        if (result.Succeeded)
+        {
+            user.UserName = newEmail;
+            await _userManager.UpdateAsync(user);
+            TempData["success"] = "Email updated successfully.";
+        }
+        else
+        {
+            TempData["error"] = "Email change failed. The link may have expired.";
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 
     private static (string CountryCode, string? LocalNumber) SplitPhoneNumber(string? phoneNumber)

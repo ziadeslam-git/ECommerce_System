@@ -65,8 +65,11 @@
 
                 <!-- Email -->
                 <div class="space-y-2">
-                    <label asp-for="Email" class="text-[13px] font-semibold text-slate-700 dark:text-slate-300 ml-1"></label>
-                    <input asp-for="Email" readonly class="w-full h-11 px-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-sm cursor-default outline-none" />
+                    <div class="flex items-center justify-between gap-3">
+                        <label asp-for="Email" class="text-[13px] font-semibold text-slate-700 dark:text-slate-300 ml-1"></label>
+                        <a asp-action="ChangeEmail" class="text-primary text-xs font-semibold hover:underline ml-2">Change Email</a>
+                    </div>
+                    <input asp-for="Email" readonly disabled class="w-full h-11 px-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-sm cursor-default outline-none" />
                 </div>
 
                 <!-- Phone -->

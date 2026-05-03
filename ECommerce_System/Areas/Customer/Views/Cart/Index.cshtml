@@ -129,6 +129,14 @@
                           text-white font-bold py-3 rounded-lg transition-colors">
                     Proceed to Checkout
                 </a>
+
+                <form asp-action="ClearCart" asp-controller="Cart" asp-area="Customer" method="post" class="inline"
+                      onsubmit="return confirm('Clear your entire cart?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="px-4 py-2 text-sm text-rose-600 hover:text-rose-800 font-semibold transition-colors">
+                        Clear Cart
+                    </button>
+                </form>
             </div>
         </div>
     }

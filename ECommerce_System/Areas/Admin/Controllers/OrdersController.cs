@@ -142,6 +142,14 @@ public class OrdersController : Controller
         // Apply changes
         order.Status        = vm.NewStatus;
         order.PaymentStatus = vm.NewPaymentStatus;
+        if (vm.NewPaymentStatus == SD.Payment_Refunded &&
+            vm.CurrentPaymentStatus != SD.Payment_Refunded)
+        {
+            // NOTE: This marks the order as Refunded in the database only.
+            // A real Stripe refund call via Stripe.RefundService must be
+            // executed separately through the payment provider API.
+            // Tracked as: TODO — Stripe Refund API integration.
+        }
         order.UpdatedAt     = DateTime.UtcNow;
 
         // Business rule BR-009: return stock automatically on cancellation
@@ -198,7 +206,8 @@ public class OrdersController : Controller
                 FullName = vm.CustomerName,
                 EmailConfirmed = true
             };
-            var result = await _userManager.CreateAsync(user, $"Guest@{vm.CustomerPhone}!");
+            var guestPassword = $"G-{Guid.NewGuid():N}-{Guid.NewGuid():N}"[..32] + "!A1";
+            var result = await _userManager.CreateAsync(user, guestPassword);
             if (!result.Succeeded)
             {
                 ModelState.AddModelError("", "Failed to auto-create customer account.");

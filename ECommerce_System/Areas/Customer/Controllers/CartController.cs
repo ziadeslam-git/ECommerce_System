@@ -268,4 +268,23 @@ public class CartController : Controller
 
         return RedirectToAction(nameof(Index));
     }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ClearCart()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var cart = await _uow.Carts.GetCartByUserIdAsync(userId);
+        if (cart is not null && cart.Items.Any())
+        {
+            _uow.CartItems.RemoveRange(cart.Items.ToList());
+            await _uow.SaveAsync();
+        }
+
+        TempData["success"] = "Cart cleared.";
+        return RedirectToAction(nameof(Index));
+    }
 }

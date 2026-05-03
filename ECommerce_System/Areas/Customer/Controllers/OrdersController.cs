@@ -6,6 +6,8 @@ using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Customer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
@@ -19,6 +21,8 @@ namespace ECommerce_System.Areas.Customer.Controllers;
 public class OrdersController : Controller
 {
     private readonly IUnitOfWork                    _unitOfWork;
+    private readonly UserManager<ApplicationUser>   _userManager;
+    private readonly IEmailSender                   _emailSender;
     private readonly ILogger<OrdersController>      _logger;
     private readonly StripeSettings                 _stripeSettings;
     private readonly IStringLocalizer<SharedResource> _localizer;
@@ -30,11 +34,15 @@ public class OrdersController : Controller
 
     public OrdersController(
         IUnitOfWork unitOfWork,
+        UserManager<ApplicationUser> userManager,
+        IEmailSender emailSender,
         ILogger<OrdersController> logger,
         IOptions<StripeSettings> stripeOptions,
         IStringLocalizer<SharedResource> localizer)
     {
         _unitOfWork = unitOfWork;
+        _userManager = userManager;
+        _emailSender = emailSender;
         _logger     = logger;
         _stripeSettings = stripeOptions.Value;
         _localizer = localizer;
@@ -767,8 +775,8 @@ public class OrdersController : Controller
             return Forbid();
         }
 
-        // Business rule: only Pending orders can be cancelled
-        if (order.Status != SD.Status_Pending)
+        // Business rule: only Pending and Confirmed orders can be cancelled
+        if (order.Status != SD.Status_Pending && order.Status != SD.Status_Confirmed)
         {
             TempData["Error"] = _localizer["OrderCannotBeCancelledStatus", id, order.Status].Value;
             return RedirectToAction(nameof(Details), new { id });
@@ -777,28 +785,7 @@ public class OrdersController : Controller
         using var transaction = await _unitOfWork.BeginTransactionAsync();
         try
         {
-            // Restore stock for each item
-            foreach (var item in order.OrderItems)
-            {
-                if (item.ProductVariant == null)
-                {
-                    _logger.LogWarning("Cancel: OrderItem {ItemId} in Order {OrderId} has no ProductVariant. Skipping stock restore.",
-                        item.Id, id);
-                    continue;
-                }
-
-                item.ProductVariant.Stock += item.Quantity;
-
-                // Re-activate variant if it had been deactivated due to zero stock
-                if (!item.ProductVariant.IsActive && item.ProductVariant.Stock > 0)
-                {
-                    item.ProductVariant.IsActive = true;
-                    _logger.LogInformation("Cancel: Variant {VariantId} re-activated after stock restore. OrderId={OrderId}.",
-                        item.ProductVariant.Id, id);
-                }
-
-                _unitOfWork.ProductVariants.Update(item.ProductVariant);
-            }
+            await ReturnStockAsync(order.Id);
 
             order.Status      = SD.Status_Cancelled;
             order.CancelledAt = DateTime.UtcNow;
@@ -846,6 +833,33 @@ public class OrdersController : Controller
         return paymentMethod == PaymentMethodCreditCard
             ? PaymentMethodCreditCard
             : PaymentMethodCashOnDelivery;
+    }
+
+    private async Task ReturnStockAsync(int orderId)
+    {
+        var items = await _unitOfWork.OrderItems
+            .FindAllAsync(i => i.OrderId == orderId);
+
+        foreach (var item in items)
+        {
+            var variant = await _unitOfWork.ProductVariants
+                .GetByIdAsync(item.ProductVariantId, ignoreQueryFilters: true);
+            if (variant is null)
+            {
+                _logger.LogWarning("Cancel: OrderItem {ItemId} in Order {OrderId} has no ProductVariant. Skipping stock restore.",
+                    item.Id, orderId);
+                continue;
+            }
+
+            variant.Stock += item.Quantity;
+
+            if (!variant.IsActive && variant.Stock > 0)
+            {
+                variant.IsActive = true;
+                _logger.LogInformation("Cancel: Variant {VariantId} re-activated after stock restore. OrderId={OrderId}.",
+                    variant.Id, orderId);
+            }
+        }
     }
 
     private async Task<CheckoutVM> BuildCheckoutViewModelAsync(string userId, CheckoutVM? request = null)
@@ -1190,6 +1204,36 @@ public class OrdersController : Controller
             _unitOfWork.CartItems.RemoveRange(cart.Items);
 
             await _unitOfWork.SaveAsync();
+
+            var customerEmail = order.User?.Email;
+            if (string.IsNullOrWhiteSpace(customerEmail))
+            {
+                customerEmail = (await _userManager.FindByIdAsync(userId))?.Email;
+            }
+
+            if (!string.IsNullOrWhiteSpace(customerEmail))
+            {
+                // Send order confirmation email — fire and forget, do not await to avoid blocking
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var emailBody = $"""
+                            <h2>Order Confirmed — #{order.Id}</h2>
+                            <p>Thank you for your order!</p>
+                            <p><strong>Total:</strong> {order.TotalAmount:C}</p>
+                            <p><strong>Status:</strong> {order.Status}</p>
+                            <p>We will notify you when your order ships.</p>
+                            """;
+                        await _emailSender.SendEmailAsync(
+                            customerEmail,
+                            $"Smart Store — Order #{order.Id} Confirmed",
+                            emailBody);
+                    }
+                    catch { /* email failure must never break order flow */ }
+                });
+            }
+
             await transaction.CommitAsync();
             return order;
         }

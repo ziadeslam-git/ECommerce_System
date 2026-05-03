@@ -49,7 +49,7 @@ public class ExternalLoginController : Controller
         }
 
         // Sign in the user with this external login provider if the user already has a login.
-        var result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: true, bypassTwoFactor: true);
+        var result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: true, bypassTwoFactor: false);
         if (result.Succeeded)
         {
             await _signInManager.UpdateExternalAuthenticationTokensAsync(info);

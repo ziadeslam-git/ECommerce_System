@@ -8,8 +8,10 @@ using ECommerce_System.Utilities.DBInitializer;
 using ECommerce_System.Utilities.Localization;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Stripe;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,7 +35,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     options.User.RequireUniqueEmail = true;
     // NOTE: Email confirmation is optional in dev phase.
     // Change to true in production after SMTP is verified and tested.
-    options.SignIn.RequireConfirmedEmail = false;
+    options.SignIn.RequireConfirmedEmail = true;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders()
@@ -168,6 +170,17 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
 // 9. MVC with Views
 // ──────────────────────────────────────────────────────────────────
 builder.Services.AddMemoryCache();
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("auth", cfg =>
+    {
+        cfg.PermitLimit         = 10;
+        cfg.Window              = TimeSpan.FromMinutes(1);
+        cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        cfg.QueueLimit          = 0;
+    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
 builder.Services.AddControllersWithViews()
     .AddViewLocalization()  // picks up IStringLocalizerFactory registered above
     .AddDataAnnotationsLocalization(options =>
@@ -192,6 +205,7 @@ app.UseRequestLocalization();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 // ── Deactivated-user check ─────────────────────────────────────────────────
 // IMPORTANT: The previous implementation called userManager.GetUserAsync() on
 // EVERY request (including static files and AJAX calls), causing a DB round-trip

@@ -23,20 +23,18 @@ public class DashboardController : Controller
 
     public async Task<IActionResult> Index()
     {
-        // Total active products
-        var products = await _unitOfWork.Products
-            .FindAllAsync(p => p.IsActive, tracked: false);
+        var totalProducts = await _unitOfWork.Products
+            .Query()
+            .AsNoTracking()
+            .CountAsync(p => p.IsActive);
 
         // All orders & recent orders
-        var orders = await _unitOfWork.Orders.GetAllAsync(tracked: false);
+        var allOrdersList = (await _unitOfWork.Orders.GetAllAsync(tracked: false)).ToList();
         var recentOrders = await _unitOfWork.Orders
             .FindAllAsync(o => true, "User,Address", tracked: false);
-            
-        var allOrdersList = orders.ToList();
         
         // Accurate Revenue from Payments Table
-        var payments = await _unitOfWork.Payments.GetAllAsync(tracked: false);
-        var allPaymentsList = payments.ToList();
+        var allPaymentsList = (await _unitOfWork.Payments.GetAllAsync(tracked: false)).ToList();
 
         // Total revenue (paid payments only)
         var revenue = allPaymentsList
@@ -46,7 +44,7 @@ public class DashboardController : Controller
         // Customer count
         var customers = await _userManager.GetUsersInRoleAsync(SD.Role_Customer);
 
-        ViewBag.TotalProducts = products.Count();
+        ViewBag.TotalProducts = totalProducts;
         ViewBag.TotalOrders   = allOrdersList.Count;
         ViewBag.TotalRevenue  = revenue;
         ViewBag.TotalCustomers = customers.Count;

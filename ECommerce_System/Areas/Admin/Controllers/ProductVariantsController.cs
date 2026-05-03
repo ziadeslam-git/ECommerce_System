@@ -112,7 +112,19 @@ public class ProductVariantsController : Controller
 
             foreach (var file in vm.ImageFiles)
             {
-                var res = await _cloudinaryService.UploadAsync(file, "variants");
+                (string Url, string PublicId) res;
+                try
+                {
+                    res = await _cloudinaryService.UploadAsync(file, "variants");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    ModelState.AddModelError(string.Empty, ex.Message);
+                    ViewData["Title"] = "Add Variant";
+                    ViewData["ProductName"] = vm.ProductName;
+                    return View(vm);
+                }
+
                 images.Add(new ProductVariantImage
                 {
                     ImageUrl = res.Url,
@@ -245,7 +257,19 @@ public class ProductVariantsController : Controller
                 bool isFirst = true;
                 foreach (var file in vm.ImageFiles)
                 {
-                    var res = await _cloudinaryService.UploadAsync(file, "variants");
+                    (string Url, string PublicId) res;
+                    try
+                    {
+                        res = await _cloudinaryService.UploadAsync(file, "variants");
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        ModelState.AddModelError(string.Empty, ex.Message);
+                        ViewData["Title"] = "Edit Variant";
+                        ViewData["ProductName"] = vm.ProductName;
+                        return View(vm);
+                    }
+
                     variant.Images.Add(new ProductVariantImage
                     {
                         ImageUrl = res.Url,

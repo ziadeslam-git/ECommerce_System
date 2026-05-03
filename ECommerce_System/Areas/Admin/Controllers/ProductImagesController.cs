@@ -49,21 +49,6 @@ public class ProductImagesController : Controller
             return RedirectToAction(nameof(Index), new { productId = vm.ProductId });
         }
 
-        // Validate file type
-        var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
-        if (!allowedTypes.Contains(vm.ImageFile.ContentType.ToLowerInvariant()))
-        {
-            TempData["error"] = "Only JPG, PNG, WebP and GIF images are allowed.";
-            return RedirectToAction(nameof(Index), new { productId = vm.ProductId });
-        }
-
-        // Max 10 MB
-        if (vm.ImageFile.Length > 10 * 1024 * 1024)
-        {
-            TempData["error"] = "Image size must not exceed 10 MB.";
-            return RedirectToAction(nameof(Index), new { productId = vm.ProductId });
-        }
-
         try
         {
             var (url, publicId) = await _cloudinary.UploadAsync(
@@ -98,6 +83,10 @@ public class ProductImagesController : Controller
             await _uow.SaveAsync();
 
             TempData["success"] = "Image uploaded successfully.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["error"] = ex.Message;
         }
         catch (Exception ex)
         {

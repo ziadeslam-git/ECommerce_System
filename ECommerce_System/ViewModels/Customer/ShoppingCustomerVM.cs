@@ -31,14 +31,18 @@ public class CheckoutVM
         !string.IsNullOrWhiteSpace(NewAddressStreet) ||
         !string.IsNullOrWhiteSpace(NewAddressCity) ||
         !string.IsNullOrWhiteSpace(NewAddressState) ||
-        !string.IsNullOrWhiteSpace(NewAddressCountry) ||
         !string.IsNullOrWhiteSpace(NewAddressPostalCode);
 }
 
 public class CheckoutItemCustomerVM
 {
     public int CartItemId { get; set; }
-    public int ProductVariantId { get; set; }
+    public int? ProductVariantId { get; set; }
+    public int? GiftBundleId { get; set; }
+    public string? GiftBundleTitle { get; set; }
+    public decimal? GiftBundleOriginalTotal { get; set; }
+    public List<GiftBundleCheckoutProductVM> BundleItems { get; set; } = [];
+    public bool IsGiftBundle => GiftBundleId.HasValue;
     public int Quantity { get; set; }
     public decimal PriceSnapshot { get; set; }
     public decimal CurrentPrice { get; set; }
@@ -50,6 +54,14 @@ public class CheckoutItemCustomerVM
 
     public decimal DisplayPrice => CurrentPrice > 0 ? CurrentPrice : PriceSnapshot;
     public decimal LineTotal => Quantity * DisplayPrice;
+}
+
+public class GiftBundleCheckoutProductVM
+{
+    public string ProductName { get; set; } = string.Empty;
+    public string Size { get; set; } = string.Empty;
+    public string Color { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; }
 }
 
 public class AddressOptionCustomerVM

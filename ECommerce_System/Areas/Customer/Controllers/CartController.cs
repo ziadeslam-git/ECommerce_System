@@ -32,24 +32,15 @@ public class CartController : Controller
         if (userId == null) return Unauthorized();
 
         var cart = await _uow.Carts.GetCartByUserIdAsync(userId);
-        
+
         var vm = new CartIndexVM();
 
         if (cart != null && cart.Items.Any())
         {
-            vm.Items = cart.Items.Select(i => new CartItemVM
-            {
-                CartItemId = i.Id,
-                ProductVariantId = i.ProductVariantId,
-                ProductName = i.ProductVariant.Product.Name,
-                Size = i.ProductVariant.Size,
-                Color = i.ProductVariant.Color,
-                ImageUrl = i.ProductVariant.Product.Images.FirstOrDefault(img => img.IsMain)?.ImageUrl
-                           ?? i.ProductVariant.Product.Images.FirstOrDefault()?.ImageUrl,
-                UnitPrice = i.PriceSnapshot,
-                Quantity = i.Quantity,
-                MaxStock = i.ProductVariant.Stock
-            }).ToList();
+            var bundleVariantStockLookup = await BuildBundleVariantStockLookupAsync(cart.Items);
+            vm.Items = cart.Items
+                .Select(item => MapCartItemViewModel(item, bundleVariantStockLookup))
+                .ToList();
         }
 
         return View(vm);
@@ -123,6 +114,69 @@ public class CartController : Controller
         return BuildAddToCartResponse(true, _localizer["AddedToCartSuccessfully"], cartCount, returnUrl);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddGiftBundleToCart(int giftBundleId, string? returnUrl = null)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var (bundle, snapshotItems, maxStock, errorMessage) = await PrepareGiftBundleAsync(giftBundleId);
+        if (bundle == null || snapshotItems.Count == 0)
+        {
+            return BuildAddToCartResponse(false, errorMessage ?? "This gift bundle is not available right now.", null, returnUrl);
+        }
+
+        if (maxStock <= 0)
+        {
+            return BuildAddToCartResponse(false, "This gift bundle is currently out of stock.", null, returnUrl);
+        }
+
+        var cart = await _uow.Carts.GetCartByUserIdAsync(userId);
+        if (cart == null)
+        {
+            cart = new Cart { UserId = userId };
+            await _uow.Carts.AddAsync(cart);
+            await _uow.SaveAsync();
+        }
+
+        var existingBundleItem = cart.Items.FirstOrDefault(item => item.GiftBundleId == giftBundleId);
+        if (existingBundleItem != null)
+        {
+            if (existingBundleItem.Quantity + 1 > maxStock)
+            {
+                return BuildAddToCartResponse(false, $"Only {maxStock} bundle(s) can be added with the current stock.", null, returnUrl);
+            }
+
+            existingBundleItem.Quantity += 1;
+            existingBundleItem.PriceSnapshot = bundle.BundlePrice;
+            existingBundleItem.GiftBundleTitle = bundle.Name;
+            existingBundleItem.GiftBundleOriginalTotal = snapshotItems.Sum(item => item.UnitPrice);
+            existingBundleItem.GiftBundleItemsJson = GiftBundleSnapshotHelper.Serialize(snapshotItems);
+            _uow.CartItems.Update(existingBundleItem);
+        }
+        else
+        {
+            await _uow.CartItems.AddAsync(new CartItem
+            {
+                CartId = cart.Id,
+                GiftBundleId = bundle.Id,
+                Quantity = 1,
+                PriceSnapshot = bundle.BundlePrice,
+                GiftBundleTitle = bundle.Name,
+                GiftBundleOriginalTotal = snapshotItems.Sum(item => item.UnitPrice),
+                GiftBundleItemsJson = GiftBundleSnapshotHelper.Serialize(snapshotItems)
+            });
+        }
+
+        await _uow.SaveAsync();
+
+        var updatedCart = await _uow.Carts.GetCartByUserIdAsync(userId);
+        var cartCount = updatedCart?.Items.Sum(item => item.Quantity) ?? 0;
+
+        return BuildAddToCartResponse(true, "Gift bundle added to cart successfully.", cartCount, returnUrl);
+    }
+
     // ─── UPDATE QUANTITY (JSON) ───────────────────────────────────────────────
 
     [HttpPost]
@@ -132,16 +186,20 @@ public class CartController : Controller
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return Unauthorized();
 
-        var cartItem = await _uow.CartItems.FindAsync(i => i.Id == cartItemId, "Cart,ProductVariant");
+        var cartItem = await _uow.CartItems.FindAsync(i => i.Id == cartItemId, "Cart,ProductVariant,GiftBundle");
 
         if (cartItem == null || cartItem.Cart.UserId != userId)
         {
             return Json(new { success = false, message = _localizer["InvalidRequest"].Value });
         }
 
-        if (quantity < 1 || quantity > cartItem.ProductVariant.Stock)
+        var maxStock = cartItem.GiftBundleId.HasValue
+            ? await GetGiftBundleMaxStockAsync(GiftBundleSnapshotHelper.Deserialize(cartItem.GiftBundleItemsJson))
+            : cartItem.ProductVariant?.Stock ?? 0;
+
+        if (quantity < 1 || quantity > maxStock)
         {
-            return Json(new { success = false, message = _localizer["InvalidQuantityAvailableStock", cartItem.ProductVariant.Stock].Value });
+            return Json(new { success = false, message = _localizer["InvalidQuantityAvailableStock", maxStock].Value });
         }
 
         cartItem.Quantity = quantity;
@@ -286,5 +344,153 @@ public class CartController : Controller
 
         TempData["success"] = "Cart cleared.";
         return RedirectToAction(nameof(Index));
+    }
+
+    private CartItemVM MapCartItemViewModel(CartItem cartItem, IReadOnlyDictionary<int, int> bundleVariantStockLookup)
+    {
+        if (cartItem.GiftBundleId.HasValue)
+        {
+            var bundleItems = GiftBundleSnapshotHelper.Deserialize(cartItem.GiftBundleItemsJson);
+            return new CartItemVM
+            {
+                CartItemId = cartItem.Id,
+                GiftBundleId = cartItem.GiftBundleId,
+                GiftBundleTitle = cartItem.GiftBundleTitle,
+                GiftBundleOriginalTotal = cartItem.GiftBundleOriginalTotal,
+                ProductName = cartItem.GiftBundleTitle ?? "Gift Bundle",
+                ImageUrl = bundleItems.FirstOrDefault()?.ImageUrl,
+                UnitPrice = cartItem.PriceSnapshot,
+                Quantity = cartItem.Quantity,
+                MaxStock = ResolveBundleMaxStock(bundleItems, bundleVariantStockLookup),
+                BundleItems = bundleItems.Select(bundleItem => new GiftBundleCartProductVM
+                {
+                    ProductName = bundleItem.ProductName,
+                    Size = bundleItem.Size,
+                    Color = bundleItem.Color,
+                    ImageUrl = bundleItem.ImageUrl
+                }).ToList()
+            };
+        }
+
+        if (cartItem.ProductVariant == null)
+        {
+            return new CartItemVM
+            {
+                CartItemId = cartItem.Id,
+                ProductName = "Unavailable item",
+                UnitPrice = cartItem.PriceSnapshot,
+                Quantity = cartItem.Quantity,
+                MaxStock = 0
+            };
+        }
+
+        return new CartItemVM
+        {
+            CartItemId = cartItem.Id,
+            ProductVariantId = cartItem.ProductVariantId,
+            ProductName = cartItem.ProductVariant.Product.Name,
+            Size = cartItem.ProductVariant.Size,
+            Color = cartItem.ProductVariant.Color,
+            ImageUrl = cartItem.ProductVariant.Product.Images.FirstOrDefault(img => img.IsMain)?.ImageUrl
+                       ?? cartItem.ProductVariant.Product.Images.FirstOrDefault()?.ImageUrl,
+            UnitPrice = cartItem.PriceSnapshot,
+            Quantity = cartItem.Quantity,
+            MaxStock = cartItem.ProductVariant.Stock
+        };
+    }
+
+    private async Task<IReadOnlyDictionary<int, int>> BuildBundleVariantStockLookupAsync(IEnumerable<CartItem> cartItems)
+    {
+        var variantIds = cartItems
+            .Where(item => item.GiftBundleId.HasValue)
+            .SelectMany(item => GiftBundleSnapshotHelper.Deserialize(item.GiftBundleItemsJson))
+            .Select(item => item.ProductVariantId)
+            .Distinct()
+            .ToList();
+
+        if (variantIds.Count == 0)
+        {
+            return new Dictionary<int, int>();
+        }
+
+        return (await _uow.ProductVariants.FindAllAsync(v => variantIds.Contains(v.Id), tracked: false, ignoreQueryFilters: true))
+            .ToDictionary(variant => variant.Id, variant => variant.Stock);
+    }
+
+    private async Task<int> GetGiftBundleMaxStockAsync(IEnumerable<GiftBundleSnapshotItem> bundleItems)
+    {
+        var variantIds = bundleItems
+            .Select(item => item.ProductVariantId)
+            .Distinct()
+            .ToList();
+
+        if (variantIds.Count == 0)
+        {
+            return 0;
+        }
+
+        var variantLookup = (await _uow.ProductVariants
+            .FindAllAsync(v => variantIds.Contains(v.Id), tracked: false, ignoreQueryFilters: true))
+            .ToDictionary(variant => variant.Id, variant => variant.Stock);
+
+        return ResolveBundleMaxStock(bundleItems, variantLookup);
+    }
+
+    private async Task<(GiftBundle? Bundle, List<GiftBundleSnapshotItem> SnapshotItems, int MaxStock, string? ErrorMessage)> PrepareGiftBundleAsync(int giftBundleId)
+    {
+        var bundle = await _uow.GiftBundles.FindAsync(
+            gb => gb.Id == giftBundleId && gb.IsActive,
+            "Items.Product.Images,Items.Product.Variants");
+
+        if (bundle == null)
+        {
+            return (null, [], 0, "This gift bundle could not be found.");
+        }
+
+        var snapshotItems = new List<GiftBundleSnapshotItem>();
+        var maxStock = int.MaxValue;
+
+        foreach (var bundleProduct in bundle.Items.OrderBy(item => item.SortOrder))
+        {
+            var selectedVariant = bundleProduct.Product.Variants
+                .Where(variant => variant.IsActive && variant.Stock > 0)
+                .OrderBy(variant => variant.Price)
+                .FirstOrDefault();
+
+            if (selectedVariant == null)
+            {
+                return (null, [], 0, $"'{bundleProduct.Product.Name}' is currently unavailable for this bundle.");
+            }
+
+            maxStock = Math.Min(maxStock, selectedVariant.Stock);
+
+            snapshotItems.Add(new GiftBundleSnapshotItem
+            {
+                ProductId = bundleProduct.ProductId,
+                ProductVariantId = selectedVariant.Id,
+                ProductName = bundleProduct.Product.Name,
+                Size = selectedVariant.Size,
+                Color = selectedVariant.Color,
+                UnitPrice = selectedVariant.Price,
+                ImageUrl = bundleProduct.Product.Images.FirstOrDefault(image => image.IsMain)?.ImageUrl
+                    ?? bundleProduct.Product.Images.OrderBy(image => image.DisplayOrder).FirstOrDefault()?.ImageUrl
+            });
+        }
+
+        if (snapshotItems.Count < 2)
+        {
+            return (null, [], 0, "This gift bundle needs at least 2 valid products.");
+        }
+
+        return (bundle, snapshotItems, maxStock == int.MaxValue ? 0 : maxStock, null);
+    }
+
+    private static int ResolveBundleMaxStock(IEnumerable<GiftBundleSnapshotItem> bundleItems, IReadOnlyDictionary<int, int> variantStockLookup)
+    {
+        var stocks = bundleItems
+            .Select(item => variantStockLookup.TryGetValue(item.ProductVariantId, out var stock) ? stock : 0)
+            .ToList();
+
+        return stocks.Count == 0 ? 0 : stocks.Min();
     }
 }

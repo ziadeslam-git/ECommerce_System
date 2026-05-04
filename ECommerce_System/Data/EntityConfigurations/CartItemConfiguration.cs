@@ -10,6 +10,9 @@ public class CartItemConfiguration : IEntityTypeConfiguration<CartItem>
     {
         builder.HasKey(ci => ci.Id);
 
+        builder.Property(ci => ci.ProductVariantId)
+            .IsRequired(false);
+
         builder.Property(ci => ci.Quantity)
             .IsRequired();
 
@@ -20,8 +23,24 @@ public class CartItemConfiguration : IEntityTypeConfiguration<CartItem>
             .IsRequired()
             .HasColumnType("decimal(18,2)");
 
-        // Composite unique: (CartId, ProductVariantId)
-        builder.HasIndex(ci => new { ci.CartId, ci.ProductVariantId }).IsUnique();
+        builder.Property(ci => ci.GiftBundleTitle)
+            .HasMaxLength(200);
+
+        builder.Property(ci => ci.GiftBundleOriginalTotal)
+            .HasColumnType("decimal(18,2)");
+
+        builder.Property(ci => ci.GiftBundleItemsJson)
+            .HasColumnType("nvarchar(max)");
+
+        // Composite unique: (CartId, ProductVariantId) for regular items only
+        builder.HasIndex(ci => new { ci.CartId, ci.ProductVariantId })
+            .IsUnique()
+            .HasFilter("[ProductVariantId] IS NOT NULL");
+
+        // Composite unique: (CartId, GiftBundleId) for bundle items only
+        builder.HasIndex(ci => new { ci.CartId, ci.GiftBundleId })
+            .IsUnique()
+            .HasFilter("[GiftBundleId] IS NOT NULL");
 
         // CartItem → ProductVariant (no cascade — variant can exist independently)
         builder.HasOne(ci => ci.ProductVariant)
@@ -29,7 +48,12 @@ public class CartItemConfiguration : IEntityTypeConfiguration<CartItem>
             .HasForeignKey(ci => ci.ProductVariantId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Matching query filter: hide CartItems whose variant is inactive (mirrors ProductVariant filter)
-        builder.HasQueryFilter(ci => ci.ProductVariant!.IsActive);
+        builder.HasOne(ci => ci.GiftBundle)
+            .WithMany(gb => gb.CartItems)
+            .HasForeignKey(ci => ci.GiftBundleId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Matching query filter: keep regular items hidden when their variant is inactive.
+        builder.HasQueryFilter(ci => ci.ProductVariantId == null || ci.ProductVariant!.IsActive);
     }
 }

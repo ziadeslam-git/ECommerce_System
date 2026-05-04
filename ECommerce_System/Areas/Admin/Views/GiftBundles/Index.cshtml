@@ -1,0 +1,158 @@
+@model IEnumerable<GiftBundleIndexVM>
+
+@{
+    ViewData["Title"] = "Gift Bundles";
+    var bundles = Model.ToList();
+}
+
+<div class="space-y-6">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+            <nav class="mb-2 flex items-center gap-2 text-sm text-slate-500">
+                <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="transition-colors hover:text-primary">Dashboard</a>
+                <span class="material-symbols-outlined text-sm">chevron_right</span>
+                <span class="font-medium text-slate-900">Gift Bundles</span>
+            </nav>
+            <h1 class="text-3xl font-black tracking-tight">Gift Bundles</h1>
+            <p class="mt-1 text-slate-500">Build one-price offers from multiple products and control what appears in the home page bundle section.</p>
+        </div>
+
+        <a asp-area="Admin" asp-controller="GiftBundles" asp-action="Create"
+           class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:bg-primary/90">
+            <span class="material-symbols-outlined text-[18px]">add</span>
+            New Gift Bundle
+        </a>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Total Bundles</p>
+            <p class="mt-2 text-3xl font-black text-slate-900">@bundles.Count</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Active</p>
+            <p class="mt-2 text-3xl font-black text-emerald-600">@bundles.Count(bundle => bundle.IsActive)</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Featured on Home</p>
+            <p class="mt-2 text-3xl font-black text-primary">@bundles.Count(bundle => bundle.IsFeatured)</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Total Savings</p>
+            <p class="mt-2 text-3xl font-black text-slate-900">@bundles.Sum(bundle => Math.Max(0, bundle.OriginalTotal - bundle.BundlePrice)).ToString("0.00") EGP</p>
+        </div>
+    </div>
+
+    @if (!bundles.Any())
+    {
+        <div class="rounded-[2rem] border border-dashed border-slate-300 bg-white p-12 text-center">
+            <span class="material-symbols-outlined text-5xl text-slate-300">redeem</span>
+            <h2 class="mt-4 text-2xl font-black text-slate-900">No gift bundles yet</h2>
+            <p class="mt-2 text-slate-500">Create your first grouped offer and pin it to the home page.</p>
+            <a asp-area="Admin" asp-controller="GiftBundles" asp-action="Create"
+               class="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:bg-primary/90">
+                <span class="material-symbols-outlined text-[18px]">add</span>
+                Create First Bundle
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="grid gap-5 xl:grid-cols-2">
+            @foreach (var bundle in bundles)
+            {
+                <article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg @(bundle.IsFeatured ? "ring-2 ring-primary/15" : string.Empty)">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="space-y-3">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h2 class="text-2xl font-black text-slate-900">@bundle.Name</h2>
+                                @if (bundle.IsFeatured)
+                                {
+                                    <span class="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-primary">Home Featured</span>
+                                }
+                                <span class="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] @(bundle.IsActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")">
+                                    @(bundle.IsActive ? "Active" : "Inactive")
+                                </span>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(bundle.Description))
+                            {
+                                <p class="max-w-2xl text-sm leading-6 text-slate-500">@bundle.Description</p>
+                            }
+
+                            <div class="flex flex-wrap items-end gap-3">
+                                <span class="text-3xl font-black text-primary">@bundle.BundlePrice.ToString("0.00") EGP</span>
+                                @if (bundle.OriginalTotal > 0)
+                                {
+                                    <span class="pb-1 text-lg text-slate-400 line-through">@bundle.OriginalTotal.ToString("0.00") EGP</span>
+                                }
+                                <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">
+                                    Save @Math.Max(0, bundle.OriginalTotal - bundle.BundlePrice).ToString("0.00") EGP
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            <form asp-area="Admin" asp-controller="GiftBundles" asp-action="SetFeatured" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@bundle.Id" />
+                                <button type="submit"
+                                        class="inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/10">
+                                    <span class="material-symbols-outlined text-[18px]">star</span>
+                                    @(bundle.IsFeatured ? "Featured" : "Feature")
+                                </button>
+                            </form>
+
+                            <form asp-area="Admin" asp-controller="GiftBundles" asp-action="ToggleActive" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@bundle.Id" />
+                                <button type="submit"
+                                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                                    <span class="material-symbols-outlined text-[18px]">toggle_on</span>
+                                    @(bundle.IsActive ? "Deactivate" : "Activate")
+                                </button>
+                            </form>
+
+                            <a asp-area="Admin" asp-controller="GiftBundles" asp-action="Edit" asp-route-id="@bundle.Id"
+                               class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">
+                                <span class="material-symbols-outlined text-[18px]">edit</span>
+                                Edit
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex flex-wrap items-center gap-3">
+                        @for (var index = 0; index < bundle.Products.Count; index++)
+                        {
+                            var product = bundle.Products[index];
+                            <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-3 rounded-[1.25rem] border border-slate-200 bg-slate-50 px-3 py-3">
+                                    <div class="size-16 overflow-hidden rounded-xl bg-white">
+                                        @if (!string.IsNullOrWhiteSpace(product.ImageUrl))
+                                        {
+                                            <img src="@product.ImageUrl" alt="@product.ProductName" class="h-full w-full object-cover" />
+                                        }
+                                        else
+                                        {
+                                            <div class="flex h-full w-full items-center justify-center bg-slate-100 text-slate-300">
+                                                <span class="material-symbols-outlined">image</span>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-bold text-slate-900">@product.ProductName</p>
+                                        <p class="mt-1 text-xs text-slate-500">Product ID: @product.ProductId</p>
+                                    </div>
+                                </div>
+                                @if (index < bundle.Products.Count - 1)
+                                {
+                                    <span class="material-symbols-outlined text-2xl text-slate-300">add</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</div>

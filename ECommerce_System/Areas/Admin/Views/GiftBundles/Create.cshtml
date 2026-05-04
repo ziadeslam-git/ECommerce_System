@@ -1,0 +1,10 @@
+@model GiftBundleFormVM
+
+@{
+    ViewData["Title"] = "Create Gift Bundle";
+}
+
+<form asp-area="Admin" asp-controller="GiftBundles" asp-action="Create" method="post" class="space-y-6">
+    @Html.AntiForgeryToken()
+    <partial name="_Form" model="Model" />
+</form>

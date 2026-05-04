@@ -32,8 +32,8 @@
                 <article class="rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm">
                     <div class="flex items-start justify-between gap-3">
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Order</p>
-                            <h2 class="mt-1 text-lg font-bold text-slate-900">#@order.Id</h2>
+                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Placed on</p>
+                            <h2 class="mt-1 text-lg font-bold text-slate-900">@order.CreatedAt.ToString("dd MMM yyyy")</h2>
                         </div>
 
                         <a asp-area="Customer"
@@ -91,7 +91,6 @@
             <table class="w-full text-sm">
                 <thead class="bg-slate-50">
                     <tr class="text-left">
-                        <th class="p-3">Order #</th>
                         <th class="p-3">Date</th>
                         <th class="p-3">Items</th>
                         <th class="p-3">@SR["Total"]</th>
@@ -104,7 +103,6 @@
                 @foreach (var order in orders)
                 {
                     <tr class="border-t border-slate-100">
-                        <td class="p-3">#@order.Id</td>
                         <td class="p-3">@order.CreatedAt.ToString("dd MMM yyyy")</td>
                         <td class="p-3">@order.ItemCount</td>
                         <td class="p-3">@order.TotalAmount.ToString("0.00") EGP</td>

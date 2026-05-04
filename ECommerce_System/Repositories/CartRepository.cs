@@ -13,7 +13,9 @@ public class CartRepository : Repository<Cart>, ICartRepository
         => await _context.Carts
             .AsSplitQuery()
             .Include(c => c.Items)
-                .ThenInclude(ci => ci.ProductVariant)
+                .ThenInclude(ci => ci.GiftBundle)
+            .Include(c => c.Items)
+                .ThenInclude(ci => ci.ProductVariant!)
                     .ThenInclude(v => v.Product)
                         .ThenInclude(p => p.Images.Where(i => i.IsMain))
             .FirstOrDefaultAsync(c => c.UserId == userId);

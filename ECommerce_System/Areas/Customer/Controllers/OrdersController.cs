@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using Stripe.Checkout;
@@ -25,6 +26,7 @@ public class OrdersController : Controller
     private readonly IEmailSender                   _emailSender;
     private readonly ILogger<OrdersController>      _logger;
     private readonly StripeSettings                 _stripeSettings;
+    private readonly IConfiguration                 _configuration;
     private readonly IStringLocalizer<SharedResource> _localizer;
     private const    int                            PageSize = 10;
     private const    string                         PaymentMethodCashOnDelivery = "CashOnDelivery";
@@ -37,6 +39,7 @@ public class OrdersController : Controller
         UserManager<ApplicationUser> userManager,
         IEmailSender emailSender,
         ILogger<OrdersController> logger,
+        IConfiguration configuration,
         IOptions<StripeSettings> stripeOptions,
         IStringLocalizer<SharedResource> localizer)
     {
@@ -44,6 +47,7 @@ public class OrdersController : Controller
         _userManager = userManager;
         _emailSender = emailSender;
         _logger     = logger;
+        _configuration = configuration;
         _stripeSettings = stripeOptions.Value;
         _localizer = localizer;
     }
@@ -349,8 +353,38 @@ public class OrdersController : Controller
 
         // ── Steps 3 & 4: Server-side stock check + subtotal ───────────────────
         decimal subtotal = 0;
+        var bundleVariantLookup = await BuildBundleVariantLookupAsync(cart.Items, tracked: false);
         foreach (var item in cart.Items)
         {
+            if (item.GiftBundleId.HasValue)
+            {
+                var bundleSnapshotItems = GiftBundleSnapshotHelper.Deserialize(item.GiftBundleItemsJson);
+                if (bundleSnapshotItems.Count == 0)
+                {
+                    _logger.LogError("PlaceOrder: Bundle CartItem {ItemId} has no valid snapshot. UserId={UserId}.", item.Id, userId);
+                    TempData["Error"] = "A gift bundle in your cart is no longer available.";
+                    return RedirectToAction("Index", "Cart");
+                }
+
+                foreach (var bundleSnapshotItem in bundleSnapshotItems)
+                {
+                    if (!bundleVariantLookup.TryGetValue(bundleSnapshotItem.ProductVariantId, out var variant) || !variant.IsActive)
+                    {
+                        TempData["Error"] = $"'{bundleSnapshotItem.ProductName}' is no longer available inside this gift bundle.";
+                        return RedirectToAction("Index", "Cart");
+                    }
+
+                    if (item.Quantity > variant.Stock)
+                    {
+                        TempData["Error"] = $"Only {variant.Stock} bundle(s) are available right now because '{bundleSnapshotItem.ProductName}' is low in stock.";
+                        return RedirectToAction("Index", "Cart");
+                    }
+                }
+
+                subtotal += item.Quantity * item.PriceSnapshot;
+                continue;
+            }
+
             // Guard: variant may be null if data integrity is broken
             if (item.ProductVariant == null)
             {
@@ -866,29 +900,14 @@ public class OrdersController : Controller
     {
         var cart = await _unitOfWork.Carts.GetCartByUserIdAsync(userId);
         var addresses = await _unitOfWork.Addresses.FindAllAsync(a => a.UserId == userId);
+        var bundleVariantLookup = await BuildBundleVariantLookupAsync(cart?.Items ?? [], tracked: false);
 
         var defaultAddressId = addresses.FirstOrDefault(a => a.IsDefault)?.Id
                                ?? addresses.FirstOrDefault()?.Id;
 
         var vm = new CheckoutVM
         {
-            Items = cart?.Items.Select(ci => new CheckoutItemCustomerVM
-            {
-                CartItemId       = ci.Id,
-                ProductVariantId = ci.ProductVariantId,
-                Quantity         = ci.Quantity,
-                PriceSnapshot    = ci.PriceSnapshot,
-                CurrentPrice     = ci.PriceSnapshot,
-                ProductName      = ci.ProductVariant.Product.Name,
-                Size             = ci.ProductVariant.Size,
-                Color            = ci.ProductVariant.Color,
-                ImageUrl         = ci.ProductVariant.Product.Images
-                                     .FirstOrDefault(i => i.IsMain)?.ImageUrl
-                                   ?? ci.ProductVariant.Product.Images
-                                     .OrderBy(i => i.DisplayOrder)
-                                     .FirstOrDefault()?.ImageUrl,
-                Stock            = ci.ProductVariant.Stock
-            }).ToList() ?? [],
+            Items = cart?.Items.Select(ci => MapCheckoutItem(ci, bundleVariantLookup)).ToList() ?? [],
             Subtotal = cart?.Items.Sum(ci => ci.Quantity * ci.PriceSnapshot) ?? 0m,
             Addresses = addresses.Select(a => new AddressOptionCustomerVM
             {
@@ -1057,9 +1076,17 @@ public class OrdersController : Controller
         decimal totalAmount)
     {
         var sessionService = new SessionService();
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var baseUrl = (_configuration["App:PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
         var successUrl = $"{baseUrl}{Url.Action(nameof(StripeSuccess), "Orders", new { area = "Customer" })}?sessionId={{CHECKOUT_SESSION_ID}}";
         var cancelUrl = $"{baseUrl}{Url.Action(nameof(StripeCancel), "Orders", new { area = "Customer", couponCode, addressId })}";
+
+        _logger.LogInformation(
+            "Creating Stripe checkout session. BaseUrl={BaseUrl}, SuccessUrl={SuccessUrl}, CancelUrl={CancelUrl}, UserId={UserId}, AddressId={AddressId}.",
+            baseUrl,
+            successUrl,
+            cancelUrl,
+            userId,
+            addressId);
 
         var lineItems = new List<SessionLineItemOptions>();
 
@@ -1086,6 +1113,14 @@ public class OrdersController : Controller
         {
             foreach (var item in cart.Items)
             {
+                var lineName = item.GiftBundleId.HasValue
+                    ? item.GiftBundleTitle ?? _localizer["SmartStoreOrder"].Value
+                    : item.ProductVariant?.Product?.Name ?? _localizer["SmartStoreOrder"].Value;
+
+                var lineDescription = item.GiftBundleId.HasValue
+                    ? string.Join(", ", GiftBundleSnapshotHelper.Deserialize(item.GiftBundleItemsJson).Select(bundleItem => bundleItem.ProductName))
+                    : $"{item.ProductVariant?.Size} / {item.ProductVariant?.Color}";
+
                 lineItems.Add(new SessionLineItemOptions
                 {
                     Quantity = item.Quantity,
@@ -1095,8 +1130,8 @@ public class OrdersController : Controller
                         UnitAmount = (long)Math.Round(item.PriceSnapshot * 100m, MidpointRounding.AwayFromZero),
                         ProductData = new SessionLineItemPriceDataProductDataOptions
                         {
-                            Name = item.ProductVariant.Product?.Name ?? _localizer["SmartStoreOrder"].Value,
-                            Description = $"{item.ProductVariant.Size} / {item.ProductVariant.Color}"
+                            Name = lineName,
+                            Description = lineDescription
                         }
                     }
                 });
@@ -1140,10 +1175,83 @@ public class OrdersController : Controller
         using var transaction = await _unitOfWork.BeginTransactionAsync();
         try
         {
-            var orderItems = new List<OrderItem>(cart.Items.Count);
+            var orderItems = new List<OrderItem>(cart.Items.Count * 3);
+            var bundleVariantLookup = await BuildBundleVariantLookupAsync(cart.Items, tracked: true);
 
             foreach (var item in cart.Items)
             {
+                if (item.GiftBundleId.HasValue)
+                {
+                    var bundleSnapshotItems = GiftBundleSnapshotHelper.Deserialize(item.GiftBundleItemsJson);
+                    if (bundleSnapshotItems.Count == 0)
+                    {
+                        throw new InvalidOperationException("A gift bundle in the cart has no valid snapshot.");
+                    }
+
+                    var remainingBundleUnitPrice = item.PriceSnapshot;
+                    var originalBundleTotal = bundleSnapshotItems.Sum(bundleItem => bundleItem.UnitPrice);
+                    var fallbackUnitShare = bundleSnapshotItems.Count == 0
+                        ? 0m
+                        : Math.Round(item.PriceSnapshot / bundleSnapshotItems.Count, 2, MidpointRounding.AwayFromZero);
+
+                    for (var index = 0; index < bundleSnapshotItems.Count; index++)
+                    {
+                        var bundleSnapshotItem = bundleSnapshotItems[index];
+                        if (!bundleVariantLookup.TryGetValue(bundleSnapshotItem.ProductVariantId, out var trackedVariant))
+                        {
+                            throw new InvalidOperationException($"Bundle variant {bundleSnapshotItem.ProductVariantId} could not be loaded.");
+                        }
+
+                        trackedVariant.Stock -= item.Quantity;
+                        if (trackedVariant.Stock == 0)
+                        {
+                            trackedVariant.IsActive = false;
+                            _logger.LogInformation(
+                                "FinalizeOrder: Bundle variant {VariantId} will be deactivated (stock → 0). UserId={UserId}.",
+                                trackedVariant.Id, userId);
+                        }
+
+                        _unitOfWork.ProductVariants.Update(trackedVariant);
+
+                        decimal unitPriceShare;
+                        if (index == bundleSnapshotItems.Count - 1)
+                        {
+                            unitPriceShare = Math.Max(0, Math.Round(remainingBundleUnitPrice, 2, MidpointRounding.AwayFromZero));
+                        }
+                        else if (originalBundleTotal > 0)
+                        {
+                            unitPriceShare = Math.Round(
+                                item.PriceSnapshot * (bundleSnapshotItem.UnitPrice / originalBundleTotal),
+                                2,
+                                MidpointRounding.AwayFromZero);
+                            remainingBundleUnitPrice -= unitPriceShare;
+                        }
+                        else
+                        {
+                            unitPriceShare = fallbackUnitShare;
+                            remainingBundleUnitPrice -= unitPriceShare;
+                        }
+
+                        orderItems.Add(new OrderItem
+                        {
+                            ProductVariantId = trackedVariant.Id,
+                            ProductName = $"{bundleSnapshotItem.ProductName} ({item.GiftBundleTitle ?? "Gift Bundle"})",
+                            Size = bundleSnapshotItem.Size,
+                            Color = bundleSnapshotItem.Color,
+                            Quantity = item.Quantity,
+                            UnitPrice = unitPriceShare,
+                            Subtotal = unitPriceShare * item.Quantity
+                        });
+                    }
+
+                    continue;
+                }
+
+                if (item.ProductVariant == null)
+                {
+                    throw new InvalidOperationException($"CartItem {item.Id} has no ProductVariant.");
+                }
+
                 item.ProductVariant.Stock -= item.Quantity;
                 if (item.ProductVariant.Stock == 0)
                 {
@@ -1156,7 +1264,7 @@ public class OrdersController : Controller
 
                 orderItems.Add(new OrderItem
                 {
-                    ProductVariantId = item.ProductVariantId,
+                    ProductVariantId = item.ProductVariant.Id,
                     ProductName      = item.ProductVariant.Product?.Name ?? "(deleted)",
                     Size             = item.ProductVariant.Size,
                     Color            = item.ProductVariant.Color,
@@ -1295,5 +1403,92 @@ public class OrdersController : Controller
         discountAmount = Math.Min(discountAmount, subtotal);
 
         return (appliedCoupon, discountAmount, null, appliedCoupon.CouponCode);
+    }
+
+    private CheckoutItemCustomerVM MapCheckoutItem(CartItem cartItem, IReadOnlyDictionary<int, ProductVariant> bundleVariantLookup)
+    {
+        if (cartItem.GiftBundleId.HasValue)
+        {
+            var bundleItems = GiftBundleSnapshotHelper.Deserialize(cartItem.GiftBundleItemsJson);
+            return new CheckoutItemCustomerVM
+            {
+                CartItemId = cartItem.Id,
+                GiftBundleId = cartItem.GiftBundleId,
+                GiftBundleTitle = cartItem.GiftBundleTitle,
+                GiftBundleOriginalTotal = cartItem.GiftBundleOriginalTotal,
+                Quantity = cartItem.Quantity,
+                PriceSnapshot = cartItem.PriceSnapshot,
+                CurrentPrice = cartItem.PriceSnapshot,
+                ProductName = cartItem.GiftBundleTitle ?? "Gift Bundle",
+                ImageUrl = bundleItems.FirstOrDefault()?.ImageUrl,
+                Stock = ResolveBundleStock(bundleItems, bundleVariantLookup),
+                BundleItems = bundleItems.Select(bundleItem => new GiftBundleCheckoutProductVM
+                {
+                    ProductName = bundleItem.ProductName,
+                    Size = bundleItem.Size,
+                    Color = bundleItem.Color,
+                    ImageUrl = bundleItem.ImageUrl
+                }).ToList()
+            };
+        }
+
+        if (cartItem.ProductVariant == null)
+        {
+            return new CheckoutItemCustomerVM
+            {
+                CartItemId = cartItem.Id,
+                Quantity = cartItem.Quantity,
+                PriceSnapshot = cartItem.PriceSnapshot,
+                CurrentPrice = cartItem.PriceSnapshot,
+                ProductName = "Unavailable item",
+                Stock = 0
+            };
+        }
+
+        return new CheckoutItemCustomerVM
+        {
+            CartItemId = cartItem.Id,
+            ProductVariantId = cartItem.ProductVariantId,
+            Quantity = cartItem.Quantity,
+            PriceSnapshot = cartItem.PriceSnapshot,
+            CurrentPrice = cartItem.PriceSnapshot,
+            ProductName = cartItem.ProductVariant.Product.Name,
+            Size = cartItem.ProductVariant.Size,
+            Color = cartItem.ProductVariant.Color,
+            ImageUrl = cartItem.ProductVariant.Product.Images
+                         .FirstOrDefault(i => i.IsMain)?.ImageUrl
+                       ?? cartItem.ProductVariant.Product.Images
+                         .OrderBy(i => i.DisplayOrder)
+                         .FirstOrDefault()?.ImageUrl,
+            Stock = cartItem.ProductVariant.Stock
+        };
+    }
+
+    private async Task<IReadOnlyDictionary<int, ProductVariant>> BuildBundleVariantLookupAsync(IEnumerable<CartItem> cartItems, bool tracked)
+    {
+        var variantIds = cartItems
+            .Where(item => item.GiftBundleId.HasValue)
+            .SelectMany(item => GiftBundleSnapshotHelper.Deserialize(item.GiftBundleItemsJson))
+            .Select(item => item.ProductVariantId)
+            .Distinct()
+            .ToList();
+
+        if (variantIds.Count == 0)
+        {
+            return new Dictionary<int, ProductVariant>();
+        }
+
+        return (await _unitOfWork.ProductVariants
+            .FindAllAsync(variant => variantIds.Contains(variant.Id), tracked: tracked, ignoreQueryFilters: true))
+            .ToDictionary(variant => variant.Id, variant => variant);
+    }
+
+    private static int ResolveBundleStock(IEnumerable<GiftBundleSnapshotItem> bundleItems, IReadOnlyDictionary<int, ProductVariant> variantLookup)
+    {
+        var stocks = bundleItems
+            .Select(bundleItem => variantLookup.TryGetValue(bundleItem.ProductVariantId, out var variant) ? variant.Stock : 0)
+            .ToList();
+
+        return stocks.Count == 0 ? 0 : stocks.Min();
     }
 }

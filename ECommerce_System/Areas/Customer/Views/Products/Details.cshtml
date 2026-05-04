@@ -9,7 +9,11 @@
     var allVariants = product?.Variants?.OrderBy(v => v.Size).ThenBy(v => v.Color).ToList() ?? [];
     var availableVariants = allVariants.Where(v => v.IsActive && v.Stock > 0).OrderBy(v => v.Price).ToList();
     var firstAvailableVariant = availableVariants.FirstOrDefault();
-    var sizes    = allVariants.Select(v => v.Size).Distinct().OrderBy(s => s).ToList();
+    var sizes    = allVariants.Select(v => v.Size)
+                              .Where(s => !string.IsNullOrWhiteSpace(s))
+                              .Distinct()
+                              .OrderBy(s => s)
+                              .ToList();
     var colors   = allVariants.Select(v => v.Color).Distinct().OrderBy(c => c).ToList();
     var mainImg  = product?.Images?.FirstOrDefault(i => i.IsMain)?.ImageUrl
                 ?? product?.Images?.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.ImageUrl

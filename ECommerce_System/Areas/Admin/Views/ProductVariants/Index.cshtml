@@ -24,7 +24,7 @@
         <a asp-area="Admin" asp-controller="Product" asp-action="Details" asp-route-id="@Model.Id"
            class="hover:text-primary transition-colors">@Model.Name</a>
         <span class="material-symbols-outlined text-sm">chevron_right</span>
-        <span class="font-medium text-slate-900">Variants &amp; Images</span>
+        <span class="font-medium text-slate-900">Variants</span>
     </nav>
 
     <!-- Product Header Card -->
@@ -79,21 +79,26 @@
     <!-- Tab Navigation -->
     <div class="overflow-x-auto border-b border-slate-200">
         <div class="flex min-w-max gap-6">
+        <a asp-area="Admin" asp-controller="Product" asp-action="Details" asp-route-id="@Model.Id"
+           class="pb-4 text-slate-500 font-medium hover:text-slate-900 flex items-center gap-2 transition-all">
+            <span class="material-symbols-outlined text-xl">dashboard</span>
+            Overview
+        </a>
         <button class="flex items-center gap-2 border-b-2 border-primary pb-4 font-semibold text-primary transition-all">
             <span class="material-symbols-outlined text-xl">style</span>
             Variants
+            <span class="bg-primary/10 text-primary text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                @Model.Variants.Count
+            </span>
         </button>
         <a asp-area="Admin" asp-controller="ProductImages" asp-action="Index"
            asp-route-productId="@Model.Id"
            class="pb-4 text-slate-500 font-medium hover:text-slate-900 flex items-center gap-2 transition-all relative">
             <span class="material-symbols-outlined text-xl">image</span>
             Media Gallery
-            @if (Model.Images.Any())
-            {
-                <span class="absolute -top-1 -right-3 bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded-full font-black">
-                    @Model.Images.Count
-                </span>
-            }
+            <span class="bg-slate-100 text-slate-500 text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                @Model.Images.Count
+            </span>
         </a>
         </div>
     </div>
@@ -111,14 +116,21 @@
             {
                 var isLow = v.IsActive && v.Stock is > 0 and < 10;
                 var isOut = v.IsActive && v.Stock == 0;
-                var szClass = sizeColors.TryGetValue(v.Size.ToUpper(), out var sc) ? sc : "bg-slate-100 text-slate-600";
+                var sizeValue = v.Size ?? string.Empty;
+                var sizeLabel = string.IsNullOrWhiteSpace(sizeValue) ? "No size" : sizeValue;
+                var variantLabel = string.IsNullOrWhiteSpace(sizeValue) ? v.Color : $"{v.Color} / {sizeLabel}";
+                var variantMainImg = v.Images.FirstOrDefault(i => i.IsMain) ?? v.Images.FirstOrDefault();
+                var szClass = !string.IsNullOrWhiteSpace(sizeValue) &&
+                              sizeColors.TryGetValue(sizeValue.ToUpperInvariant(), out var sc)
+                    ? sc
+                    : "bg-slate-100 text-slate-600";
 
                 <article class="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm @(!v.IsActive ? "opacity-60" : "")">
                     <div class="flex items-start gap-3">
                         <div class="h-14 w-14 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                            @if (mainImg is not null)
+                            @if (variantMainImg is not null)
                             {
-                                <img src="@mainImg.ImageUrl" alt="@v.Size @v.Color" class="h-full w-full object-cover" />
+                                <img src="@variantMainImg.ImageUrl" alt="@variantLabel" class="h-full w-full object-cover" />
                             }
                             else
                             {
@@ -130,10 +142,10 @@
                         <div class="min-w-0 flex-1">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
-                                    <p class="text-base font-bold text-slate-900">@v.Color / @v.Size</p>
+                                    <p class="text-base font-bold text-slate-900">@variantLabel</p>
                                     <p class="mt-1 text-xs text-slate-500">@v.SKU</p>
                                 </div>
-                                <span class="rounded-full px-2.5 py-1 text-[10px] font-black uppercase @szClass">@v.Size</span>
+                                <span class="rounded-full px-2.5 py-1 text-[10px] font-black uppercase @szClass">@sizeLabel</span>
                             </div>
 
                             <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
@@ -222,16 +234,23 @@
                     {
                         var isLow    = v.IsActive && v.Stock is > 0 and < 10;
                         var isOut    = v.IsActive && v.Stock == 0;
-                        var szClass  = sizeColors.TryGetValue(v.Size.ToUpper(), out var sc) ? sc : "bg-slate-100 text-slate-600";
+                        var sizeValue = v.Size ?? string.Empty;
+                        var sizeLabel = string.IsNullOrWhiteSpace(sizeValue) ? "No size" : sizeValue;
+                        var variantLabel = string.IsNullOrWhiteSpace(sizeValue) ? v.Color : $"{v.Color} / {sizeLabel}";
+                        var variantMainImg = v.Images.FirstOrDefault(i => i.IsMain) ?? v.Images.FirstOrDefault();
+                        var szClass  = !string.IsNullOrWhiteSpace(sizeValue) &&
+                                       sizeColors.TryGetValue(sizeValue.ToUpperInvariant(), out var sc)
+                            ? sc
+                            : "bg-slate-100 text-slate-600";
 
                         <tr class="group hover:bg-slate-50/50 transition-colors @(!v.IsActive ? "opacity-50" : "")">
                             <!-- Variant name + thumb -->
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-3">
                                     <div class="h-10 w-10 rounded bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200 flex-shrink-0">
-                                        @if (mainImg is not null)
+                                        @if (variantMainImg is not null)
                                         {
-                                            <img src="@mainImg.ImageUrl" alt="@v.Size @v.Color"
+                                            <img src="@variantMainImg.ImageUrl" alt="@variantLabel"
                                                  class="w-full h-full object-cover" />
                                         }
                                         else
@@ -240,7 +259,7 @@
                                         }
                                     </div>
                                     <div>
-                                        <span class="text-sm font-semibold text-slate-900">@v.Color / @v.Size</span>
+                                        <span class="text-sm font-semibold text-slate-900">@variantLabel</span>
                                         @if (!v.IsActive)
                                         {
                                             <span class="block text-[10px] text-slate-400">Inactive</span>
@@ -251,7 +270,7 @@
                             <!-- Size badge -->
                             <td class="px-6 py-4">
                                 <span class="px-2.5 py-1 rounded text-[10px] font-black uppercase @szClass">
-                                    @v.Size
+                                    @sizeLabel
                                 </span>
                             </td>
                             <!-- Color swatch -->

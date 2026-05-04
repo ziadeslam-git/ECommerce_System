@@ -187,6 +187,15 @@
                         </label>
 
                         <div class="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-2">
+                            @if (addresses.Any())
+                            {
+                                <button type="button"
+                                        id="cancel-new-address"
+                                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+                                    <span class="material-symbols-outlined text-[18px]">close</span>
+                                    @SR["Cancel"]
+                                </button>
+                            }
                             <button type="submit"
                                     formaction="@Url.Action("UseNewAddress", "Orders", new { area = "Customer" })"
                                     formmethod="post"
@@ -257,23 +266,66 @@
                 <div class="mb-6 space-y-4">
                     @foreach (var item in items)
                     {
-                        <div class="flex gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                            <div class="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-white">
-                                <img src="@(item.ImageUrl ?? "https://placehold.co/100")"
-                                     alt="@item.ProductName"
-                                     class="h-full w-full object-cover" />
-                            </div>
-                            <div class="flex flex-1 flex-col justify-between">
-                                <div>
-                                    <h3 class="line-clamp-1 font-medium text-slate-900">@item.ProductName</h3>
-                                    <p class="mt-1 text-sm text-slate-500">@item.Size / @item.Color</p>
+                        @if (item.IsGiftBundle)
+                        {
+                            <div class="rounded-2xl border border-primary/10 bg-primary/5 p-4">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <span class="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-primary">Gift Bundle</span>
+                                        <h3 class="mt-2 text-base font-bold text-slate-900">@item.GiftBundleTitle</h3>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="font-semibold text-slate-900">@item.LineTotal.ToString("0.00") EGP</p>
+                                        @if (item.GiftBundleOriginalTotal.HasValue && item.GiftBundleOriginalTotal.Value > item.PriceSnapshot)
+                                        {
+                                            <p class="text-xs text-slate-400 line-through">@item.GiftBundleOriginalTotal.Value.ToString("0.00") EGP</p>
+                                        }
+                                    </div>
                                 </div>
-                                <div class="flex items-center justify-between gap-2">
-                                    <span class="text-sm text-slate-500">@SR["QuantityShort"] @item.Quantity</span>
-                                    <span class="font-semibold text-slate-900">@item.LineTotal.ToString("0.00") EGP</span>
+
+                                <div class="mt-4 space-y-3">
+                                    @foreach (var bundleProduct in item.BundleItems)
+                                    {
+                                        <div class="flex gap-3 rounded-xl border border-white/70 bg-white/80 p-3">
+                                            <div class="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl bg-white">
+                                                <img src="@(bundleProduct.ImageUrl ?? "https://placehold.co/100")"
+                                                     alt="@bundleProduct.ProductName"
+                                                     class="h-full w-full object-cover" />
+                                            </div>
+                                            <div class="min-w-0">
+                                                <p class="line-clamp-1 text-sm font-semibold text-slate-900">@bundleProduct.ProductName</p>
+                                                <p class="mt-1 text-xs text-slate-500">@bundleProduct.Size / @bundleProduct.Color</p>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="mt-4 flex items-center justify-between gap-2 text-sm">
+                                    <span class="text-slate-500">@SR["QuantityShort"] @item.Quantity</span>
+                                    <span class="font-semibold text-primary">@item.PriceSnapshot.ToString("0.00") EGP per bundle</span>
                                 </div>
                             </div>
-                        </div>
+                        }
+                        else
+                        {
+                            <div class="flex gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                                <div class="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-white">
+                                    <img src="@(item.ImageUrl ?? "https://placehold.co/100")"
+                                         alt="@item.ProductName"
+                                         class="h-full w-full object-cover" />
+                                </div>
+                                <div class="flex flex-1 flex-col justify-between">
+                                    <div>
+                                        <h3 class="line-clamp-1 font-medium text-slate-900">@item.ProductName</h3>
+                                        <p class="mt-1 text-sm text-slate-500">@item.Size / @item.Color</p>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-sm text-slate-500">@SR["QuantityShort"] @item.Quantity</span>
+                                        <span class="font-semibold text-slate-900">@item.LineTotal.ToString("0.00") EGP</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
                     }
                 </div>
 
@@ -352,15 +404,36 @@
         const showNewAddressInput = document.getElementById('ShowNewAddressForm');
         const newAddressPanel = document.getElementById('new-address-panel');
         const toggleNewAddressButton = document.getElementById('toggle-new-address');
+        const cancelNewAddressButton = document.getElementById('cancel-new-address');
         const selectSavedAddressSubmit = document.getElementById('select-saved-address-submit');
         const savedAddressRadios = Array.from(document.querySelectorAll('[data-saved-address-radio]'));
         const deleteAddressButtons = Array.from(document.querySelectorAll('[data-delete-address-button]'));
+        const newAddressFullNameInput = document.getElementById('NewAddressFullName');
+        const newAddressPhoneNumberInput = document.getElementById('NewAddressPhoneNumber');
+        const newAddressStreetInput = document.getElementById('NewAddressStreet');
+        const newAddressCityInput = document.getElementById('NewAddressCity');
+        const newAddressStateInput = document.getElementById('NewAddressState');
+        const newAddressCountryInput = document.getElementById('NewAddressCountry');
+        const newAddressPostalCodeInput = document.getElementById('NewAddressPostalCode');
+        const saveNewAddressInput = document.getElementById('SaveNewAddress');
+        const defaultCountryValue = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model?.NewAddressCountry ?? "Egypt"));
 
         function setNewAddressPanelState(visible) {
             if (!newAddressPanel || !showNewAddressInput) return;
 
             newAddressPanel.classList.toggle('hidden', !visible);
             showNewAddressInput.value = visible ? 'true' : 'false';
+        }
+
+        function clearNewAddressInputs() {
+            if (newAddressFullNameInput) newAddressFullNameInput.value = '';
+            if (newAddressPhoneNumberInput) newAddressPhoneNumberInput.value = '';
+            if (newAddressStreetInput) newAddressStreetInput.value = '';
+            if (newAddressCityInput) newAddressCityInput.value = '';
+            if (newAddressStateInput) newAddressStateInput.value = '';
+            if (newAddressPostalCodeInput) newAddressPostalCodeInput.value = '';
+            if (newAddressCountryInput) newAddressCountryInput.value = defaultCountryValue;
+            if (saveNewAddressInput) saveNewAddressInput.checked = true;
         }
 
         function refreshAddressSelectionUi() {
@@ -384,6 +457,18 @@
 
         toggleNewAddressButton?.addEventListener('click', function () {
             setNewAddressPanelState(true);
+        });
+
+        cancelNewAddressButton?.addEventListener('click', function () {
+            clearNewAddressInputs();
+            setNewAddressPanelState(false);
+
+            const checkedAddress = savedAddressRadios.find(radio => radio.checked);
+            if (!checkedAddress && savedAddressRadios.length > 0) {
+                savedAddressRadios[0].checked = true;
+            }
+
+            refreshAddressSelectionUi();
         });
 
         savedAddressRadios.forEach(function (radio) {

@@ -5,7 +5,7 @@
     string T(string en, string ar) => isAr ? ar : en;
     ViewData["Title"] = T("Products", "المنتجات");
     var products = Model?.Products ?? [];
-    var productCount = products.Count();
+    var productCount = Model?.TotalCount ?? products.Count();
     var returnUrl = Context.Request.Path + Context.Request.QueryString;
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
     var loginReturnUrl = $"/Identity/Account/Login?ReturnUrl={Uri.EscapeDataString(returnUrl)}";
@@ -133,6 +133,25 @@
                 </label>
             </form>
 
+            @if (Model != null && Model.TotalCount > 0)
+            {
+                <div class="flex flex-col gap-3 rounded-[1.5rem] border border-slate-200 bg-white px-5 py-4 shadow-sm shadow-slate-200/30 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm text-slate-500">
+                        @T("Showing", "عرض")
+                        <span class="font-bold text-slate-900">@Model.ShowingFrom</span>
+                        -
+                        <span class="font-bold text-slate-900">@Model.ShowingTo</span>
+                        @T("of", "من")
+                        <span class="font-bold text-slate-900">@Model.TotalCount</span>
+                        @T("products", "منتج")
+                    </p>
+
+                    <span class="inline-flex items-center justify-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500 shadow-sm">
+                        @T("Page", "صفحة") @Model.CurrentPage @T("of", "من") @Model.TotalPages
+                    </span>
+                </div>
+            }
+
             @if (!products.Any())
             {
                 <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center text-slate-500">
@@ -141,7 +160,7 @@
             }
             else
             {
-                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
                     @foreach (var p in products)
                     {
                         <article class="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition flex flex-col h-full">
@@ -289,25 +308,105 @@
 
             @if (Model != null && Model.TotalPages > 1)
             {
-                <div class="flex justify-center gap-2 pt-3">
-                    @if (Model.CurrentPage > 1)
+                var startPage = Math.Max(1, Model.CurrentPage - 2);
+                var endPage = Math.Min(Model.TotalPages, Model.CurrentPage + 2);
+
+                if (endPage - startPage < 4)
+                {
+                    if (startPage == 1)
                     {
-                        <a asp-action="Index" asp-route-page="@(Model.CurrentPage - 1)"
-                           asp-route-search="@Model.SearchQuery" asp-route-sort="@Model.Sort"
-                           class="h-9 px-3 rounded-lg border border-slate-300 grid place-items-center text-sm hover:border-primary">←</a>
+                        endPage = Math.Min(Model.TotalPages, startPage + 4);
                     }
-                    @for (int i = 1; i <= Model.TotalPages; i++)
+                    else if (endPage == Model.TotalPages)
                     {
-                        <a asp-action="Index" asp-route-page="@i"
-                           asp-route-search="@Model.SearchQuery" asp-route-sort="@Model.Sort"
-                           class="h-9 w-9 rounded-lg border @(i == Model.CurrentPage ? "bg-primary text-white border-primary" : "border-slate-300 hover:border-primary") grid place-items-center text-sm">@i</a>
+                        startPage = Math.Max(1, endPage - 4);
                     }
-                    @if (Model.CurrentPage < Model.TotalPages)
-                    {
-                        <a asp-action="Index" asp-route-page="@(Model.CurrentPage + 1)"
-                           asp-route-search="@Model.SearchQuery" asp-route-sort="@Model.Sort"
-                           class="h-9 px-3 rounded-lg border border-slate-300 grid place-items-center text-sm hover:border-primary">→</a>
-                    }
+                }
+
+                <div class="rounded-[1.5rem] border border-slate-200 bg-white px-4 py-4 shadow-sm shadow-slate-200/30">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p class="text-sm text-slate-500">
+                            @T("Browse more products page by page.", "تنقل بين المنتجات صفحة بصفحة.")
+                        </p>
+
+                        <nav class="flex flex-wrap items-center justify-center gap-2">
+                            @if (Model.HasPreviousPage)
+                            {
+                                <a asp-action="Index"
+                                   asp-route-page="@(Model.CurrentPage - 1)"
+                                   asp-route-search="@Model.SearchQuery"
+                                   asp-route-categoryId="@Model.SelectedCategoryId"
+                                   asp-route-minPrice="@Model.MinPrice"
+                                   asp-route-maxPrice="@Model.MaxPrice"
+                                   asp-route-sort="@Model.Sort"
+                                   class="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-slate-300 px-3 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary">
+                                    <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+                                    @T("Prev", "السابق")
+                                </a>
+                            }
+
+                            @if (startPage > 1)
+                            {
+                                <a asp-action="Index"
+                                   asp-route-page="1"
+                                   asp-route-search="@Model.SearchQuery"
+                                   asp-route-categoryId="@Model.SelectedCategoryId"
+                                   asp-route-minPrice="@Model.MinPrice"
+                                   asp-route-maxPrice="@Model.MaxPrice"
+                                   asp-route-sort="@Model.Sort"
+                                   class="grid h-10 w-10 place-items-center rounded-xl border border-slate-300 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary">1</a>
+
+                                @if (startPage > 2)
+                                {
+                                    <span class="px-1 text-slate-400">...</span>
+                                }
+                            }
+
+                            @for (int i = startPage; i <= endPage; i++)
+                            {
+                                <a asp-action="Index"
+                                   asp-route-page="@i"
+                                   asp-route-search="@Model.SearchQuery"
+                                   asp-route-categoryId="@Model.SelectedCategoryId"
+                                   asp-route-minPrice="@Model.MinPrice"
+                                   asp-route-maxPrice="@Model.MaxPrice"
+                                   asp-route-sort="@Model.Sort"
+                                   class="grid h-10 w-10 place-items-center rounded-xl border text-sm font-bold transition @(i == Model.CurrentPage ? "border-primary bg-primary text-white shadow-lg shadow-primary/20" : "border-slate-300 text-slate-600 hover:border-primary hover:text-primary")">@i</a>
+                            }
+
+                            @if (endPage < Model.TotalPages)
+                            {
+                                @if (endPage < Model.TotalPages - 1)
+                                {
+                                    <span class="px-1 text-slate-400">...</span>
+                                }
+
+                                <a asp-action="Index"
+                                   asp-route-page="@Model.TotalPages"
+                                   asp-route-search="@Model.SearchQuery"
+                                   asp-route-categoryId="@Model.SelectedCategoryId"
+                                   asp-route-minPrice="@Model.MinPrice"
+                                   asp-route-maxPrice="@Model.MaxPrice"
+                                   asp-route-sort="@Model.Sort"
+                                   class="grid h-10 w-10 place-items-center rounded-xl border border-slate-300 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary">@Model.TotalPages</a>
+                            }
+
+                            @if (Model.HasNextPage)
+                            {
+                                <a asp-action="Index"
+                                   asp-route-page="@(Model.CurrentPage + 1)"
+                                   asp-route-search="@Model.SearchQuery"
+                                   asp-route-categoryId="@Model.SelectedCategoryId"
+                                   asp-route-minPrice="@Model.MinPrice"
+                                   asp-route-maxPrice="@Model.MaxPrice"
+                                   asp-route-sort="@Model.Sort"
+                                   class="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-slate-300 px-3 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary">
+                                    @T("Next", "التالي")
+                                    <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                                </a>
+                            }
+                        </nav>
+                    </div>
                 </div>
             }
         </div>

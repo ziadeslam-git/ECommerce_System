@@ -15,6 +15,8 @@ public class UnitOfWork : IUnitOfWork
     public IOrderRepository Orders { get; private set; }
     public ICartRepository Carts { get; private set; }
     public ICategoryRepository Categories { get; private set; }
+    public IRepository<GiftBundle> GiftBundles { get; private set; }
+    public IRepository<GiftBundleProduct> GiftBundleProducts { get; private set; }
 
     // ─── Generic Repositories ───
     public IRepository<ProductVariant> ProductVariants { get; private set; }
@@ -36,6 +38,8 @@ public class UnitOfWork : IUnitOfWork
         Orders         = new OrderRepository(_context);
         Carts          = new CartRepository(_context);
         Categories     = new CategoryRepository(_context);
+        GiftBundles     = new Repository<GiftBundle>(_context);
+        GiftBundleProducts = new Repository<GiftBundleProduct>(_context);
         ProductVariants = new Repository<ProductVariant>(_context);
         ProductImages   = new Repository<ProductImage>(_context);
         CartItems       = new Repository<CartItem>(_context);

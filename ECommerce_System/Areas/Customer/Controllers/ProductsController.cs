@@ -26,7 +26,7 @@ public class ProductsController : Controller
         string? sort,
         int page = 1)
     {
-        const int PageSize = 12;
+        const int PageSize = 16;
         page = Math.Max(1, page);
         search = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
         sort = string.IsNullOrWhiteSpace(sort) ? "newest" : sort.Trim().ToLowerInvariant();
@@ -85,6 +85,8 @@ public class ProductsController : Controller
         };
 
         var totalCount = await query.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+        page = Math.Min(page, totalPages);
 
         var products = await query
             .Skip((page - 1) * PageSize)
@@ -140,8 +142,9 @@ public class ProductsController : Controller
             }).ToList(),
             Categories = categorySelectList,
             CurrentPage = page,
-            TotalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize)),
+            TotalPages = totalPages,
             TotalCount = totalCount,
+            PageSize = PageSize,
             SearchQuery = search,
             SelectedCategoryId = categoryId,
             MinPrice = minPrice,

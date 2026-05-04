@@ -19,7 +19,12 @@ public class CartItemVM
 {
     public int CartItemId { get; set; }
 
-    public int ProductVariantId { get; set; }
+    public int? ProductVariantId { get; set; }
+    public int? GiftBundleId { get; set; }
+    public bool IsGiftBundle => GiftBundleId.HasValue;
+    public string? GiftBundleTitle { get; set; }
+    public decimal? GiftBundleOriginalTotal { get; set; }
+    public List<GiftBundleCartProductVM> BundleItems { get; set; } = [];
 
     public string ProductName { get; set; } = string.Empty;
 
@@ -36,4 +41,12 @@ public class CartItemVM
     public decimal Subtotal => UnitPrice * Quantity;
 
     public int MaxStock { get; set; }
+}
+
+public class GiftBundleCartProductVM
+{
+    public string ProductName { get; set; } = string.Empty;
+    public string Size { get; set; } = string.Empty;
+    public string Color { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; }
 }

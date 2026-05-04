@@ -3,6 +3,8 @@ using ECommerce_System.Repositories.IRepositories;
 using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerce_System.Areas.Admin.Controllers;
@@ -12,9 +14,24 @@ namespace ECommerce_System.Areas.Admin.Controllers;
 public class ShipmentsController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IEmailSender _emailSender;
+    private readonly ILogger<ShipmentsController> _logger;
+    private readonly IConfiguration _configuration;
 
-    public ShipmentsController(IUnitOfWork unitOfWork)
-        => _unitOfWork = unitOfWork;
+    public ShipmentsController(
+        IUnitOfWork unitOfWork,
+        UserManager<ApplicationUser> userManager,
+        IEmailSender emailSender,
+        ILogger<ShipmentsController> logger,
+        IConfiguration configuration)
+    {
+        _unitOfWork = unitOfWork;
+        _userManager = userManager;
+        _emailSender = emailSender;
+        _logger = logger;
+        _configuration = configuration;
+    }
 
     // ──────────────────────────────────────────────────────────
     //  GET /Admin/Shipments/Create?orderId=5
@@ -64,19 +81,30 @@ public class ShipmentsController : Controller
 
         await _unitOfWork.Shipments.AddAsync(shipment);
 
+        string? previousOrderStatus = null;
+        Order? orderForNotification = null;
+
         // Sync order status if shipped
         if (vm.Status == SD.Shipment_Shipped || vm.Status == SD.Shipment_OutForDelivery)
         {
             var order = await _unitOfWork.Orders.GetByIdAsync(vm.OrderId);
             if (order is not null)
             {
+                previousOrderStatus = order.Status;
                 order.Status    = SD.Status_Shipped;
                 order.UpdatedAt = DateTime.UtcNow;
                 _unitOfWork.Orders.Update(order);
+                orderForNotification = order;
             }
         }
 
         await _unitOfWork.SaveAsync();
+
+        if (orderForNotification is not null &&
+            !string.Equals(previousOrderStatus, orderForNotification.Status, StringComparison.OrdinalIgnoreCase))
+        {
+            await SendShipmentStatusEmailAsync(orderForNotification, previousOrderStatus ?? orderForNotification.Status);
+        }
 
         TempData["Success"] = "Shipment created successfully.";
         return RedirectToAction("Details", "Orders", new { id = vm.OrderId });
@@ -132,6 +160,7 @@ public class ShipmentsController : Controller
 
         // Sync order status with shipment status
         var order = await _unitOfWork.Orders.GetByIdAsync(shipment.OrderId);
+        string? previousOrderStatus = order?.Status;
         if (order is not null)
         {
             order.Status = vm.Status switch
@@ -147,7 +176,49 @@ public class ShipmentsController : Controller
 
         await _unitOfWork.SaveAsync();
 
+        if (order is not null &&
+            !string.Equals(previousOrderStatus, order.Status, StringComparison.OrdinalIgnoreCase))
+        {
+            await SendShipmentStatusEmailAsync(order, previousOrderStatus ?? order.Status);
+        }
+
         TempData["Success"] = "Shipment updated successfully.";
         return RedirectToAction("Details", "Orders", new { id = shipment.OrderId });
+    }
+
+    private async Task SendShipmentStatusEmailAsync(Order order, string previousOrderStatus)
+    {
+        try
+        {
+            var user = await _userManager.FindByIdAsync(order.UserId);
+            if (string.IsNullOrWhiteSpace(user?.Email))
+            {
+                return;
+            }
+
+            var emailContent = OrderEmailTemplateBuilder.BuildStatusUpdateEmail(
+                user.FullName,
+                order.Id,
+                order.TotalAmount,
+                previousOrderStatus,
+                order.Status,
+                order.PaymentStatus,
+                order.PaymentStatus,
+                BuildCustomerOrderDetailsUrl(order.Id));
+
+            await _emailSender.SendEmailAsync(user.Email, emailContent.Subject, emailContent.HtmlBody);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send shipment status email for OrderId={OrderId}.", order.Id);
+        }
+    }
+
+    private string BuildCustomerOrderDetailsUrl(int orderId)
+    {
+        var baseUrl = (_configuration["App:PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
+        var relativePath = Url.Action("Details", "Orders", new { area = "Customer", id = orderId })
+                          ?? $"/Customer/Orders/Details/{orderId}";
+        return $"{baseUrl}{relativePath}";
     }
 }

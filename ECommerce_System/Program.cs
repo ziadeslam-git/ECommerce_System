@@ -9,6 +9,7 @@ using ECommerce_System.Utilities.Localization;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Stripe;
 using System.Threading.RateLimiting;
@@ -70,6 +71,22 @@ builder.Services.Configure<StripeSettings>(
     builder.Configuration.GetSection("Stripe"));
 
 StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
+
+var configurationRoot = (IConfigurationRoot)builder.Configuration;
+var stripePublishableKey = builder.Configuration["Stripe:PublishableKey"];
+var stripeSecretKey = builder.Configuration["Stripe:SecretKey"];
+var stripeWebhookSecret = builder.Configuration["Stripe:WebhookSecret"];
+var publicBaseUrl = builder.Configuration["App:PublicBaseUrl"];
+
+string[] GetProvidersWithNonEmptyValue(string key) =>
+    configurationRoot.Providers
+        .Where(provider => provider.TryGet(key, out var value) && !string.IsNullOrWhiteSpace(value))
+        .Select(provider => provider.ToString() ?? provider.GetType().Name)
+        .ToArray();
+
+var stripePublishableProviders = GetProvidersWithNonEmptyValue("Stripe:PublishableKey");
+var stripeSecretProviders = GetProvidersWithNonEmptyValue("Stripe:SecretKey");
+var stripeWebhookProviders = GetProvidersWithNonEmptyValue("Stripe:WebhookSecret");
 
 // ──────────────────────────────────────────────────────────────────
 // 4. Cloudinary — Image Upload Service
@@ -192,6 +209,20 @@ builder.Services.AddRazorPages();
 // ──────────────────────────────────────────────────────────────────
 var app = builder.Build();
 // ──────────────────────────────────────────────────────────────────
+
+app.Logger.LogInformation(
+    "Startup config diagnostics | Environment={Environment} | PublicBaseUrl={PublicBaseUrl} | StripePublishableConfigured={StripePublishableConfigured} | StripePublishableLength={StripePublishableLength} | StripePublishableProviders={StripePublishableProviders} | StripeSecretConfigured={StripeSecretConfigured} | StripeSecretLength={StripeSecretLength} | StripeSecretProviders={StripeSecretProviders} | StripeWebhookConfigured={StripeWebhookConfigured} | StripeWebhookLength={StripeWebhookLength} | StripeWebhookProviders={StripeWebhookProviders}",
+    app.Environment.EnvironmentName,
+    string.IsNullOrWhiteSpace(publicBaseUrl) ? "(null)" : publicBaseUrl,
+    !string.IsNullOrWhiteSpace(stripePublishableKey),
+    stripePublishableKey?.Length ?? 0,
+    stripePublishableProviders.Length == 0 ? "none" : string.Join(" | ", stripePublishableProviders),
+    !string.IsNullOrWhiteSpace(stripeSecretKey),
+    stripeSecretKey?.Length ?? 0,
+    stripeSecretProviders.Length == 0 ? "none" : string.Join(" | ", stripeSecretProviders),
+    !string.IsNullOrWhiteSpace(stripeWebhookSecret),
+    stripeWebhookSecret?.Length ?? 0,
+    stripeWebhookProviders.Length == 0 ? "none" : string.Join(" | ", stripeWebhookProviders));
 
 if (!app.Environment.IsDevelopment())
 {

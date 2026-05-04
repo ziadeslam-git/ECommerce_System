@@ -88,7 +88,15 @@ public class ProductController : Controller
     public async Task<IActionResult> Details(int id)
     {
         var product = await _uow.Products
-            .FindAsync(p => p.Id == id, "Category,Variants,Images", tracked: false, ignoreQueryFilters: true);
+            .Query()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(p => p.Category)
+            .Include(p => p.Images)
+            .Include(p => p.Variants)
+                .ThenInclude(v => v.Images)
+            .FirstOrDefaultAsync(p => p.Id == id);
 
         if (product is null) return NotFound();
 
@@ -229,7 +237,15 @@ public class ProductController : Controller
     public async Task<IActionResult> Delete(int id)
     {
         var product = await _uow.Products
-            .FindAsync(p => p.Id == id, "Category,Variants,Images", tracked: false, ignoreQueryFilters: true);
+            .Query()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(p => p.Category)
+            .Include(p => p.Images)
+            .Include(p => p.Variants)
+                .ThenInclude(v => v.Images)
+            .FirstOrDefaultAsync(p => p.Id == id);
         if (product is null) return NotFound();
 
         ViewData["Title"] = "Delete Product";

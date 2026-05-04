@@ -6,6 +6,7 @@ using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
 using ECommerce_System.Utilities.DBInitializer;
 using ECommerce_System.Utilities.Localization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
@@ -15,6 +16,13 @@ using Stripe;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var dataProtectionKeysPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys");
+Directory.CreateDirectory(dataProtectionKeysPath);
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName("SmartStore");
 
 // ──────────────────────────────────────────────────────────────────
 // 1. Database — EF Core with SQL Server
@@ -211,9 +219,10 @@ var app = builder.Build();
 // ──────────────────────────────────────────────────────────────────
 
 app.Logger.LogInformation(
-    "Startup config diagnostics | Environment={Environment} | PublicBaseUrl={PublicBaseUrl} | StripePublishableConfigured={StripePublishableConfigured} | StripePublishableLength={StripePublishableLength} | StripePublishableProviders={StripePublishableProviders} | StripeSecretConfigured={StripeSecretConfigured} | StripeSecretLength={StripeSecretLength} | StripeSecretProviders={StripeSecretProviders} | StripeWebhookConfigured={StripeWebhookConfigured} | StripeWebhookLength={StripeWebhookLength} | StripeWebhookProviders={StripeWebhookProviders}",
+    "Startup config diagnostics | Environment={Environment} | PublicBaseUrl={PublicBaseUrl} | DataProtectionKeysPath={DataProtectionKeysPath} | StripePublishableConfigured={StripePublishableConfigured} | StripePublishableLength={StripePublishableLength} | StripePublishableProviders={StripePublishableProviders} | StripeSecretConfigured={StripeSecretConfigured} | StripeSecretLength={StripeSecretLength} | StripeSecretProviders={StripeSecretProviders} | StripeWebhookConfigured={StripeWebhookConfigured} | StripeWebhookLength={StripeWebhookLength} | StripeWebhookProviders={StripeWebhookProviders}",
     app.Environment.EnvironmentName,
     string.IsNullOrWhiteSpace(publicBaseUrl) ? "(null)" : publicBaseUrl,
+    dataProtectionKeysPath,
     !string.IsNullOrWhiteSpace(stripePublishableKey),
     stripePublishableKey?.Length ?? 0,
     stripePublishableProviders.Length == 0 ? "none" : string.Join(" | ", stripePublishableProviders),

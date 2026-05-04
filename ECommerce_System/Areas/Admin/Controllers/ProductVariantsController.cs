@@ -26,7 +26,15 @@ public class ProductVariantsController : Controller
     public async Task<IActionResult> Index(int productId)
     {
         var product = await _uow.Products
-            .FindAsync(p => p.Id == productId, "Category,Variants,Images", ignoreQueryFilters: true);
+            .Query()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(p => p.Category)
+            .Include(p => p.Images)
+            .Include(p => p.Variants)
+                .ThenInclude(v => v.Images)
+            .FirstOrDefaultAsync(p => p.Id == productId);
 
         if (product is null) return NotFound();
 

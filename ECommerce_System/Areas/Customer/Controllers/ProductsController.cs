@@ -164,6 +164,7 @@ public class ProductsController : Controller
             .Include(p => p.Category)
             .Include(p => p.Images)
             .Include(p => p.Variants)
+                .ThenInclude(v => v.Images)
             .Include(p => p.Reviews)
             .FirstOrDefaultAsync();
 

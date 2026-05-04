@@ -13,6 +13,7 @@
     var heroProduct = featured.FirstOrDefault();
     var heroImage = heroProduct?.MainImageUrl ?? "https://placehold.co/900x1100/eef2ff/4648d4?text=Smart+Store";
     var galleryCards = featured.Take(6).ToList();
+    var featuredGiftBundle = Model?.FeaturedGiftBundle;
     var bundleCards = featured.Skip(1).Take(3).ToList();
     var freshDropCards = featured.Take(10).ToList();
 
@@ -40,8 +41,10 @@
 
     freshDropCards = freshDropCards.Take(10).ToList();
 
-    var bundleBaseTotal = bundleCards.Sum(item => item.MinVariantPrice > 0 ? item.MinVariantPrice : item.BasePrice);
-    var bundleDiscountedTotal = bundleBaseTotal > 0 ? Math.Round(bundleBaseTotal * 0.85m, 2) : 0m;
+    var bundleBaseTotal = featuredGiftBundle?.OriginalTotal
+        ?? bundleCards.Sum(item => item.MinVariantPrice > 0 ? item.MinVariantPrice : item.BasePrice);
+    var bundleDiscountedTotal = featuredGiftBundle?.BundlePrice
+        ?? (bundleBaseTotal > 0 ? Math.Round(bundleBaseTotal * 0.85m, 2) : 0m);
 }
 
 <style>
@@ -383,18 +386,26 @@
             </section>
         }
 
-        @if (bundleCards.Any())
+        @if (featuredGiftBundle is not null || bundleCards.Any())
         {
             <section class="px-6 py-8 md:px-12 xl:px-20">
                 <div class="mx-auto max-w-7xl rounded-[2rem] border border-primary/10 bg-gradient-to-br from-indigo-50 via-slate-50 to-white p-6 shadow-[0_20px_40px_rgba(15,23,42,0.04)] md:p-8">
                     <div class="flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
-                        <div class="max-w-md space-y-5">
+                        <div class="max-w-lg space-y-5">
+                            @if (featuredGiftBundle is not null)
+                            {
+                                <span class="inline-flex rounded-full bg-primary/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-primary">
+                                    @T("Gift Bundle", "حزمة هدية")
+                                </span>
+                            }
                             <h2 class="text-4xl font-black leading-tight tracking-[-0.05em] text-slate-950">
                                 @T("Frequently Bought Together", "يُشترى معًا كثيرًا")
                             </h2>
                             <p class="text-base leading-8 text-slate-600">
-                                @T("Complete the look with a hand-picked bundle of standout pieces from the current collection and save on the combined mood.",
-                                   "أكمل الستايل بحزمة مختارة من القطع المميزة في التشكيلة الحالية واستفد من سعر أفضل للمجموعة.")
+                                @(featuredGiftBundle is not null
+                                    ? featuredGiftBundle.Description
+                                    : T("Complete the look with a hand-picked bundle of standout pieces from the current collection and save on the combined mood.",
+                                        "أكمل الستايل بحزمة مختارة من القطع المميزة في التشكيلة الحالية واستفد من سعر أفضل للمجموعة."))
                             </p>
                             <div class="flex items-end gap-3">
                                 <span class="text-4xl font-black text-primary">@bundleDiscountedTotal.ToString("0.00") EGP</span>
@@ -403,31 +414,77 @@
                                     <span class="pb-1 text-lg text-slate-400 line-through">@bundleBaseTotal.ToString("0.00") EGP</span>
                                 }
                             </div>
-                            <a asp-area="Customer"
-                               asp-controller="Products"
-                               asp-action="Index"
-                               class="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-8 py-4 text-base font-black text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90">
-                                <span class="material-symbols-outlined">auto_fix_high</span>
-                                @T("Explore Bundle Picks", "استكشف عناصر الحزمة")
-                            </a>
+
+                            <div class="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-center">
+                                @if (featuredGiftBundle is not null && isAuthenticated)
+                                {
+                                    <form asp-area="Customer"
+                                          asp-controller="Cart"
+                                          asp-action="AddGiftBundleToCart"
+                                          method="post"
+                                          class="sm:flex-shrink-0">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="giftBundleId" value="@featuredGiftBundle.Id" />
+                                        <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                                        <button type="submit"
+                                                class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-primary px-8 py-4 text-base font-black text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90 sm:w-auto">
+                                            <span class="material-symbols-outlined">add_shopping_cart</span>
+                                            @T("Add Bundle to Cart", "أضف الحزمة إلى السلة")
+                                        </button>
+                                    </form>
+                                }
+                                else if (featuredGiftBundle is not null)
+                                {
+                                    <a href="@loginReturnUrl"
+                                       class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-primary px-8 py-4 text-base font-black text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90 sm:w-auto">
+                                        <span class="material-symbols-outlined">login</span>
+                                        @T("Login to Add Bundle", "سجّل الدخول لإضافة الحزمة")
+                                    </a>
+                                }
+
+                                <a asp-area="Customer"
+                                   asp-controller="Products"
+                                   asp-action="Index"
+                                   class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-primary/15 bg-white px-8 py-4 text-base font-black text-primary shadow-sm transition hover:bg-primary/5 sm:w-auto">
+                                    <span class="material-symbols-outlined">storefront</span>
+                                    Shop Products
+                                </a>
+                            </div>
                         </div>
 
                         <div class="flex flex-wrap items-center justify-center gap-4">
-                            @for (int i = 0; i < bundleCards.Count; i++)
+                            @{
+                                var bundleVisualItems = featuredGiftBundle?.Items
+                                    .Select(item => new
+                                    {
+                                        ProductId = item.ProductId,
+                                        ProductName = item.ProductName,
+                                        ImageUrl = item.MainImageUrl
+                                    })
+                                    .ToList()
+                                    ?? bundleCards.Select(item => new
+                                    {
+                                        ProductId = item.Id,
+                                        ProductName = item.Name,
+                                        ImageUrl = item.MainImageUrl
+                                    }).ToList();
+                            }
+
+                            @for (int i = 0; i < bundleVisualItems.Count; i++)
                             {
-                                var item = bundleCards[i];
+                                var item = bundleVisualItems[i];
                                 <text>
                                     <a asp-area="Customer"
                                        asp-controller="Products"
                                        asp-action="Details"
-                                       asp-route-id="@item.Id"
+                                       asp-route-id="@item.ProductId"
                                        class="group flex h-32 w-32 items-center justify-center overflow-hidden rounded-[1.5rem] border-2 border-white bg-slate-100 shadow-xl transition hover:-translate-y-1 sm:h-40 sm:w-40">
-                                        <img src="@(item.MainImageUrl ?? "https://placehold.co/400x400/e5e7eb/0f172a?text=Bundle")"
-                                             alt="@item.Name"
+                                        <img src="@(item.ImageUrl ?? "https://placehold.co/400x400/e5e7eb/0f172a?text=Bundle")"
+                                             alt="@item.ProductName"
                                              class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                                     </a>
                                 </text>
-                                @if (i < bundleCards.Count - 1)
+                                @if (i < bundleVisualItems.Count - 1)
                                 {
                                     <span class="material-symbols-outlined text-3xl font-light text-slate-400">add</span>
                                 }

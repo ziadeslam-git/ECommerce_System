@@ -16,13 +16,13 @@
         <a asp-area="Admin" asp-controller="Product" asp-action="Details" asp-route-id="@productId"
            class="hover:text-primary transition-colors">@Model.Name</a>
         <span class="material-symbols-outlined text-sm">chevron_right</span>
-        <span class="font-medium text-slate-900">Variants &amp; Images</span>
+        <span class="font-medium text-slate-900">Media Gallery</span>
     </nav>
 
     <!-- Page Header + Compact Product Card -->
     <div class="flex flex-col md:flex-row justify-between items-end gap-6">
         <div>
-            <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 mb-2">Variants &amp; Images</h1>
+            <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 mb-2">Media Gallery</h1>
             <p class="text-slate-500 max-w-lg">
                 Manage visual assets for <strong>@Model.Name</strong>.
             </p>
@@ -58,21 +58,27 @@
 
     <!-- Section Tabs -->
     <div class="flex gap-8 border-b border-slate-200">
+        <a asp-area="Admin" asp-controller="Product" asp-action="Details"
+           asp-route-id="@productId"
+           class="pb-4 text-slate-500 font-medium hover:text-slate-900 flex items-center gap-2 transition-colors">
+            <span class="material-symbols-outlined text-lg">dashboard</span>
+            Overview
+        </a>
         <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
            asp-route-productId="@productId"
            class="pb-4 text-slate-500 font-medium hover:text-slate-900 flex items-center gap-2 transition-colors">
             <span class="material-symbols-outlined text-lg">style</span>
             Variants
+            <span class="bg-slate-100 text-slate-500 text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                @Model.Variants.Count
+            </span>
         </a>
         <button class="pb-4 text-primary font-bold border-b-2 border-primary flex items-center gap-2 relative">
             <span class="material-symbols-outlined text-lg">image</span>
-            Images
-            @if (Model.Images.Any())
-            {
-                <span class="absolute -top-1 -right-4 bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded-full font-black">
-                    @Model.Images.Count
-                </span>
-            }
+            Media Gallery
+            <span class="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded-full font-black">
+                @Model.Images.Count
+            </span>
         </button>
     </div>
 

@@ -1,0 +1,192 @@
+@model GiftBundleFormVM
+
+@{
+    var isEdit = Model.Id > 0;
+    var selectedCount = Model.ProductCards.Count(product => product.Selected);
+}
+
+<div class="space-y-6">
+    <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+            <nav class="mb-2 flex items-center gap-2 text-sm text-slate-500">
+                <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="transition-colors hover:text-primary">Dashboard</a>
+                <span class="material-symbols-outlined text-sm">chevron_right</span>
+                <a asp-area="Admin" asp-controller="GiftBundles" asp-action="Index" class="transition-colors hover:text-primary">Gift Bundles</a>
+                <span class="material-symbols-outlined text-sm">chevron_right</span>
+                <span class="font-medium text-slate-900">@(isEdit ? "Edit Bundle" : "Create Bundle")</span>
+            </nav>
+            <h1 class="text-3xl font-black tracking-tight">@(isEdit ? "Edit Gift Bundle" : "Create Gift Bundle")</h1>
+            <p class="mt-1 text-slate-500">Choose multiple products, set one final price, and feature the bundle on the home page.</p>
+        </div>
+        <a asp-area="Admin" asp-controller="GiftBundles" asp-action="Index"
+           class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+            <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+            Back to Bundles
+        </a>
+    </div>
+
+    <div asp-validation-summary="All" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"></div>
+
+    <div class="grid gap-4 md:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Selected Products</p>
+            <p id="selected-count" class="mt-2 text-3xl font-black text-slate-900">@selectedCount</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Original Total</p>
+            <p id="original-total" class="mt-2 text-3xl font-black text-slate-900">@Model.OriginalTotal.ToString("0.00") EGP</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Offer Price</p>
+            <p id="offer-total" class="mt-2 text-3xl font-black text-primary">@Model.BundlePrice.ToString("0.00") EGP</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Savings</p>
+            <p id="bundle-savings" class="mt-2 text-3xl font-black text-emerald-600">@Math.Max(0, Model.OriginalTotal - Model.BundlePrice).ToString("0.00") EGP</p>
+        </div>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)]">
+        <section class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="space-y-5">
+                <div>
+                    <label asp-for="Name" class="mb-2 block text-sm font-semibold text-slate-800"></label>
+                    <input asp-for="Name" class="w-full rounded-xl border-slate-300 bg-white text-slate-900 shadow-sm focus:border-primary focus:ring-primary/20" placeholder="Bundle headline shown to the customer" />
+                    <span asp-validation-for="Name" class="mt-1 block text-sm text-rose-600"></span>
+                </div>
+
+                <div>
+                    <label asp-for="Description" class="mb-2 block text-sm font-semibold text-slate-800"></label>
+                    <textarea asp-for="Description" rows="4" class="w-full rounded-xl border-slate-300 bg-white text-slate-900 shadow-sm focus:border-primary focus:ring-primary/20" placeholder="Short explanation for why these products work together"></textarea>
+                    <span asp-validation-for="Description" class="mt-1 block text-sm text-rose-600"></span>
+                </div>
+
+                <div>
+                    <label asp-for="BundlePrice" class="mb-2 block text-sm font-semibold text-slate-800"></label>
+                    <input asp-for="BundlePrice" type="number" step="0.01" min="0.01" class="w-full rounded-xl border-slate-300 bg-white text-slate-900 shadow-sm focus:border-primary focus:ring-primary/20" />
+                    <span asp-validation-for="BundlePrice" class="mt-1 block text-sm text-rose-600"></span>
+                    <p class="mt-2 text-xs text-slate-500">Use the final price customers should pay for the full grouped offer.</p>
+                </div>
+
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <label class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+                        <input asp-for="IsActive" class="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" />
+                        <span>Bundle is active</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+                        <input asp-for="IsFeatured" class="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" />
+                        <span>Show this bundle on Home</span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <section class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Choose Products</h2>
+                    <p class="mt-1 text-sm text-slate-500">Pick at least 2 products. Only products with active in-stock variants can join the bundle.</p>
+                </div>
+                <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-primary">@Model.ProductCards.Count available</span>
+            </div>
+
+            <span asp-validation-for="SelectedProductIds" class="mb-4 block text-sm text-rose-600"></span>
+
+            <div class="grid gap-4 md:grid-cols-2">
+                @foreach (var product in Model.ProductCards)
+                {
+                    var checkboxId = $"bundle-product-{product.ProductId}";
+                    <label for="@checkboxId"
+                           class="group block rounded-[1.5rem] border p-4 transition @(product.Selected ? "border-primary bg-primary/5 shadow-[0_12px_30px_rgba(70,72,212,0.10)]" : "border-slate-200 bg-slate-50/70 hover:border-primary/25 hover:bg-white") @(product.HasAvailableVariant ? string.Empty : "cursor-not-allowed opacity-60")">
+                        <div class="flex items-start gap-4">
+                            <input id="@checkboxId"
+                                   type="checkbox"
+                                   name="SelectedProductIds"
+                                   value="@product.ProductId"
+                                   @(product.Selected ? "checked" : null)
+                                   @(product.HasAvailableVariant ? null : "disabled")
+                                   data-bundle-picker
+                                   data-price="@product.Price.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)"
+                                   class="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" />
+
+                            <div class="size-20 overflow-hidden rounded-2xl bg-white shadow-sm">
+                                @if (!string.IsNullOrWhiteSpace(product.ImageUrl))
+                                {
+                                    <img src="@product.ImageUrl" alt="@product.ProductName" class="h-full w-full object-cover" />
+                                }
+                                else
+                                {
+                                    <div class="flex h-full w-full items-center justify-center bg-slate-100 text-slate-300">
+                                        <span class="material-symbols-outlined">image</span>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h3 class="truncate text-base font-bold text-slate-900">@product.ProductName</h3>
+                                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">@product.CategoryName</span>
+                                </div>
+                                <p class="mt-2 text-lg font-black text-primary">@product.Price.ToString("0.00") EGP</p>
+                                @if (product.HasAvailableVariant)
+                                {
+                                    <p class="mt-2 text-xs font-medium text-emerald-600">Ready for bundle checkout</p>
+                                }
+                                else
+                                {
+                                    <p class="mt-2 text-xs font-medium text-rose-600">No active in-stock variant</p>
+                                }
+                            </div>
+                        </div>
+                    </label>
+                }
+            </div>
+        </section>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-end gap-3">
+        <a asp-area="Admin" asp-controller="GiftBundles" asp-action="Index"
+           class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+            Cancel
+        </a>
+        <button type="submit"
+                class="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:bg-primary/90">
+            <span class="material-symbols-outlined text-[18px]">check_circle</span>
+            @(isEdit ? "Save Bundle Changes" : "Create Gift Bundle")
+        </button>
+    </div>
+</div>
+
+<partial name="_ValidationScriptsPartial" />
+<script>
+    (function () {
+        const productInputs = Array.from(document.querySelectorAll('[data-bundle-picker]'));
+        const priceInput = document.getElementById('BundlePrice');
+        const selectedCountEl = document.getElementById('selected-count');
+        const originalTotalEl = document.getElementById('original-total');
+        const offerTotalEl = document.getElementById('offer-total');
+        const savingsEl = document.getElementById('bundle-savings');
+
+        const formatMoney = function (value) {
+            return `${value.toFixed(2)} EGP`;
+        };
+
+        const updateSummary = function () {
+            const selected = productInputs.filter(input => input.checked);
+            const originalTotal = selected.reduce((sum, input) => sum + parseFloat(input.dataset.price || '0'), 0);
+            const offerTotal = parseFloat(priceInput?.value || '0');
+            const savings = Math.max(0, originalTotal - offerTotal);
+
+            if (selectedCountEl) selectedCountEl.textContent = String(selected.length);
+            if (originalTotalEl) originalTotalEl.textContent = formatMoney(originalTotal);
+            if (offerTotalEl) offerTotalEl.textContent = formatMoney(offerTotal);
+            if (savingsEl) savingsEl.textContent = formatMoney(savings);
+        };
+
+        productInputs.forEach(input => input.addEventListener('change', updateSummary));
+        priceInput?.addEventListener('input', updateSummary);
+        updateSummary();
+    })();
+</script>

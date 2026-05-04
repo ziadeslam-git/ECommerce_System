@@ -174,6 +174,14 @@ public class AccountController : Controller
             return View(vm);
         }
 
+        if (!await _userManager.IsEmailConfirmedAsync(user))
+        {
+            ViewBag.ShowConfirmEmailAlert = true;
+            ViewBag.UnconfirmedEmail = user.Email;
+            ModelState.AddModelError(string.Empty, "Please confirm your email before signing in.");
+            return View(vm);
+        }
+
         if (!user.IsActive)
         {
             return RedirectToAction(nameof(AccountDeactivated));
@@ -316,7 +324,8 @@ public class AccountController : Controller
 
     // ─── RESEND CONFIRMATION EMAIL ──────────────────────────────
     [HttpGet]
-    public IActionResult ResendConfirmation() => View();
+    public IActionResult ResendConfirmation(string? email = null)
+        => View(new ForgotPasswordVM { Email = email ?? string.Empty });
 
     [HttpPost]
     [EnableRateLimiting("auth")]

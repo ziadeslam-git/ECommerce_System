@@ -8,9 +8,8 @@ namespace ECommerce_System.ViewModels.Admin
 
         public int ProductId { get; set; }
 
-        [Required(ErrorMessage = "Size is required")]
         [StringLength(10)]
-        public string Size { get; set; } = string.Empty;  // XS/S/M/L/XL/XXL
+        public string? Size { get; set; }
 
         [Required(ErrorMessage = "Color is required")]
         [StringLength(50)]
@@ -37,6 +36,8 @@ namespace ECommerce_System.ViewModels.Admin
         public List<ProductVariantImageVM> Images { get; set; } = new();
 
         public List<Microsoft.AspNetCore.Http.IFormFile>? ImageFiles { get; set; }
+
+        public string? SelectedMainImageKey { get; set; }
         
         [Display(Name = "Set one image as Main Product Image")]
         public bool SetAsMainProductImage { get; set; }

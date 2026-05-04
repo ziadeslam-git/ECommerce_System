@@ -12,6 +12,7 @@
     {
         "Dashboard" => "Dashboard",
         "Product" or "ProductVariants" or "ProductImages" => "Products",
+        "GiftBundles" => "Gift Bundles",
         "Category" => "Categories",
         "Orders" or "Shipments" => "Orders",
         "Users" => "Customers",
@@ -222,6 +223,10 @@
                     <span class="material-symbols-outlined @(controller == "Product" || controller == "ProductVariants" || controller == "ProductImages" ? "text-white" : "text-slate-400 group-hover:text-white")">inventory_2</span>
                     <span class="text-sm font-medium">Products</span>
                 </a>
+                <a asp-controller="GiftBundles" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "GiftBundles" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
+                    <span class="material-symbols-outlined @(controller == "GiftBundles" ? "text-white" : "text-slate-400 group-hover:text-white")">redeem</span>
+                    <span class="text-sm font-medium">Gift Bundles</span>
+                </a>
                 <a asp-controller="Category" asp-action="Index" asp-area="Admin" class="flex items-center gap-3 px-3 py-2.5 group transition-colors @(controller == "Category" ? "active-nav" : "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg")">
                     <span class="material-symbols-outlined @(controller == "Category" ? "text-white" : "text-slate-400 group-hover:text-white")">category</span>
                     <span class="text-sm font-medium">Categories</span>
@@ -429,6 +434,10 @@
                             <a asp-controller="Product" asp-action="Index" asp-area="Admin" class="@(controller == "Product" || controller == "ProductVariants" || controller == "ProductImages" ? "bg-primary/90 text-white shadow-primary/30" : "bg-white/5 text-slate-300") flex items-center gap-3 rounded-[14px] px-4 py-3 text-sm font-semibold shadow-sm transition hover:bg-white/10">
                                 <span class="material-symbols-outlined text-[18px]">inventory_2</span>
                                 <span>Products</span>
+                            </a>
+                            <a asp-controller="GiftBundles" asp-action="Index" asp-area="Admin" class="@(controller == "GiftBundles" ? "bg-primary/90 text-white shadow-primary/30" : "bg-white/5 text-slate-300") flex items-center gap-3 rounded-[14px] px-4 py-3 text-sm font-semibold shadow-sm transition hover:bg-white/10">
+                                <span class="material-symbols-outlined text-[18px]">redeem</span>
+                                <span>Gift Bundles</span>
                             </a>
                             <a asp-controller="Category" asp-action="Index" asp-area="Admin" class="@(controller == "Category" ? "bg-primary/90 text-white shadow-primary/30" : "bg-white/5 text-slate-300") flex items-center gap-3 rounded-[14px] px-4 py-3 text-sm font-semibold shadow-sm transition hover:bg-white/10">
                                 <span class="material-symbols-outlined text-[18px]">category</span>

@@ -93,15 +93,19 @@
         </div>
     </div>
 
-    <!-- Tab Navigation -->
+    <!-- Section Navigation -->
     <div class="overflow-x-auto border-b border-slate-200">
         <div class="flex min-w-max gap-6">
+        <button class="pb-4 font-semibold text-primary border-b-2 border-primary flex items-center gap-2 transition-all">
+            <span class="material-symbols-outlined text-xl">dashboard</span>
+            Overview
+        </button>
         <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
            asp-route-productId="@Model.Id"
-           class="pb-4 font-semibold text-primary border-b-2 border-primary flex items-center gap-2 transition-all">
+           class="pb-4 font-medium text-slate-500 hover:text-slate-900 flex items-center gap-2 transition-all">
             <span class="material-symbols-outlined text-xl">style</span>
             Variants
-            <span class="ml-1 bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-full">
+            <span class="ml-1 bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-full">
                 @Model.Variants.Count
             </span>
         </a>
@@ -166,118 +170,59 @@
         </div>
     </div>
 
-    <!-- Quick Variant Preview Table -->
-    @if (Model.Variants.Any())
-    {
-        <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                <h3 class="font-bold text-slate-900">Variant Overview</h3>
-                <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
-                   asp-route-productId="@Model.Id"
-                   class="text-sm text-primary font-semibold hover:underline flex items-center gap-1">
-                    Manage all <span class="material-symbols-outlined text-base">arrow_forward</span>
-                </a>
-            </div>
-            <div class="space-y-3 p-4 md:hidden">
-                @foreach (var v in Model.Variants.Take(5))
-                {
-                    <article class="rounded-[18px] border border-slate-200 bg-slate-50/80 p-4 shadow-sm">
-                        <div class="flex items-center justify-between gap-3">
-                            <div>
-                                <p class="text-base font-bold text-slate-900">@v.Size / @v.Color</p>
-                                <p class="mt-1 text-xs text-slate-500">@v.SKU</p>
-                            </div>
-                            @if (!v.IsActive)
-                            {
-                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500">Inactive</span>
-                            }
-                            else if (v.Stock == 0)
-                            {
-                                <span class="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-600">Out of Stock</span>
-                            }
-                            else if (v.Stock < 10)
-                            {
-                                <span class="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-600">Low Stock</span>
-                            }
-                            else
-                            {
-                                <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-600">In Stock</span>
-                            }
-                        </div>
-                        <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
-                            <div class="rounded-xl bg-white px-3 py-2">
-                                <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Price</p>
-                                <p class="mt-1 font-semibold text-slate-900">$@v.Price.ToString("0.00")</p>
-                            </div>
-                            <div class="rounded-xl bg-white px-3 py-2">
-                                <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Stock</p>
-                                <p class="mt-1 font-semibold @(v.Stock > 10 ? "text-emerald-600" : v.Stock > 0 ? "text-amber-500" : "text-red-500")">@v.Stock</p>
-                            </div>
-                        </div>
-                    </article>
-                }
-            </div>
-
-            <div class="hidden overflow-x-auto md:block">
-                <table class="w-full text-left">
-                    <thead>
-                        <tr class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            <th class="px-6 py-3">Variant</th>
-                            <th class="px-6 py-3">SKU</th>
-                            <th class="px-6 py-3 text-right">Price</th>
-                            <th class="px-6 py-3 text-center">Stock</th>
-                            <th class="px-6 py-3 text-center">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-50">
-                        @foreach (var v in Model.Variants.Take(5))
-                        {
-                            <tr class="hover:bg-slate-50/50 transition-colors">
-                                <td class="px-6 py-3">
-                                    <span class="text-sm font-semibold text-slate-900">@v.Size / @v.Color</span>
-                                </td>
-                                <td class="px-6 py-3">
-                                    <code class="text-xs text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded">@v.SKU</code>
-                                </td>
-                                <td class="px-6 py-3 text-right text-sm font-semibold">$@v.Price.ToString("0.00")</td>
-                                <td class="px-6 py-3 text-center">
-                                    <span class="text-sm font-bold @(v.Stock > 10 ? "text-emerald-600" : v.Stock > 0 ? "text-amber-500" : "text-red-500")">
-                                        @v.Stock
-                                    </span>
-                                </td>
-                                <td class="px-6 py-3 text-center">
-                                    @if (!v.IsActive)
-                                    {
-                                        <span class="text-xs text-slate-400">Inactive</span>
-                                    }
-                                    else if (v.Stock == 0)
-                                    {
-                                        <span class="px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-[10px] font-bold">OUT OF STOCK</span>
-                                    }
-                                    else if (v.Stock < 10)
-                                    {
-                                        <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 text-[10px] font-bold">LOW</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold">IN STOCK</span>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-            @if (Model.Variants.Count > 5)
-            {
-                <div class="px-6 py-3 bg-slate-50 border-t border-slate-100 text-sm text-slate-400 text-center">
-                    +@(Model.Variants.Count - 5) more variants —
-                    <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
-                       asp-route-productId="@Model.Id"
-                       class="text-primary font-semibold hover:underline">view all</a>
+    <!-- Management Sections -->
+    <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
+           asp-route-productId="@Model.Id"
+           class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Section 01</p>
+                    <h3 class="mt-2 text-xl font-black text-slate-900">Variants</h3>
+                    <p class="mt-2 text-sm leading-relaxed text-slate-500">
+                        Manage sizes, numeric shoe sizing, colors, stock, SKU, and each variant's main image.
+                    </p>
                 </div>
-            }
-        </div>
-    }
+                <div class="rounded-2xl bg-primary/10 p-3 text-primary">
+                    <span class="material-symbols-outlined text-2xl">style</span>
+                </div>
+            </div>
+            <div class="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                    @Model.Variants.Count variant(s)
+                </span>
+                <span class="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                    Open Variants
+                    <span class="material-symbols-outlined text-base transition-transform group-hover:translate-x-0.5">arrow_forward</span>
+                </span>
+            </div>
+        </a>
+
+        <a asp-area="Admin" asp-controller="ProductImages" asp-action="Index"
+           asp-route-productId="@Model.Id"
+           class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Section 02</p>
+                    <h3 class="mt-2 text-xl font-black text-slate-900">Media Gallery</h3>
+                    <p class="mt-2 text-sm leading-relaxed text-slate-500">
+                        Manage product-level images, cover photo, gallery order, and visual presentation.
+                    </p>
+                </div>
+                <div class="rounded-2xl bg-primary/10 p-3 text-primary">
+                    <span class="material-symbols-outlined text-2xl">image</span>
+                </div>
+            </div>
+            <div class="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                    @Model.Images.Count image(s)
+                </span>
+                <span class="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                    Open Gallery
+                    <span class="material-symbols-outlined text-base transition-transform group-hover:translate-x-0.5">arrow_forward</span>
+                </span>
+            </div>
+        </a>
+    </div>
 
 </div>

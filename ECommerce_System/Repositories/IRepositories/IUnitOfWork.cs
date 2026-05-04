@@ -10,6 +10,8 @@ public interface IUnitOfWork : IDisposable
     IOrderRepository Orders { get; }
     ICartRepository Carts { get; }
     ICategoryRepository Categories { get; }
+    IRepository<GiftBundle> GiftBundles { get; }
+    IRepository<GiftBundleProduct> GiftBundleProducts { get; }
     IRepository<ProductVariant> ProductVariants { get; }
     IRepository<ProductImage> ProductImages { get; }
     IRepository<CartItem> CartItems { get; }

@@ -5,12 +5,11 @@
     ViewData["Title"] = "Add Variant";
     var productName = ViewData["ProductName"]?.ToString() ?? "";
     var productId   = Model.ProductId;
-    var sizes       = new[] { "XS", "S", "M", "L", "XL", "XXL" };
+    var sizeSuggestions = new[] { "XS", "S", "M", "L", "XL", "XXL", "38", "39", "40", "41", "42", "43", "44", "45" };
 }
 
 <div class="max-w-2xl mx-auto space-y-6">
 
-    <!-- Breadcrumb -->
     <div>
         <nav class="flex text-sm text-slate-500 mb-2 items-center gap-2">
             <a asp-area="Admin" asp-controller="Product" asp-action="Index"
@@ -26,28 +25,30 @@
         <p class="text-slate-500 mt-1">Create a new size/color variant for <strong>@productName</strong>.</p>
     </div>
 
-    <!-- Form -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
         <form asp-area="Admin" asp-controller="ProductVariants" asp-action="Create" method="post" enctype="multipart/form-data">
             @Html.AntiForgeryToken()
             <input asp-for="ProductId" type="hidden" />
             <input asp-for="ProductName" type="hidden" />
+            <input asp-for="SelectedMainImageKey" type="hidden" id="selectedMainImageKey" />
 
             <div class="space-y-5">
 
-                <!-- Size + Color -->
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                        <label asp-for="Size" class="block text-sm font-semibold text-slate-700 mb-1.5"></label>
-                        <select asp-for="Size"
-                                class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm
-                                       focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all">
-                            <option value="">— Select Size —</option>
-                            @foreach (var s in sizes)
+                        <label for="Size" class="block text-sm font-semibold text-slate-700 mb-1.5">Size <span class="text-slate-400 font-normal">(Optional)</span></label>
+                        <input asp-for="Size" list="variantSizeSuggestions"
+                               class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm
+                                      focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all
+                                      placeholder:text-slate-400"
+                               placeholder="Type 42 for shoes, or pick XL" autocomplete="off" />
+                        <datalist id="variantSizeSuggestions">
+                            @foreach (var size in sizeSuggestions)
                             {
-                                <option value="@s">@s</option>
+                                <option value="@size"></option>
                             }
-                        </select>
+                        </datalist>
+                        <p class="text-xs text-slate-400 mt-1">Leave it blank for wallets, watches, and any product with no size.</p>
                         <span asp-validation-for="Size" class="text-red-500 text-xs mt-1 block"></span>
                     </div>
                     <div>
@@ -61,19 +62,17 @@
                     </div>
                 </div>
 
-                <!-- SKU -->
                 <div>
                     <label asp-for="SKU" class="block text-sm font-semibold text-slate-700 mb-1.5"></label>
                     <input asp-for="SKU" id="skuInput"
                            class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm
                                   font-mono focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all
                                   placeholder:text-slate-400"
-                           placeholder="e.g. PROD-001-M-WHITE" autocomplete="off" />
+                           placeholder="e.g. PROD-001-42-WHITE" autocomplete="off" />
                     <p class="text-xs text-slate-400 mt-1">Unique Stock Keeping Unit — uppercase letters and hyphens.</p>
                     <span asp-validation-for="SKU" class="text-red-500 text-xs mt-1 block"></span>
                 </div>
 
-                <!-- Price + Stock -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label asp-for="Price" class="block text-sm font-semibold text-slate-700 mb-1.5"></label>
@@ -96,7 +95,6 @@
                     </div>
                 </div>
 
-                <!-- Active -->
                 <div class="flex items-center gap-3">
                     <input asp-for="IsActive" type="checkbox" id="isActiveCheck"
                            class="size-4 rounded accent-primary" />
@@ -105,23 +103,29 @@
                     </label>
                 </div>
 
-                <!-- Variant Images (Multiple) -->
                 <div class="pt-4 border-t border-slate-100">
-                    <h3 class="text-sm font-bold text-slate-900 mb-1">Variant Images <span class="font-normal text-slate-400">(Optional — multiple allowed)</span></h3>
-                    <p class="text-xs text-slate-400 mb-4">First image will automatically be the Main Image for this variant.</p>
-                    
+                    <div class="mb-4">
+                        <h3 class="text-sm font-bold text-slate-900">Variant Images <span class="font-normal text-slate-400">(Optional — main + gallery)</span></h3>
+                        <p class="text-xs text-slate-400 mt-1">You can select or drop files more than once before saving. Click any preview to make it the main image.</p>
+                    </div>
+
                     <div id="imageDropZone"
                          class="relative border-2 border-dashed border-slate-200 rounded-xl p-6 text-center
                                 hover:border-primary/50 hover:bg-primary/2 transition-all cursor-pointer">
                         <input asp-for="ImageFiles" type="file" accept="image/*" multiple id="imageFilesInput"
                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                         <span class="material-symbols-outlined text-3xl text-slate-300 mb-2 block">add_photo_alternate</span>
-                        <p class="text-sm font-semibold text-slate-500">Click or drag & drop images here</p>
+                        <p class="text-sm font-semibold text-slate-500">Click or drag &amp; drop images here</p>
                         <p class="text-xs text-slate-400 mt-1">PNG, JPG, WEBP — multiple files supported</p>
                     </div>
 
-                    <!-- Image Previews -->
-                    <div id="imagePreviews" class="mt-4 grid grid-cols-3 gap-3 hidden"></div>
+                    <div id="imageQueueSummary"
+                         class="mt-4 hidden items-center justify-between rounded-xl border border-primary/10 bg-primary/5 px-4 py-3 text-sm">
+                        <span class="font-semibold text-slate-700">Queued images: <span id="imageQueueCount" class="text-primary">0</span></span>
+                        <span class="text-xs text-slate-500">Main image will carry the purple badge.</span>
+                    </div>
+
+                    <div id="imagePreviews" class="mt-4 hidden grid grid-cols-2 gap-3 sm:grid-cols-3"></div>
 
                     <div class="flex items-center gap-3 mt-4">
                         <input asp-for="SetAsMainProductImage" type="checkbox" id="setMainCheck"
@@ -134,7 +138,6 @@
 
             </div>
 
-            <!-- Actions -->
             <div class="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
                 <a asp-area="Admin" asp-controller="ProductVariants" asp-action="Index"
                    asp-route-productId="@productId"
@@ -158,31 +161,130 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        const input    = document.getElementById('imageFilesInput');
+        const input = document.getElementById('imageFilesInput');
+        const dropZone = document.getElementById('imageDropZone');
         const previews = document.getElementById('imagePreviews');
+        const queueSummary = document.getElementById('imageQueueSummary');
+        const queueCount = document.getElementById('imageQueueCount');
+        const selectedMainImageKey = document.getElementById('selectedMainImageKey');
+        const queuedFiles = [];
 
-        input.addEventListener('change', function () {
-            previews.innerHTML = '';
-            if (!this.files || this.files.length === 0) {
-                previews.classList.add('hidden');
+        function syncInputFiles() {
+            const dt = new DataTransfer();
+            queuedFiles.forEach(file => dt.items.add(file));
+            input.files = dt.files;
+        }
+
+        function isSameFile(left, right) {
+            return left.name === right.name &&
+                   left.size === right.size &&
+                   left.lastModified === right.lastModified;
+        }
+
+        function ensureMainSelection() {
+            if (queuedFiles.length === 0) {
+                selectedMainImageKey.value = '';
                 return;
             }
+
+            const keys = queuedFiles.map((_, index) => `new:${index}`);
+            if (!keys.includes(selectedMainImageKey.value)) {
+                selectedMainImageKey.value = 'new:0';
+            }
+        }
+
+        function updateDropZoneState(isDragging) {
+            dropZone.classList.toggle('border-primary', isDragging);
+            dropZone.classList.toggle('bg-primary/5', isDragging);
+        }
+
+        function renderPreviews() {
+            previews.innerHTML = '';
+
+            if (queuedFiles.length === 0) {
+                previews.classList.add('hidden');
+                queueSummary.classList.add('hidden');
+                return;
+            }
+
             previews.classList.remove('hidden');
-            Array.from(this.files).forEach((file, index) => {
+            queueSummary.classList.remove('hidden');
+            queueSummary.classList.add('flex');
+            queueCount.textContent = queuedFiles.length.toString();
+
+            queuedFiles.forEach((file, index) => {
                 const reader = new FileReader();
-                reader.onload = e => {
-                    const div = document.createElement('div');
-                    div.className = 'relative rounded-xl overflow-hidden border-2 aspect-square ' +
-                                    (index === 0 ? 'border-primary shadow-md shadow-primary/20' : 'border-slate-200');
-                    div.innerHTML = `
-                        <img src="${e.target.result}" class="w-full h-full object-cover" />
-                        ${index === 0 ? '<div class="absolute top-1.5 left-1.5 bg-primary text-white text-[9px] font-black px-1.5 py-0.5 rounded">MAIN</div>' : ''}
-                        <div class="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] truncate px-2 py-1">${file.name}</div>
+                const mainKey = `new:${index}`;
+
+                reader.onload = event => {
+                    const isMain = selectedMainImageKey.value === mainKey;
+                    const card = document.createElement('button');
+                    card.type = 'button';
+                    card.className = `group relative overflow-hidden rounded-2xl border-2 bg-white text-left shadow-sm transition-all ${
+                        isMain
+                            ? 'border-primary ring-2 ring-primary/20'
+                            : 'border-slate-200 hover:border-primary/40'
+                    }`;
+                    card.innerHTML = `
+                        <div class="aspect-square overflow-hidden bg-slate-50">
+                            <img src="${event.target.result}" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" alt="${file.name}" />
+                        </div>
+                        <div class="p-3">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="truncate text-xs font-semibold text-slate-700">${file.name}</span>
+                                ${isMain ? '<span class="rounded-full bg-primary px-2 py-0.5 text-[10px] font-black text-white">MAIN</span>' : ''}
+                            </div>
+                            <p class="mt-1 text-[11px] text-slate-400">${(file.size / 1024).toFixed(1)} KB</p>
+                        </div>
                     `;
-                    previews.appendChild(div);
+
+                    card.addEventListener('click', () => {
+                        selectedMainImageKey.value = mainKey;
+                        renderPreviews();
+                    });
+
+                    previews.appendChild(card);
                 };
+
                 reader.readAsDataURL(file);
             });
+        }
+
+        function appendFiles(fileList) {
+            Array.from(fileList || []).forEach(file => {
+                if (!queuedFiles.some(existing => isSameFile(existing, file))) {
+                    queuedFiles.push(file);
+                }
+            });
+
+            syncInputFiles();
+            ensureMainSelection();
+            renderPreviews();
+        }
+
+        input.addEventListener('change', function () {
+            appendFiles(this.files);
         });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, function (event) {
+                event.preventDefault();
+                updateDropZoneState(true);
+            });
+        });
+
+        ['dragleave', 'dragend', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, function (event) {
+                event.preventDefault();
+                updateDropZoneState(false);
+            });
+        });
+
+        dropZone.addEventListener('drop', function (event) {
+            appendFiles(event.dataTransfer.files);
+        });
+
+        ensureMainSelection();
+        renderPreviews();
     </script>
 }

@@ -34,19 +34,63 @@
                     <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-4"
                          id="cart-row-@item.CartItemId">
 
-                        <div class="w-24 h-24 bg-slate-100 rounded-xl flex-shrink-0 overflow-hidden">
-                            @if (!string.IsNullOrEmpty(item.ImageUrl))
-                            {
-                                <img src="@item.ImageUrl" alt="@item.ProductName"
-                                     class="w-full h-full object-cover" />
-                            }
-                        </div>
+                        @if (item.IsGiftBundle)
+                        {
+                            <div class="flex-grow min-w-0 space-y-4">
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <span class="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-primary">Gift Bundle</span>
+                                    <h3 class="text-lg font-semibold text-slate-800 line-clamp-1">@item.GiftBundleTitle</h3>
+                                </div>
 
-                        <div class="flex-grow min-w-0">
-                            <h3 class="font-semibold text-lg text-slate-800 line-clamp-1">@item.ProductName</h3>
-                            <p class="text-sm text-slate-500 mt-1">@item.Size | @item.Color</p>
-                            <p class="font-bold text-primary mt-2">$@item.UnitPrice.ToString("0.00") each</p>
-                        </div>
+                                <div class="flex flex-wrap items-center gap-3">
+                                    @for (var bundleIndex = 0; bundleIndex < item.BundleItems.Count; bundleIndex++)
+                                    {
+                                        var bundleProduct = item.BundleItems[bundleIndex];
+                                        <div class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                                            <div class="h-14 w-14 overflow-hidden rounded-xl bg-white">
+                                                @if (!string.IsNullOrWhiteSpace(bundleProduct.ImageUrl))
+                                                {
+                                                    <img src="@bundleProduct.ImageUrl" alt="@bundleProduct.ProductName" class="h-full w-full object-cover" />
+                                                }
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-bold text-slate-800">@bundleProduct.ProductName</p>
+                                                <p class="mt-1 text-xs text-slate-500">@bundleProduct.Size / @bundleProduct.Color</p>
+                                            </div>
+                                        </div>
+
+                                        @if (bundleIndex < item.BundleItems.Count - 1)
+                                        {
+                                            <span class="material-symbols-outlined text-xl text-slate-300">add</span>
+                                        }
+                                    }
+                                </div>
+
+                                <div class="flex flex-wrap items-end gap-3">
+                                    <p class="font-bold text-primary text-lg">$@item.UnitPrice.ToString("0.00") per bundle</p>
+                                    @if (item.GiftBundleOriginalTotal.HasValue && item.GiftBundleOriginalTotal.Value > item.UnitPrice)
+                                    {
+                                        <span class="text-sm text-slate-400 line-through">$@item.GiftBundleOriginalTotal.Value.ToString("0.00")</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="w-24 h-24 bg-slate-100 rounded-xl flex-shrink-0 overflow-hidden">
+                                @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                {
+                                    <img src="@item.ImageUrl" alt="@item.ProductName"
+                                         class="w-full h-full object-cover" />
+                                }
+                            </div>
+
+                            <div class="flex-grow min-w-0">
+                                <h3 class="font-semibold text-lg text-slate-800 line-clamp-1">@item.ProductName</h3>
+                                <p class="text-sm text-slate-500 mt-1">@item.Size | @item.Color</p>
+                                <p class="font-bold text-primary mt-2">$@item.UnitPrice.ToString("0.00") each</p>
+                            </div>
+                        }
 
                         <div class="w-fit max-w-full self-start rounded-2xl border border-slate-200 bg-slate-50/80 p-3 sm:w-auto sm:min-w-[190px] sm:self-auto sm:p-4">
                             <div class="flex items-center justify-between gap-3">

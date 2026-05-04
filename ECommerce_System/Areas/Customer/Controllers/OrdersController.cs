@@ -443,8 +443,9 @@ public class OrdersController : Controller
         {
             if (!IsStripeConfigured())
             {
+                _logger.LogError("Stripe checkout requested but Stripe secret key is missing. UserId={UserId}.", userId);
                 StoreCheckoutState(vm);
-                TempData["error"] = _localizer["StripeNotConfigured"].Value;
+                TempData["error"] = GetStripeCheckoutUnavailableMessage();
                 return RedirectToAction(nameof(Checkout));
             }
 
@@ -454,7 +455,9 @@ public class OrdersController : Controller
                 if (string.IsNullOrWhiteSpace(session.Url))
                 {
                     StoreCheckoutState(vm);
-                    TempData["error"] = _localizer["StripeSessionCouldNotStart"].Value;
+                    TempData["error"] = ResolveLocalizedValue(
+                        "StripeSessionCouldNotStart",
+                        "We could not open the secure card payment page right now. Please try again in a moment.");
                     return RedirectToAction(nameof(Checkout));
                 }
 
@@ -463,7 +466,7 @@ public class OrdersController : Controller
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PlaceOrder failed while creating Stripe session. UserId={UserId}.", userId);
-                TempData["error"] = _localizer["CardPaymentUnavailable"].Value;
+                TempData["error"] = GetCardPaymentUnavailableMessage();
                 StoreCheckoutState(vm);
                 return RedirectToAction(nameof(Checkout));
             }
@@ -519,13 +522,14 @@ public class OrdersController : Controller
 
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            TempData["Error"] = _localizer["MissingStripeSessionDetails"].Value;
+            TempData["error"] = _localizer["MissingStripeSessionDetails"].Value;
             return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
         }
 
         if (!IsStripeConfigured())
         {
-            TempData["Error"] = _localizer["StripeNotConfigured"].Value;
+            _logger.LogError("StripeSuccess requested but Stripe secret key is missing. SessionId={SessionId}.", sessionId);
+            TempData["error"] = GetStripeCheckoutUnavailableMessage();
             return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
         }
 
@@ -536,7 +540,7 @@ public class OrdersController : Controller
 
             if (session == null || !string.Equals(session.PaymentStatus, "paid", StringComparison.OrdinalIgnoreCase))
             {
-                TempData["Error"] = _localizer["StripePaymentNotCompleted"].Value;
+                TempData["error"] = _localizer["StripePaymentNotCompleted"].Value;
                 return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
             }
 
@@ -561,7 +565,7 @@ public class OrdersController : Controller
 
             if (!metadata.TryGetValue("AddressId", out var addressValue) || !int.TryParse(addressValue, out var addressId))
             {
-                TempData["Error"] = _localizer["StripeSessionMissingAddressInformation"].Value;
+                TempData["error"] = _localizer["StripeSessionMissingAddressInformation"].Value;
                 return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
             }
 
@@ -570,14 +574,14 @@ public class OrdersController : Controller
             var address = await _unitOfWork.Addresses.FindAsync(a => a.Id == addressId && a.UserId == userId);
             if (address == null)
             {
-                TempData["Error"] = _localizer["SelectedDeliveryAddressNoLongerAvailable"].Value;
+                TempData["error"] = _localizer["SelectedDeliveryAddressNoLongerAvailable"].Value;
                 return RedirectToAction(nameof(Checkout), new { couponCode, paymentMethod = PaymentMethodCreditCard });
             }
 
             var cart = await _unitOfWork.Carts.GetCartByUserIdAsync(userId);
             if (cart == null || !cart.Items.Any())
             {
-                TempData["Error"] = _localizer["CouldNotFinalizePaidOrderCartEmpty"].Value;
+                TempData["error"] = _localizer["CouldNotFinalizePaidOrderCartEmpty"].Value;
                 return RedirectToAction("Index", "Cart");
             }
 
@@ -586,13 +590,13 @@ public class OrdersController : Controller
             {
                 if (item.ProductVariant == null || !item.ProductVariant.IsActive)
                 {
-                    TempData["Error"] = _localizer["ProductsInCartNoLongerAvailable"].Value;
+                    TempData["error"] = _localizer["ProductsInCartNoLongerAvailable"].Value;
                     return RedirectToAction("Index", "Cart");
                 }
 
                 if (item.Quantity > item.ProductVariant.Stock)
                 {
-                    TempData["Error"] = _localizer["NotEnoughStockForProductReviewCart", item.ProductVariant.Product?.Name ?? _localizer["ProductNotFound"].Value].Value;
+                    TempData["error"] = _localizer["NotEnoughStockForProductReviewCart", item.ProductVariant.Product?.Name ?? _localizer["ProductNotFound"].Value].Value;
                     return RedirectToAction("Index", "Cart");
                 }
 
@@ -633,7 +637,7 @@ public class OrdersController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "StripeSuccess failed. SessionId={SessionId}, UserId={UserId}.", sessionId, userId);
-            TempData["Error"] = _localizer["CouldNotFinalizeStripePayment"].Value;
+            TempData["error"] = _localizer["CouldNotFinalizeStripePayment"].Value;
             return RedirectToAction(nameof(Checkout), new { paymentMethod = PaymentMethodCreditCard });
         }
     }
@@ -641,7 +645,7 @@ public class OrdersController : Controller
     [HttpGet]
     public IActionResult StripeCancel(string? couponCode = null, int? addressId = null)
     {
-        TempData["Error"] = _localizer["CardPaymentCanceled"].Value;
+        TempData["error"] = _localizer["CardPaymentCanceled"].Value;
         return RedirectToAction(nameof(Checkout), new { couponCode, addressId, paymentMethod = PaymentMethodCreditCard });
     }
 
@@ -1313,33 +1317,16 @@ public class OrdersController : Controller
 
             await _unitOfWork.SaveAsync();
 
-            var customerEmail = order.User?.Email;
-            if (string.IsNullOrWhiteSpace(customerEmail))
+            var customerUser = order.User;
+            if (customerUser == null)
             {
-                customerEmail = (await _userManager.FindByIdAsync(userId))?.Email;
+                customerUser = await _userManager.FindByIdAsync(userId);
             }
 
+            var customerEmail = customerUser?.Email;
             if (!string.IsNullOrWhiteSpace(customerEmail))
             {
-                // Send order confirmation email — fire and forget, do not await to avoid blocking
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        var emailBody = $"""
-                            <h2>Order Confirmed — #{order.Id}</h2>
-                            <p>Thank you for your order!</p>
-                            <p><strong>Total:</strong> {order.TotalAmount:C}</p>
-                            <p><strong>Status:</strong> {order.Status}</p>
-                            <p>We will notify you when your order ships.</p>
-                            """;
-                        await _emailSender.SendEmailAsync(
-                            customerEmail,
-                            $"Smart Store — Order #{order.Id} Confirmed",
-                            emailBody);
-                    }
-                    catch { /* email failure must never break order flow */ }
-                });
+                QueueInitialOrderEmail(order, customerEmail, customerUser?.FullName);
             }
 
             await transaction.CommitAsync();
@@ -1490,5 +1477,55 @@ public class OrdersController : Controller
             .ToList();
 
         return stocks.Count == 0 ? 0 : stocks.Min();
+    }
+
+    private string ResolveLocalizedValue(string key, string fallback)
+    {
+        var localizedValue = _localizer[key].Value;
+        return string.IsNullOrWhiteSpace(localizedValue) || string.Equals(localizedValue, key, StringComparison.Ordinal)
+            ? fallback
+            : localizedValue;
+    }
+
+    private string GetStripeCheckoutUnavailableMessage() =>
+        ResolveLocalizedValue(
+            "StripeNotConfigured",
+            "Card payments are temporarily unavailable right now. Please choose cash on delivery or try again later.");
+
+    private string GetCardPaymentUnavailableMessage() =>
+        ResolveLocalizedValue(
+            "CardPaymentUnavailable",
+            "We could not start card payment right now. Please choose cash on delivery or try again in a moment.");
+
+    private void QueueInitialOrderEmail(Order order, string customerEmail, string? customerName)
+    {
+        var detailsUrl = BuildCustomerOrderDetailsUrl(order.Id);
+        var emailContent = OrderEmailTemplateBuilder.BuildInitialOrderEmail(
+            customerName ?? "Customer",
+            order.Id,
+            order.TotalAmount,
+            order.Status,
+            order.PaymentStatus,
+            detailsUrl);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _emailSender.SendEmailAsync(customerEmail, emailContent.Subject, emailContent.HtmlBody);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send initial order email for OrderId={OrderId}.", order.Id);
+            }
+        });
+    }
+
+    private string BuildCustomerOrderDetailsUrl(int orderId)
+    {
+        var baseUrl = (_configuration["App:PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
+        var relativePath = Url.Action(nameof(Details), "Orders", new { area = "Customer", id = orderId })
+                          ?? $"/Customer/Orders/Details/{orderId}";
+        return $"{baseUrl}{relativePath}";
     }
 }

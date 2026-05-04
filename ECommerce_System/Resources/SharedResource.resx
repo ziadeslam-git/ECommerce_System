@@ -379,13 +379,13 @@
     <value>Not enough stock for '{0}' ({1} / {2}). Available: {3}, Requested: {4}.</value>
   </data>
   <data name="StripeNotConfigured" xml:space="preserve">
-    <value>Stripe payment is not configured yet. Add the Stripe Secret Key first, then try again.</value>
+    <value>Card payments are temporarily unavailable right now. Please choose cash on delivery or try again later.</value>
   </data>
   <data name="StripeSessionCouldNotStart" xml:space="preserve">
     <value>Could not start the Stripe checkout session. Please try again.</value>
   </data>
   <data name="CardPaymentUnavailable" xml:space="preserve">
-    <value>Unable to start card payment right now. Please try again.</value>
+    <value>We could not start card payment right now. Please choose cash on delivery or try again in a moment.</value>
   </data>
   <data name="OrderUpdatedWhilePlacing" xml:space="preserve">
     <value>One or more products were updated while your order was being placed. Please review your cart and try again.</value>

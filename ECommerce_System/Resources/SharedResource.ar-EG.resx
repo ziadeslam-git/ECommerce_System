@@ -379,13 +379,13 @@
     <value>لا يوجد مخزون كافٍ للمنتج '{0}' ({1} / {2}). المتاح: {3}، المطلوب: {4}.</value>
   </data>
   <data name="StripeNotConfigured" xml:space="preserve">
-    <value>لم يتم إعداد دفع Stripe بعد. أضف المفتاح السري أولًا ثم حاول مرة أخرى.</value>
+    <value>الدفع بالبطاقة غير متاح حاليًا. اختر الدفع عند الاستلام أو حاول مرة أخرى لاحقًا.</value>
   </data>
   <data name="StripeSessionCouldNotStart" xml:space="preserve">
     <value>تعذر بدء جلسة الدفع عبر Stripe. حاول مرة أخرى.</value>
   </data>
   <data name="CardPaymentUnavailable" xml:space="preserve">
-    <value>لا يمكن بدء الدفع بالبطاقة الآن. حاول مرة أخرى.</value>
+    <value>تعذر بدء الدفع بالبطاقة الآن. اختر الدفع عند الاستلام أو حاول مرة أخرى بعد قليل.</value>
   </data>
   <data name="OrderUpdatedWhilePlacing" xml:space="preserve">
     <value>تم تحديث منتج أو أكثر أثناء تنفيذ الطلب. من فضلك راجع السلة وحاول مرة أخرى.</value>

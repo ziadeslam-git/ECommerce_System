@@ -4,6 +4,7 @@ using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -16,12 +17,23 @@ public class OrdersController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IEmailSender _emailSender;
+    private readonly ILogger<OrdersController> _logger;
+    private readonly IConfiguration _configuration;
     private const int PageSize = 10;
 
-    public OrdersController(IUnitOfWork unitOfWork, UserManager<ApplicationUser> userManager)
+    public OrdersController(
+        IUnitOfWork unitOfWork,
+        UserManager<ApplicationUser> userManager,
+        IEmailSender emailSender,
+        ILogger<OrdersController> logger,
+        IConfiguration configuration)
     {
         _unitOfWork  = unitOfWork;
         _userManager = userManager;
+        _emailSender = emailSender;
+        _logger = logger;
+        _configuration = configuration;
     }
 
     // ──────────────────────────────────────────────────────────
@@ -139,6 +151,9 @@ public class OrdersController : Controller
             return RedirectToAction(nameof(Details), new { id = vm.OrderId });
         }
 
+        var previousOrderStatus = order.Status;
+        var previousPaymentStatus = order.PaymentStatus;
+
         // Apply changes
         order.Status        = vm.NewStatus;
         order.PaymentStatus = vm.NewPaymentStatus;
@@ -164,6 +179,12 @@ public class OrdersController : Controller
 
         _unitOfWork.Orders.Update(order);
         await _unitOfWork.SaveAsync();
+
+        if (!string.Equals(previousOrderStatus, order.Status, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(previousPaymentStatus, order.PaymentStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            await SendOrderStatusEmailAsync(order, previousOrderStatus, previousPaymentStatus);
+        }
 
         TempData["success"] = $"Order #{order.Id} status updated successfully.";
         return RedirectToAction(nameof(Details), new { id = order.Id });
@@ -824,5 +845,41 @@ public class OrdersController : Controller
             };
             await _unitOfWork.Payments.AddAsync(newPayment);
         }
+    }
+
+    private async Task SendOrderStatusEmailAsync(Order order, string previousOrderStatus, string previousPaymentStatus)
+    {
+        try
+        {
+            var user = await _userManager.FindByIdAsync(order.UserId);
+            if (string.IsNullOrWhiteSpace(user?.Email))
+            {
+                return;
+            }
+
+            var emailContent = OrderEmailTemplateBuilder.BuildStatusUpdateEmail(
+                user.FullName,
+                order.Id,
+                order.TotalAmount,
+                previousOrderStatus,
+                order.Status,
+                previousPaymentStatus,
+                order.PaymentStatus,
+                BuildCustomerOrderDetailsUrl(order.Id));
+
+            await _emailSender.SendEmailAsync(user.Email, emailContent.Subject, emailContent.HtmlBody);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send order status email for OrderId={OrderId}.", order.Id);
+        }
+    }
+
+    private string BuildCustomerOrderDetailsUrl(int orderId)
+    {
+        var baseUrl = (_configuration["App:PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
+        var relativePath = Url.Action("Details", "Orders", new { area = "Customer", id = orderId })
+                          ?? $"/Customer/Orders/Details/{orderId}";
+        return $"{baseUrl}{relativePath}";
     }
 }

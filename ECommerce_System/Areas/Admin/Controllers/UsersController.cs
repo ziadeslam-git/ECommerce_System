@@ -169,7 +169,6 @@ public class UsersController : Controller
         if (!user.IsActive)
             await _userManager.UpdateSecurityStampAsync(user);
 
-        TempData["success"] = $"User '{user.FullName}' is now {(user.IsActive ? "active" : "inactive")}.";
         return RedirectToAction(nameof(Index));
     }
 

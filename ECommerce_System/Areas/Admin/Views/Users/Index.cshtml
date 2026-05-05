@@ -139,17 +139,23 @@
                             <span class="material-symbols-outlined text-[18px]">person_search</span>
                         </a>
 
-                        <form asp-action="ToggleActive" method="post" class="inline-block"
-                              onsubmit="return confirm('Are you sure you want to @(user.IsActive ? "deactivate" : "activate") @user.FullName?');">
+                        <form asp-action="ToggleActive" method="post" class="inline-block">
+                            @Html.AntiForgeryToken()
                             <input type="hidden" name="id" value="@user.Id" />
                             @if (user.Email == User.Identity?.Name)
                             {
-                                <button type="button" disabled class="inline-flex items-center rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-300">Locked</button>
+                                <button type="button" disabled class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-300 cursor-not-allowed" title="Cannot deactivate yourself">
+                                    <span class="material-symbols-outlined text-[22px]">toggle_on</span>
+                                </button>
                             }
                             else
                             {
-                                <button type="submit" class="inline-flex items-center rounded-xl px-4 py-2.5 text-sm font-semibold @(user.IsActive ? "bg-rose-50 text-rose-600 hover:bg-rose-100" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100") transition-colors">
-                                    @(user.IsActive ? "Deactivate" : "Activate")
+                                <button type="submit"
+                                        class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm transition @(user.IsActive ? "text-emerald-500 hover:bg-emerald-50" : "text-slate-300 hover:bg-slate-100 hover:text-slate-500")"
+                                        title="@(user.IsActive ? "Set user inactive" : "Set user active")">
+                                    <span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">
+                                        @(user.IsActive ? "toggle_on" : "toggle_off")
+                                    </span>
                                 </button>
                             }
                         </form>
@@ -223,16 +229,16 @@
                                 <div class="flex items-center justify-end gap-2">
                                     <a asp-action="Details" asp-route-id="@user.Id" class="material-symbols-outlined p-1 text-slate-400 hover:text-primary hover:bg-slate-100 rounded transition-colors text-xl" title="View Details">person_search</a>
                                     
-                                    <form asp-action="ToggleActive" method="post" class="inline-block"
-                                          onsubmit="return confirm('Are you sure you want to @(user.IsActive ? "deactivate" : "activate") @user.FullName?');">
+                                    <form asp-action="ToggleActive" method="post" class="inline-block">
+                                        @Html.AntiForgeryToken()
                                         <input type="hidden" name="id" value="@user.Id" />
                                         @if (user.Email == User.Identity?.Name)
                                         {
-                                            <button type="button" disabled class="material-symbols-outlined text-slate-300 text-xl cursor-not-allowed opacity-50" title="Cannot deactivate yourself">toggle_on</button>
+                                            <button type="button" disabled class="material-symbols-outlined text-slate-300 text-2xl cursor-not-allowed opacity-50" title="Cannot deactivate yourself">toggle_on</button>
                                         }
                                         else
                                         {
-                                            <button type="submit" class="material-symbols-outlined @(user.IsActive ? "text-emerald-500" : "text-error") hover:opacity-80 transition-colors text-2xl align-middle" style="font-variation-settings: 'FILL' 1;" title="@(user.IsActive ? "Deactivate User" : "Activate User")">
+                                            <button type="submit" class="material-symbols-outlined @(user.IsActive ? "text-emerald-500" : "text-slate-300 hover:text-slate-500") hover:opacity-80 transition-colors text-2xl align-middle" style="font-variation-settings: 'FILL' 1;" title="@(user.IsActive ? "Set user inactive" : "Set user active")">
                                                 @(user.IsActive ? "toggle_on" : "toggle_off")
                                             </button>
                                         }

@@ -26,35 +26,26 @@
                         ?? "https://placehold.co/900x900";
     List<string> BuildVariantGallery(ECommerce_System.Models.ProductVariant? variant)
     {
-        if (variant?.Images is not null && variant.Images.Any())
-        {
-            var variantGallery = BuildGallery(
-                variant.Images
+        var mergedGallery = BuildGallery(
+            new[] { productMainImage }
+                .Concat(product?.Images?
+                    .OrderByDescending(i => i.IsMain)
+                    .ThenBy(i => i.DisplayOrder)
+                    .Select(i => i.ImageUrl) ?? [])
+                .Concat(variant?.Images?
                     .OrderByDescending(i => i.IsMain)
                     .ThenBy(i => i.Id)
-                    .Select(i => i.ImageUrl));
+                    .Select(i => i.ImageUrl) ?? []));
 
-            if (variantGallery.Any())
-            {
-                return variantGallery;
-            }
-        }
-
-        var productGallery = BuildGallery(
-            product?.Images?
-                .OrderByDescending(i => i.IsMain)
-                .ThenBy(i => i.DisplayOrder)
-                .Select(i => i.ImageUrl) ?? []);
-
-        if (!productGallery.Any())
+        if (!mergedGallery.Any())
         {
-            productGallery.Add(productMainImage);
+            mergedGallery.Add(productMainImage);
         }
 
-        return productGallery;
+        return mergedGallery;
     }
     var fallbackGalleryImages = BuildVariantGallery(null);
-    var defaultGalleryImages = BuildVariantGallery(firstAvailableVariant);
+    var defaultGalleryImages = BuildVariantGallery(firstAvailableVariant ?? allVariants.FirstOrDefault());
     var minPrice     = availableVariants.Select(v => (decimal?)v.Price).OrderBy(p => p).FirstOrDefault();
     var displayPrice = (minPrice.HasValue && minPrice > 0) ? minPrice.Value : product?.BasePrice ?? 0m;
     var hasStock     = availableVariants.Any();
@@ -509,7 +500,7 @@
             stopGalleryAutoPlay();
             galleryTimer = setInterval(function () {
                 renderGallery(galleryIndex + 1);
-            }, 3200);
+            }, 1000);
         }
 
         function isAvailableVariant(variant) {

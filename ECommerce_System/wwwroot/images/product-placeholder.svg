@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="700" viewBox="0 0 600 700" role="img" aria-label="Product image placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#eef2ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="700" rx="34" fill="url(#bg)"/>
+  <rect x="120" y="185" width="360" height="330" rx="28" fill="#ffffff" stroke="#dbe3f0" stroke-width="8"/>
+  <circle cx="240" cy="285" r="42" fill="#c7d2fe"/>
+  <path d="M160 470l110-125 74 82 54-58 82 101z" fill="#a5b4fc"/>
+  <text x="300" y="570" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#64748b">Image unavailable</text>
+</svg>

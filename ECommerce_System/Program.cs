@@ -20,15 +20,25 @@ var builder = WebApplication.CreateBuilder(args);
 var dataProtectionKeysPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys");
 Directory.CreateDirectory(dataProtectionKeysPath);
 
-builder.Services.AddDataProtection()
+var dataProtectionBuilder = builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
     .SetApplicationName("SmartStore");
+
+if (OperatingSystem.IsWindows())
+{
+    dataProtectionBuilder.ProtectKeysWithDpapi(protectToLocalMachine: true);
+}
 
 // ──────────────────────────────────────────────────────────────────
 // 1. Database — EF Core with SQL Server
 // ──────────────────────────────────────────────────────────────────
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null)));
 
 // ──────────────────────────────────────────────────────────────────
 // 2. ASP.NET Core Identity — Cookie Authentication
@@ -85,6 +95,9 @@ var stripePublishableKey = builder.Configuration["Stripe:PublishableKey"];
 var stripeSecretKey = builder.Configuration["Stripe:SecretKey"];
 var stripeWebhookSecret = builder.Configuration["Stripe:WebhookSecret"];
 var publicBaseUrl = builder.Configuration["App:PublicBaseUrl"];
+var cloudinaryCloudName = builder.Configuration["Cloudinary:CloudName"];
+var cloudinaryApiKey = builder.Configuration["Cloudinary:ApiKey"];
+var cloudinaryApiSecret = builder.Configuration["Cloudinary:ApiSecret"];
 
 string[] GetProvidersWithNonEmptyValue(string key) =>
     configurationRoot.Providers
@@ -95,6 +108,9 @@ string[] GetProvidersWithNonEmptyValue(string key) =>
 var stripePublishableProviders = GetProvidersWithNonEmptyValue("Stripe:PublishableKey");
 var stripeSecretProviders = GetProvidersWithNonEmptyValue("Stripe:SecretKey");
 var stripeWebhookProviders = GetProvidersWithNonEmptyValue("Stripe:WebhookSecret");
+var cloudinaryCloudNameProviders = GetProvidersWithNonEmptyValue("Cloudinary:CloudName");
+var cloudinaryApiKeyProviders = GetProvidersWithNonEmptyValue("Cloudinary:ApiKey");
+var cloudinaryApiSecretProviders = GetProvidersWithNonEmptyValue("Cloudinary:ApiSecret");
 
 // ──────────────────────────────────────────────────────────────────
 // 4. Cloudinary — Image Upload Service
@@ -219,7 +235,7 @@ var app = builder.Build();
 // ──────────────────────────────────────────────────────────────────
 
 app.Logger.LogInformation(
-    "Startup config diagnostics | Environment={Environment} | PublicBaseUrl={PublicBaseUrl} | DataProtectionKeysPath={DataProtectionKeysPath} | StripePublishableConfigured={StripePublishableConfigured} | StripePublishableLength={StripePublishableLength} | StripePublishableProviders={StripePublishableProviders} | StripeSecretConfigured={StripeSecretConfigured} | StripeSecretLength={StripeSecretLength} | StripeSecretProviders={StripeSecretProviders} | StripeWebhookConfigured={StripeWebhookConfigured} | StripeWebhookLength={StripeWebhookLength} | StripeWebhookProviders={StripeWebhookProviders}",
+    "Startup config diagnostics | Environment={Environment} | PublicBaseUrl={PublicBaseUrl} | DataProtectionKeysPath={DataProtectionKeysPath} | StripePublishableConfigured={StripePublishableConfigured} | StripePublishableLength={StripePublishableLength} | StripePublishableProviders={StripePublishableProviders} | StripeSecretConfigured={StripeSecretConfigured} | StripeSecretLength={StripeSecretLength} | StripeSecretProviders={StripeSecretProviders} | StripeWebhookConfigured={StripeWebhookConfigured} | StripeWebhookLength={StripeWebhookLength} | StripeWebhookProviders={StripeWebhookProviders} | CloudinaryCloudNameConfigured={CloudinaryCloudNameConfigured} | CloudinaryCloudNameLength={CloudinaryCloudNameLength} | CloudinaryCloudNameProviders={CloudinaryCloudNameProviders} | CloudinaryApiKeyConfigured={CloudinaryApiKeyConfigured} | CloudinaryApiKeyLength={CloudinaryApiKeyLength} | CloudinaryApiKeyProviders={CloudinaryApiKeyProviders} | CloudinaryApiSecretConfigured={CloudinaryApiSecretConfigured} | CloudinaryApiSecretLength={CloudinaryApiSecretLength} | CloudinaryApiSecretProviders={CloudinaryApiSecretProviders}",
     app.Environment.EnvironmentName,
     string.IsNullOrWhiteSpace(publicBaseUrl) ? "(null)" : publicBaseUrl,
     dataProtectionKeysPath,
@@ -231,7 +247,16 @@ app.Logger.LogInformation(
     stripeSecretProviders.Length == 0 ? "none" : string.Join(" | ", stripeSecretProviders),
     !string.IsNullOrWhiteSpace(stripeWebhookSecret),
     stripeWebhookSecret?.Length ?? 0,
-    stripeWebhookProviders.Length == 0 ? "none" : string.Join(" | ", stripeWebhookProviders));
+    stripeWebhookProviders.Length == 0 ? "none" : string.Join(" | ", stripeWebhookProviders),
+    !string.IsNullOrWhiteSpace(cloudinaryCloudName),
+    cloudinaryCloudName?.Length ?? 0,
+    cloudinaryCloudNameProviders.Length == 0 ? "none" : string.Join(" | ", cloudinaryCloudNameProviders),
+    !string.IsNullOrWhiteSpace(cloudinaryApiKey),
+    cloudinaryApiKey?.Length ?? 0,
+    cloudinaryApiKeyProviders.Length == 0 ? "none" : string.Join(" | ", cloudinaryApiKeyProviders),
+    !string.IsNullOrWhiteSpace(cloudinaryApiSecret),
+    cloudinaryApiSecret?.Length ?? 0,
+    cloudinaryApiSecretProviders.Length == 0 ? "none" : string.Join(" | ", cloudinaryApiSecretProviders));
 
 if (!app.Environment.IsDevelopment())
 {

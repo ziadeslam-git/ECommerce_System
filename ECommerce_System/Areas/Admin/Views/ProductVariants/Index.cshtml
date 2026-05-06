@@ -3,6 +3,7 @@
 
 @{
     ViewData["Title"] = "Variants — " + Model.Name;
+    var placeholderImage = Url.Content("~/images/product-placeholder.svg");
     var sizeColors = new Dictionary<string, string>
     {
         ["XS"] = "bg-slate-200 text-slate-700",
@@ -38,7 +39,9 @@
                 }
                 @if (mainImg is not null)
                 {
-                    <img src="@mainImg.ImageUrl" alt="@Model.Name" class="w-full h-full object-cover" />
+                    <img src="@mainImg.ImageUrl" alt="@Model.Name" class="w-full h-full object-cover"
+                         loading="lazy" decoding="async"
+                         onerror="this.onerror=null;this.src='@placeholderImage';" />
                 }
                 else
                 {
@@ -130,7 +133,9 @@
                         <div class="h-14 w-14 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
                             @if (variantMainImg is not null)
                             {
-                                <img src="@variantMainImg.ImageUrl" alt="@variantLabel" class="h-full w-full object-cover" />
+                                <img src="@variantMainImg.ImageUrl" alt="@variantLabel" class="h-full w-full object-cover"
+                                     loading="lazy" decoding="async"
+                                     onerror="this.onerror=null;this.src='@placeholderImage';" />
                             }
                             else
                             {
@@ -251,7 +256,9 @@
                                         @if (variantMainImg is not null)
                                         {
                                             <img src="@variantMainImg.ImageUrl" alt="@variantLabel"
-                                                 class="w-full h-full object-cover" />
+                                                 class="w-full h-full object-cover"
+                                                 loading="lazy" decoding="async"
+                                                 onerror="this.onerror=null;this.src='@placeholderImage';" />
                                         }
                                         else
                                         {

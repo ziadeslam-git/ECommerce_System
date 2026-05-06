@@ -137,6 +137,13 @@ public class ProductVariantsController : Controller
                     ViewData["ProductName"] = vm.ProductName;
                     return View(vm);
                 }
+                catch (Exception)
+                {
+                    ModelState.AddModelError(string.Empty, "Image upload failed. Please check Cloudinary settings and try again.");
+                    ViewData["Title"] = "Add Variant";
+                    ViewData["ProductName"] = vm.ProductName;
+                    return View(vm);
+                }
 
                 var image = new ProductVariantImage
                 {
@@ -294,6 +301,14 @@ public class ProductVariantsController : Controller
                     catch (InvalidOperationException ex)
                     {
                         ModelState.AddModelError(string.Empty, ex.Message);
+                        await PopulateEditVmAsync(vm);
+                        ViewData["Title"] = "Edit Variant";
+                        ViewData["ProductName"] = vm.ProductName;
+                        return View(vm);
+                    }
+                    catch (Exception)
+                    {
+                        ModelState.AddModelError(string.Empty, "Image upload failed. Please check Cloudinary settings and try again.");
                         await PopulateEditVmAsync(vm);
                         ViewData["Title"] = "Edit Variant";
                         ViewData["ProductName"] = vm.ProductName;

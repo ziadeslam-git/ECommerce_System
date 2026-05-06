@@ -4,6 +4,7 @@
 @{
     ViewData["Title"] = "Images — " + Model.Name;
     var productId = Model.Id;
+    var placeholderImage = Url.Content("~/images/product-placeholder.svg");
 }
 
 <div class="space-y-6">
@@ -36,7 +37,9 @@
                 }
                 @if (mainImg is not null)
                 {
-                    <img src="@mainImg.ImageUrl" alt="@Model.Name" class="w-full h-full object-cover" />
+                    <img src="@mainImg.ImageUrl" alt="@Model.Name" class="w-full h-full object-cover"
+                         loading="lazy" decoding="async"
+                         onerror="this.onerror=null;this.src='@placeholderImage';" />
                 }
                 else
                 {
@@ -161,7 +164,9 @@
                         <!-- Image -->
                         <div class="aspect-square rounded-xl overflow-hidden bg-slate-100 mb-3 relative cursor-pointer" onclick="openLightbox('@img.ImageUrl')">
                             <img src="@img.ImageUrl" alt="Product Image @img.DisplayOrder"
-                                 class="w-full h-full object-cover" />
+                                 class="w-full h-full object-cover"
+                                 loading="lazy" decoding="async"
+                                 onerror="this.onerror=null;this.src='@placeholderImage';" />
                             <!-- Hover overlay -->
                             <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100
                                         flex items-center justify-center transition-opacity">

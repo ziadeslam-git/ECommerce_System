@@ -33,12 +33,7 @@ public class ProductsController : Controller
 
         var query = _unitOfWork.Products
             .Query()
-            .AsSplitQuery()
-            .Include(p => p.Category)
-            .Include(p => p.Images)
-            .Include(p => p.Variants)
-            .Include(p => p.Reviews)
-            .AsQueryable();
+            .AsNoTracking();
 
         if (!string.IsNullOrEmpty(search))
         {
@@ -91,36 +86,13 @@ public class ProductsController : Controller
         var products = await query
             .Skip((page - 1) * PageSize)
             .Take(PageSize)
-            .ToListAsync();
-
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var wishlistIds = new HashSet<int>();
-
-        if (userId != null)
-        {
-            wishlistIds = (await _unitOfWork.WishlistItems
-                .Query()
-                .Where(w => w.UserId == userId)
-                .Select(w => w.ProductId)
-                .ToListAsync())
-                .ToHashSet();
-        }
-
-        var categories = await _unitOfWork.Categories.GetAllAsync(tracked: false);
-        var categorySelectList = categories.Select(c => new SelectListItem
-        {
-            Value = c.Id.ToString(),
-            Text = c.Name
-        });
-
-        var vm = new ProductIndexCustomerVM
-        {
-            Products = products.Select(p => new ProductCardVM
+            .Select(p => new ProductCardVM
             {
                 Id = p.Id,
                 Name = p.Name,
                 BasePrice = p.BasePrice,
-                MinVariantPrice = p.Variants.Where(v => v.IsActive && v.Stock > 0)
+                MinVariantPrice = p.Variants
+                    .Where(v => v.IsActive && v.Stock > 0)
                     .Select(v => (decimal?)v.Price)
                     .OrderBy(price => price)
                     .FirstOrDefault(),
@@ -131,15 +103,58 @@ public class ProductsController : Controller
                     .FirstOrDefault(),
                 AverageRating = p.AverageRating,
                 ReviewCount = p.Reviews.Count(r => r.IsApproved && !r.IsRejected),
-                MainImageUrl = p.Images.FirstOrDefault(i => i.IsMain)?.ImageUrl
-                    ?? p.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.ImageUrl,
-                CategoryName = p.Category?.Name,
-                IsInWishlist = userId != null && wishlistIds.Contains(p.Id),
+                MainImageUrl = p.Images
+                    .OrderByDescending(i => i.IsMain)
+                    .ThenBy(i => i.DisplayOrder)
+                    .Select(i => i.ImageUrl)
+                    .FirstOrDefault()
+                    ?? p.Variants
+                        .SelectMany(v => v.Images)
+                        .OrderByDescending(i => i.IsMain)
+                        .ThenBy(i => i.Id)
+                        .Select(i => i.ImageUrl)
+                    .FirstOrDefault(),
+                CategoryName = p.Category != null ? p.Category.Name : null,
                 HasStock = p.Variants.Any(v => v.IsActive && v.Stock > 0),
                 AvailableStock = p.Variants
                     .Where(v => v.IsActive && v.Stock > 0)
-                    .Sum(v => v.Stock)
-            }).ToList(),
+                    .Sum(v => (int?)v.Stock) ?? 0
+            })
+            .ToListAsync();
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId != null)
+        {
+            var pageProductIds = products.Select(p => p.Id).ToList();
+            var wishlistIds = (await _unitOfWork.WishlistItems
+                .Query()
+                .AsNoTracking()
+                .Where(w => w.UserId == userId && pageProductIds.Contains(w.ProductId))
+                .Select(w => w.ProductId)
+                .ToListAsync())
+                .ToHashSet();
+
+            foreach (var product in products)
+            {
+                product.IsInWishlist = wishlistIds.Contains(product.Id);
+            }
+        }
+
+        var categorySelectList = await _unitOfWork.Categories
+            .Query()
+            .AsNoTracking()
+            .OrderBy(c => c.Name)
+            .Select(c => new SelectListItem
+            {
+                Value = c.Id.ToString(),
+                Text = c.Name
+            })
+            .ToListAsync();
+
+        var vm = new ProductIndexCustomerVM
+        {
+            Products = products,
             Categories = categorySelectList,
             CurrentPage = page,
             TotalPages = totalPages,

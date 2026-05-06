@@ -17,6 +17,8 @@ public class GiftBundleProductConfiguration : IEntityTypeConfiguration<GiftBundl
         builder.HasIndex(item => new { item.GiftBundleId, item.ProductId })
             .IsUnique();
 
+        builder.HasQueryFilter(item => item.Product.IsActive);
+
         builder.HasOne(item => item.Product)
             .WithMany()
             .HasForeignKey(item => item.ProductId)

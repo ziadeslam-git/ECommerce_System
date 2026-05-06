@@ -6,7 +6,7 @@ namespace ECommerce_System.Utilities;
 
 /// <summary>
 /// Wraps CloudinaryDotNet for upload/delete operations.
-/// Falls back to private local storage when Cloudinary credentials are not configured.
+/// Requires Cloudinary credentials for public product image delivery.
 /// </summary>
 public interface ICloudinaryService
 {
@@ -16,14 +16,21 @@ public interface ICloudinaryService
 
 public class CloudinaryService : ICloudinaryService
 {
+    private static readonly TimeSpan UploadTimeout = TimeSpan.FromSeconds(45);
+
     private readonly CloudinarySettings _settings;
     private readonly IWebHostEnvironment _env;
+    private readonly ILogger<CloudinaryService> _logger;
     private readonly Cloudinary? _cloudinary;
 
-    public CloudinaryService(IOptions<CloudinarySettings> settings, IWebHostEnvironment env)
+    public CloudinaryService(
+        IOptions<CloudinarySettings> settings,
+        IWebHostEnvironment env,
+        ILogger<CloudinaryService> logger)
     {
         _settings = settings.Value;
         _env = env;
+        _logger = logger;
 
         if (_settings.IsConfigured)
         {
@@ -39,7 +46,14 @@ public class CloudinaryService : ICloudinaryService
         if (_cloudinary is not null)
             return await UploadToCloudinaryAsync(file, folder);
 
-        return await SaveLocallyAsync(file, folder);
+        _logger.LogWarning(
+            "Image upload blocked because Cloudinary settings are missing. CloudName={CloudNameConfigured}, ApiKey={ApiKeyConfigured}, ApiSecret={ApiSecretConfigured}",
+            !string.IsNullOrWhiteSpace(_settings.CloudName),
+            !string.IsNullOrWhiteSpace(_settings.ApiKey),
+            !string.IsNullOrWhiteSpace(_settings.ApiSecret));
+
+        throw new InvalidOperationException(
+            "Image upload storage is not configured. Please set Cloudinary__CloudName, Cloudinary__ApiKey, and Cloudinary__ApiSecret.");
     }
 
     private async Task<(string Url, string PublicId)> UploadToCloudinaryAsync(IFormFile file, string folder)
@@ -52,14 +66,55 @@ public class CloudinaryService : ICloudinaryService
             UseFilename = false,
             UniqueFilename = true,
             Overwrite   = false,
+            AllowedFormats = ["jpg", "jpeg", "png", "webp"],
         };
 
-        var result = await _cloudinary!.UploadAsync(uploadParams);
+        using var cts = new CancellationTokenSource(UploadTimeout);
+
+        ImageUploadResult result;
+        try
+        {
+            result = await _cloudinary!.UploadAsync(uploadParams, cts.Token);
+        }
+        catch (OperationCanceledException ex) when (cts.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex,
+                "Cloudinary image upload timed out after {TimeoutSeconds}s. Folder={Folder}, FileName={FileName}, FileLength={FileLength}",
+                UploadTimeout.TotalSeconds,
+                folder,
+                file.FileName,
+                file.Length);
+
+            throw new InvalidOperationException(
+                "Image upload timed out. Please try again, or check the Cloudinary/network settings.");
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogWarning(ex,
+                "Cloudinary image upload was canceled by the HTTP client timeout. Folder={Folder}, FileName={FileName}, FileLength={FileLength}",
+                folder,
+                file.FileName,
+                file.Length);
+
+            throw new InvalidOperationException(
+                "Image upload timed out. Please try again, or check the Cloudinary/network settings.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Cloudinary image upload failed. Folder={Folder}, FileName={FileName}, FileLength={FileLength}",
+                folder,
+                file.FileName,
+                file.Length);
+
+            throw new InvalidOperationException(
+                "Image upload failed. Please check Cloudinary settings and try again.");
+        }
 
         if (result.Error is not null)
             throw new InvalidOperationException($"Cloudinary upload failed: {result.Error.Message}");
 
-        return (result.SecureUrl.ToString(), result.PublicId);
+        return (BuildOptimizedDeliveryUrl(result.PublicId, result.SecureUrl.ToString()), result.PublicId);
     }
 
     private async Task<(string Url, string PublicId)> SaveLocallyAsync(IFormFile file, string folder)
@@ -113,6 +168,22 @@ public class CloudinaryService : ICloudinaryService
     {
         var segments = folder.Split('/', StringSplitOptions.RemoveEmptyEntries);
         return Path.Combine(new[] { _env.ContentRootPath, "uploads_private" }.Concat(segments).ToArray());
+    }
+
+    private string BuildOptimizedDeliveryUrl(string publicId, string fallbackUrl)
+    {
+        if (_cloudinary is null || string.IsNullOrWhiteSpace(publicId))
+            return fallbackUrl;
+
+        return _cloudinary.Api.UrlImgUp
+            .Secure(true)
+            .Transform(new Transformation()
+                .Width(1400)
+                .Height(1400)
+                .Crop("limit")
+                .Quality("auto")
+                .FetchFormat("auto"))
+            .BuildUrl(publicId);
     }
 
     private static void ValidateImageFile(IFormFile file)

@@ -11,7 +11,8 @@
     var loginReturnUrl = $"/Identity/Account/Login?ReturnUrl={Uri.EscapeDataString(returnUrl)}";
 
     var heroProduct = featured.FirstOrDefault();
-    var heroImage = heroProduct?.MainImageUrl ?? "https://placehold.co/900x1100/eef2ff/4648d4?text=Smart+Store";
+    var placeholderImage = Url.Content("~/images/product-placeholder.svg");
+    var heroImage = heroProduct?.MainImageUrl ?? placeholderImage;
     var galleryCards = featured.Take(6).ToList();
     var featuredGiftBundle = Model?.FeaturedGiftBundle;
     var bundleCards = featured.Skip(1).Take(3).ToList();
@@ -132,7 +133,8 @@
                         <div class="relative aspect-square rotate-3 overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary to-pink-400 shadow-2xl">
                             <img src="@heroImage"
                                  alt="@(heroProduct?.Name ?? "Smart Store")"
-                                 class="h-full w-full -rotate-3 scale-110 object-cover" />
+                                 class="h-full w-full -rotate-3 scale-110 object-cover"
+                                 onerror="this.onerror=null;this.src='@placeholderImage';" />
                             <div class="absolute inset-x-4 bottom-4 rounded-2xl bg-white/90 p-4 shadow-lg backdrop-blur">
                                 <div class="flex items-center justify-between gap-3">
                                     <div>
@@ -202,9 +204,12 @@
                                    asp-action="Details"
                                    asp-route-id="@item.Id"
                                    class="flex aspect-square flex-col items-center justify-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-primary/50">
-                                    <img src="@(item.MainImageUrl ?? "https://placehold.co/300x300/e5e7eb/0f172a?text=Item")"
+                                    <img src="@(item.MainImageUrl ?? placeholderImage)"
                                          alt="@item.Name"
-                                         class="h-24 w-24 rounded-2xl object-cover shadow-md" />
+                                         class="h-24 w-24 rounded-2xl object-cover shadow-md"
+                                         loading="lazy"
+                                         decoding="async"
+                                         onerror="this.onerror=null;this.src='@placeholderImage';" />
                                     <span class="text-center text-xs font-bold uppercase tracking-[0.14em] text-slate-300">@item.Name</span>
                                 </a>
                             }
@@ -248,7 +253,7 @@
                             {
                                 var price = item.MinVariantPrice > 0 ? item.MinVariantPrice : item.BasePrice;
                                 var rating = (int)Math.Round(item.AverageRating);
-                                var productImage = item.MainImageUrl ?? "https://placehold.co/700x900/e5e7eb/0f172a?text=Product";
+                                var productImage = item.MainImageUrl ?? placeholderImage;
                                 <article class="fresh-drops-card group w-[260px] flex-shrink-0 sm:w-[280px] lg:w-[300px]">
                                     <div class="relative mb-4 aspect-[3/4] overflow-hidden rounded-[2rem] bg-slate-100 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-2xl">
                                         <a asp-area="Customer"
@@ -256,7 +261,8 @@
                                            asp-action="Details"
                                            asp-route-id="@item.Id"
                                            class="block h-full w-full">
-                                            <img src="@productImage" alt="@item.Name" class="h-full w-full object-cover" />
+                                            <img src="@productImage" alt="@item.Name" class="h-full w-full object-cover" loading="lazy" decoding="async"
+                                                 onerror="this.onerror=null;this.src='@placeholderImage';" />
                                         </a>
 
                                         @if (item.DefaultVariantId.HasValue && isAuthenticated)
@@ -373,9 +379,12 @@
                                asp-action="Details"
                                asp-route-id="@item.Id"
                                class="group relative aspect-square overflow-hidden rounded-2xl">
-                                <img src="@(item.MainImageUrl ?? "https://placehold.co/400x400/e5e7eb/0f172a?text=Look")"
+                                <img src="@(item.MainImageUrl ?? placeholderImage)"
                                      alt="@item.Name"
-                                     class="h-full w-full object-cover" />
+                                     class="h-full w-full object-cover"
+                                     loading="lazy"
+                                     decoding="async"
+                                     onerror="this.onerror=null;this.src='@placeholderImage';" />
                                 <div class="absolute inset-0 flex items-center justify-center bg-primary/40 opacity-0 transition-opacity group-hover:opacity-100">
                                     <span class="material-symbols-outlined text-3xl text-white">favorite</span>
                                 </div>
@@ -479,9 +488,12 @@
                                        asp-action="Details"
                                        asp-route-id="@item.ProductId"
                                        class="group flex h-32 w-32 items-center justify-center overflow-hidden rounded-[1.5rem] border-2 border-white bg-slate-100 shadow-xl transition hover:-translate-y-1 sm:h-40 sm:w-40">
-                                        <img src="@(item.ImageUrl ?? "https://placehold.co/400x400/e5e7eb/0f172a?text=Bundle")"
+                                        <img src="@(item.ImageUrl ?? placeholderImage)"
                                              alt="@item.ProductName"
-                                             class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                             class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                             loading="lazy"
+                                             decoding="async"
+                                             onerror="this.onerror=null;this.src='@placeholderImage';" />
                                     </a>
                                 </text>
                                 @if (i < bundleVisualItems.Count - 1)

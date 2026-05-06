@@ -22,10 +22,10 @@ public class HomeController : Controller
     public async Task<IActionResult> Index()
     {
         var featuredProducts = await _unitOfWork.Products
-            .FindAllAsync(p => p.IsActive, "Images,Category,Variants", tracked: false);
+            .FindAllAsync(p => p.IsActive, "Images,Category,Variants.Images", tracked: false);
 
         var giftBundles = await _unitOfWork.GiftBundles
-            .FindAllAsync(gb => gb.IsActive, "Items.Product.Images,Items.Product.Variants", tracked: false);
+            .FindAllAsync(gb => gb.IsActive, "Items.Product.Images,Items.Product.Variants.Images", tracked: false);
 
         var categories = await _unitOfWork.Categories
             .FindAllAsync(c => c.Products.Any(p => p.IsActive), "Products", tracked: false);
@@ -55,8 +55,7 @@ public class HomeController : Controller
                         .Select(v => (int?)v.Id)
                         .FirstOrDefault(),
                     AverageRating = p.AverageRating,
-                    MainImageUrl = p.Images.FirstOrDefault(i => i.IsMain)?.ImageUrl
-                        ?? p.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.ImageUrl,
+                    MainImageUrl = ResolveProductImage(p),
                     CategoryName = p.Category?.Name
                 }).ToList(),
             FeaturedGiftBundle = featuredGiftBundle == null
@@ -76,8 +75,7 @@ public class HomeController : Controller
                         {
                             ProductId = item.ProductId,
                             ProductName = item.Product.Name,
-                            MainImageUrl = item.Product.Images.FirstOrDefault(i => i.IsMain)?.ImageUrl
-                                ?? item.Product.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.ImageUrl
+                            MainImageUrl = ResolveProductImage(item.Product)
                         })
                         .ToList()
                 },
@@ -93,6 +91,17 @@ public class HomeController : Controller
         };
 
         return View(vm);
+    }
+
+    private static string? ResolveProductImage(Product product)
+    {
+        return product.Images.FirstOrDefault(i => i.IsMain)?.ImageUrl
+            ?? product.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.ImageUrl
+            ?? product.Variants
+                .SelectMany(v => v.Images)
+                .OrderByDescending(i => i.IsMain)
+                .ThenBy(i => i.Id)
+                .FirstOrDefault()?.ImageUrl;
     }
 
     private static decimal ResolveBundleDisplayPrice(Product product)

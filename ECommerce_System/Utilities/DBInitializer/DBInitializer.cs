@@ -61,13 +61,23 @@ public class DBInitializer : IDBInitializer
         var adminEmail = _configuration["AdminBootstrap:Email"];
         var adminPassword = _configuration["AdminBootstrap:Password"];
         var adminFullName = _configuration["AdminBootstrap:FullName"];
+        var existingAdmins = await _userManager.GetUsersInRoleAsync(SD.Role_Admin);
 
         if (string.IsNullOrWhiteSpace(adminEmail) ||
             string.IsNullOrWhiteSpace(adminPassword) ||
             string.IsNullOrWhiteSpace(adminFullName))
         {
-            _logger.LogWarning(
-                "Admin bootstrap skipped because one or more AdminBootstrap configuration values are missing.");
+            if (existingAdmins.Any())
+            {
+                _logger.LogInformation(
+                    "Admin bootstrap skipped because an Admin user already exists and AdminBootstrap configuration is not set.");
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Admin bootstrap skipped because one or more AdminBootstrap configuration values are missing and no Admin user exists.");
+            }
+
             return;
         }
 

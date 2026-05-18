@@ -10,7 +10,28 @@
             background-image: radial-gradient(#6467f2 0.5px, transparent 0.5px);
             background-size: 24px 24px;
         }
+
+        .iti {
+            width: 100%;
+        }
+
+        .iti__country-container {
+            border-radius: 0.75rem 0 0 0.75rem;
+        }
+
+        .iti input.smart-phone-input {
+            padding-left: 3.75rem !important;
+        }
+
+        .field-validation-error {
+            color: #f43f5e;
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-top: 0.25rem;
+        }
     </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@28.0.4/build/css/intlTelInput.css" />
 }
 
 <div class="flex min-h-screen">
@@ -77,6 +98,22 @@
                         <input asp-for="Email" class="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" placeholder="name@company.com" />
                     </div>
                     <span asp-validation-for="Email" class="text-rose-500 text-xs mt-1 block"></span>
+                </div>
+
+                <!-- Phone Number -->
+                <div class="space-y-2">
+                    <label asp-for="PhoneNumber" class="text-sm font-semibold text-slate-700 dark:text-slate-300 px-1"></label>
+                    <input asp-for="PhoneCountryIso2" type="hidden" class="js-phone-country" />
+                    <input asp-for="PhoneNumber"
+                           type="tel"
+                           autocomplete="tel"
+                           inputmode="tel"
+                           class="js-phone-input smart-phone-input w-full pr-4 py-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                           data-phone-required="true"
+                           data-phone-error-required="Phone number is required."
+                           data-phone-error-invalid="Please enter a valid phone number for the selected country."
+                           placeholder="+20 10 1234 5678" />
+                    <span asp-validation-for="PhoneNumber" class="text-rose-500 text-xs mt-1 block"></span>
                 </div>
                 
                 <!-- Password -->
@@ -157,3 +194,8 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@28.0.4/build/js/intlTelInput.min.js"></script>
+    <script src="~/js/phone-input.js" asp-append-version="true"></script>
+}

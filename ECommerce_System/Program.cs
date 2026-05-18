@@ -6,6 +6,7 @@ using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
 using ECommerce_System.Utilities.DBInitializer;
 using ECommerce_System.Utilities.Localization;
+using ECommerce_System.Utilities.Validation;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Identity;
@@ -123,6 +124,7 @@ builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 // 4. Repository Pattern — Unit of Work
 // ──────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddSingleton<IPhoneNumberValidator, LibPhoneNumberValidator>();
 
 // ──────────────────────────────────────────────────────────────────
 // 5. DB Initializer (roles + admin seed)

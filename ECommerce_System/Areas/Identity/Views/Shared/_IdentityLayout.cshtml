@@ -30,6 +30,7 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body class="font-display bg-background-light dark:bg-background-dark min-h-screen antialiased text-slate-900 dark:text-slate-100">
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <partial name="_ValidationScriptsPartial" />
 
     @if (TempData["success"] != null)

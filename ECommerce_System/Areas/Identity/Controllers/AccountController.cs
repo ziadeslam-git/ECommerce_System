@@ -1,6 +1,7 @@
 using ECommerce_System.Models;
 using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
+using ECommerce_System.Utilities.Validation;
 using ECommerce_System.ViewModels.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -19,6 +20,7 @@ public class AccountController : Controller
     private readonly IEmailSender _emailSender;
     private readonly IStringLocalizer<SharedResource> _localizer;
     private readonly IConfiguration _configuration;
+    private readonly IPhoneNumberValidator _phoneNumberValidator;
 
     // ✅ FIX 1: Removed IRepository<ApplicationUserOTP> — لا وجود لـ ApplicationUserOTP في هذا المشروع
     // ✅ FIX 2: Removed wrong using (Microsoft.VisualStudio.Web.CodeGenerators...)
@@ -28,13 +30,15 @@ public class AccountController : Controller
         SignInManager<ApplicationUser> signInManager,
         IEmailSender emailSender,
         IStringLocalizer<SharedResource> localizer,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IPhoneNumberValidator phoneNumberValidator)
     {
         _userManager  = userManager;
         _signInManager = signInManager;
         _emailSender  = emailSender;
         _localizer = localizer;
         _configuration = configuration;
+        _phoneNumberValidator = phoneNumberValidator;
     }
 
     // ─── LOGOUT ─────────────────────────────────────────────────
@@ -55,6 +59,12 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(RegisterVM vm)
     {
+        var phoneValidation = _phoneNumberValidator.ValidateAndFormat(vm.PhoneNumber, vm.PhoneCountryIso2, isRequired: true);
+        if (!phoneValidation.IsValid)
+        {
+            ModelState.AddModelError(nameof(vm.PhoneNumber), phoneValidation.ErrorMessage!);
+        }
+
         if (!ModelState.IsValid) return View(vm);
 
         // ✅ FIX 4: استخدمنا FullName بدل Name (ApplicationUser في هذا المشروع ليه FullName)
@@ -64,6 +74,7 @@ public class AccountController : Controller
             FullName       = vm.FullName,
             Email          = vm.Email,
             UserName       = vm.Email,  // Username = Email (standard)
+            PhoneNumber    = phoneValidation.E164Number,
             CreatedAt      = DateTime.UtcNow,
             IsActive       = true,
         };

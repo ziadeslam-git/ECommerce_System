@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ECommerce_System.Utilities.Validation;
 
 namespace ECommerce_System.ViewModels.Identity;
 
@@ -7,7 +8,8 @@ public class ResetPasswordVM
     [Required(ErrorMessage = "RequiredField")]
     public string Token { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "RequiredField"), EmailAddress(ErrorMessage = "InvalidEmailAddress")]
+    [Required(ErrorMessage = "RequiredField")]
+    [StrictEmailAddress(ErrorMessage = "Please enter a valid email address, for example example@gmail.com.")]
     public string Email { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "RequiredField"), MinLength(8, ErrorMessage = "MinimumLength")]

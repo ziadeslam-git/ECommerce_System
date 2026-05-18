@@ -2,6 +2,7 @@ using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
 using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
+using ECommerce_System.Utilities.Validation;
 using ECommerce_System.ViewModels.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -21,6 +22,7 @@ public class ProfileController : Controller
     private readonly ICloudinaryService _cloudinaryService;
     private readonly IEmailSender _emailSender;
     private readonly IStringLocalizer<SharedResource> _localizer;
+    private readonly IPhoneNumberValidator _phoneNumberValidator;
 
     // ✅ FIX: Added IUnitOfWork for Address management
     public ProfileController(
@@ -28,13 +30,15 @@ public class ProfileController : Controller
         IUnitOfWork unitOfWork,
         ICloudinaryService cloudinaryService,
         IEmailSender emailSender,
-        IStringLocalizer<SharedResource> localizer)
+        IStringLocalizer<SharedResource> localizer,
+        IPhoneNumberValidator phoneNumberValidator)
     {
         _userManager = userManager;
         _unitOfWork  = unitOfWork;
         _cloudinaryService = cloudinaryService;
         _emailSender = emailSender;
         _localizer = localizer;
+        _phoneNumberValidator = phoneNumberValidator;
     }
 
     // ─── PROFILE INDEX ──────────────────────────────────────────
@@ -44,14 +48,12 @@ public class ProfileController : Controller
         var user = await _userManager.GetUserAsync(User);
         if (user is null) return NotFound();
 
-        var (phoneCountryCode, phoneNumber) = SplitPhoneNumber(user.PhoneNumber);
-
         var vm = new ProfileVM
         {
             FullName    = user.FullName,
             Email       = user.Email ?? string.Empty,
-            PhoneNumber = phoneNumber,
-            PhoneCountryCode = phoneCountryCode,
+            PhoneNumber = user.PhoneNumber ?? string.Empty,
+            PhoneCountryIso2 = "EG",
             ProfileImageUrl = user.ProfileImageUrl
         };
 
@@ -69,6 +71,11 @@ public class ProfileController : Controller
         vm.Email ??= user.Email ?? string.Empty;
         vm.ProfileImageUrl ??= user.ProfileImageUrl;
         var hasCroppedProfileImage = !string.IsNullOrWhiteSpace(vm.CroppedProfileImageDataUrl);
+        var phoneValidation = _phoneNumberValidator.ValidateAndFormat(vm.PhoneNumber, vm.PhoneCountryIso2, isRequired: false);
+        if (!phoneValidation.IsValid)
+        {
+            ModelState.AddModelError(nameof(vm.PhoneNumber), phoneValidation.ErrorMessage!);
+        }
 
         if (vm.ProfileImage is not null && vm.ProfileImage.Length > 0 && !hasCroppedProfileImage)
         {
@@ -93,7 +100,7 @@ public class ProfileController : Controller
 
         // ✅ FIX: FullName بدل Name / مفيش user.Address
         user.FullName   = vm.FullName;
-        user.PhoneNumber = BuildPhoneNumber(vm.PhoneCountryCode, vm.PhoneNumber);
+        user.PhoneNumber = phoneValidation.E164Number;
 
         string? oldPublicId = null;
         string? uploadedPublicId = null;
@@ -198,36 +205,6 @@ public class ProfileController : Controller
         }
 
         return RedirectToAction(nameof(Index));
-    }
-
-    private static (string CountryCode, string? LocalNumber) SplitPhoneNumber(string? phoneNumber)
-    {
-        if (string.IsNullOrWhiteSpace(phoneNumber))
-            return ("+20", string.Empty);
-
-        var normalized = phoneNumber.Trim();
-        var knownCodes = new[] { "+20", "+1", "+44" };
-
-        foreach (var code in knownCodes.OrderByDescending(c => c.Length))
-        {
-            if (normalized.StartsWith(code, StringComparison.Ordinal))
-            {
-                return (code, normalized[code.Length..].TrimStart());
-            }
-        }
-
-        return ("+20", normalized);
-    }
-
-    private static string? BuildPhoneNumber(string? countryCode, string? localNumber)
-    {
-        var code = string.IsNullOrWhiteSpace(countryCode) ? "+20" : countryCode.Trim();
-        var local = string.IsNullOrWhiteSpace(localNumber) ? string.Empty : localNumber.Trim();
-
-        if (string.IsNullOrWhiteSpace(local))
-            return null;
-
-        return $"{code}{local}";
     }
 
     private bool TryBuildCroppedImageFile(

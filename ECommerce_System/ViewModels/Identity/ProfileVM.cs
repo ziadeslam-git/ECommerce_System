@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ECommerce_System.Utilities.Validation;
 using Microsoft.AspNetCore.Http;
 
 namespace ECommerce_System.ViewModels.Identity;
@@ -9,16 +10,14 @@ public class ProfileVM
     [Display(Name = "FullName")]
     public string FullName { get; set; } = string.Empty;
 
-    [EmailAddress(ErrorMessage = "InvalidEmailAddress")]
+    [StrictEmailAddress(ErrorMessage = "Please enter a valid email address, for example example@gmail.com.")]
     [Display(Name = "Email")]
     public string? Email { get; set; }
 
-    [Phone(ErrorMessage = "InvalidPhoneNumber")]
     [Display(Name = "PhoneNumber")]
     public string? PhoneNumber { get; set; }
 
-    [Display(Name = "CountryCode")]
-    public string PhoneCountryCode { get; set; } = "+20";
+    public string? PhoneCountryIso2 { get; set; } = "EG";
 
     public string? ProfileImageUrl { get; set; }
 

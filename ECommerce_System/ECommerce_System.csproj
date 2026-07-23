@@ -50,4 +50,6 @@
     <Folder Include="Repositories\IRepositories\" />
   </ItemGroup>
 
+  <ProjectExtensions><VisualStudio><UserProperties appsettings_1json__JsonSchema="https://www.schemastore.org/appsscript.json.pr" /></VisualStudio></ProjectExtensions>
+
 </Project>

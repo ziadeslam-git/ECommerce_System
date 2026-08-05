@@ -33,7 +33,8 @@ public class WishlistController : Controller
 
         var wishlistItems = await _uow.WishlistItems.FindAllAsync(
             w => w.UserId == userId,
-            "Product,Product.Images,Product.Variants"
+            "Product,Product.Images,Product.Variants",
+            tracked: false
         );
 
         var vm = new WishlistIndexVM

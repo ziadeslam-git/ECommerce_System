@@ -24,7 +24,7 @@ public class ProfileController : Controller
     private readonly IStringLocalizer<SharedResource> _localizer;
     private readonly IPhoneNumberValidator _phoneNumberValidator;
 
-    // ✅ FIX: Added IUnitOfWork for Address management
+    //    FIX: Added IUnitOfWork for Address management
     public ProfileController(
         UserManager<ApplicationUser> userManager,
         IUnitOfWork unitOfWork,
@@ -98,7 +98,7 @@ public class ProfileController : Controller
 
         if (!ModelState.IsValid) return View(vm);
 
-        // ✅ FIX: FullName بدل Name / مفيش user.Address
+        //    FIX: FullName بدل Name / مفيش user.Address
         user.FullName   = vm.FullName;
         user.PhoneNumber = phoneValidation.E164Number;
 

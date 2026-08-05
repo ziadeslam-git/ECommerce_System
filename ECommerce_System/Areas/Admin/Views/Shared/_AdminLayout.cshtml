@@ -2,11 +2,23 @@
 @using ECommerce_System.Repositories.IRepositories
 @using ECommerce_System.Utilities
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
 @inject IUnitOfWork UnitOfWork
 @inject UserManager<ApplicationUser> UserManager
 @{
-    var currentAdminUser = User.Identity?.IsAuthenticated == true ? await UserManager.GetUserAsync(User) : null;
-    var displayName = currentAdminUser?.FullName;
+    // ── Project only needed fields — avoids loading PasswordHash/SecurityStamp ──
+    string? displayName = null;
+    string? profileImageUrl = null;
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        var userId = UserManager.GetUserId(User);
+        var adminUserProjection = await UserManager.Users
+            .Where(u => u.Id == userId)
+            .Select(u => new { u.FullName, u.ProfileImageUrl })
+            .FirstOrDefaultAsync();
+        displayName    = adminUserProjection?.FullName;
+        profileImageUrl = adminUserProjection?.ProfileImageUrl;
+    }
     var controller = ViewContext.RouteData.Values["Controller"]?.ToString() ?? string.Empty;
     var currentAdminSection = controller switch
     {
@@ -33,17 +45,30 @@
     }
 
     var notificationFeedCutoff = DateTime.UtcNow.AddDays(-7);
-    var newOrdersCutoff = DateTime.UtcNow.AddHours(-24);
+    var newOrdersCutoff        = DateTime.UtcNow.AddHours(-24);
+
+    // ── All filtering + ordering + Take pushed to SQL; only needed columns projected ──
     var adminNotificationOrders = User.Identity?.IsAuthenticated == true
-        ? (await UnitOfWork.Orders.FindAllAsync(
-                o => o.CreatedAt >= notificationFeedCutoff || o.Status == SD.Status_Pending,
-                includeProperties: "User,Address",
-                tracked: false))
+        ? await UnitOfWork.Orders
+            .Query()
+            .AsNoTracking()
+            .Where(o => o.CreatedAt >= notificationFeedCutoff || o.Status == SD.Status_Pending)
             .OrderByDescending(o => o.CreatedAt)
             .Take(6)
-            .ToList()
-        : new List<Order>();
-    var adminNotificationCount = adminNotificationOrders.Count(o => o.CreatedAt >= newOrdersCutoff || o.Status == SD.Status_Pending);
+            .Select(o => new
+            {
+                o.Id,
+                o.Status,
+                o.TotalAmount,
+                o.CreatedAt,
+                CustomerName = o.User.FullName ?? o.Address.FullName,
+                AddressCity  = o.Address.City
+            })
+            .ToListAsync()
+        : new();
+
+    var adminNotificationCount = adminNotificationOrders
+        .Count(o => o.CreatedAt >= newOrdersCutoff || o.Status == SD.Status_Pending);
 
     Func<DateTime, string> formatNotificationTime = createdAt =>
     {
@@ -308,7 +333,7 @@
                                 {
                                     foreach (var order in adminNotificationOrders)
                                     {
-                                        var customerName = order.User?.FullName ?? order.Address?.FullName ?? "Unknown customer";
+                                        var customerName = order.CustomerName ?? "Unknown customer";
                                         var isFreshOrder = order.CreatedAt >= newOrdersCutoff;
 
                                         <a asp-area="Admin"

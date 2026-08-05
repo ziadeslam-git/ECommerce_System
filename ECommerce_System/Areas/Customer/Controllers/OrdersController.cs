@@ -586,8 +586,17 @@ public class OrdersController : Controller
             }
 
             decimal subtotal = 0;
+            var bundleVariantLookup = await BuildBundleVariantLookupAsync(cart.Items, tracked: false);
             foreach (var item in cart.Items)
             {
+                // ── Bundle item: use snapshot price; stock already checked at PlaceOrder ──
+                if (item.GiftBundleId.HasValue)
+                {
+                    subtotal += item.Quantity * item.PriceSnapshot;
+                    continue;
+                }
+
+                // ── Regular variant item ────────────────────────────────────────
                 if (item.ProductVariant == null || !item.ProductVariant.IsActive)
                 {
                     TempData["error"] = _localizer["ProductsInCartNoLongerAvailable"].Value;
@@ -875,13 +884,17 @@ public class OrdersController : Controller
 
     private async Task ReturnStockAsync(int orderId)
     {
+        // ── Single query loads items + variants together — no N+1 ─────────────
         var items = await _unitOfWork.OrderItems
-            .FindAllAsync(i => i.OrderId == orderId);
+            .Query()
+            .IgnoreQueryFilters()
+            .Where(i => i.OrderId == orderId)
+            .Include(i => i.ProductVariant)
+            .ToListAsync();
 
         foreach (var item in items)
         {
-            var variant = await _unitOfWork.ProductVariants
-                .GetByIdAsync(item.ProductVariantId, ignoreQueryFilters: true);
+            var variant = item.ProductVariant;
             if (variant is null)
             {
                 _logger.LogWarning("Cancel: OrderItem {ItemId} in Order {OrderId} has no ProductVariant. Skipping stock restore.",

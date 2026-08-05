@@ -3,6 +3,7 @@ using ECommerce_System.Repositories.IRepositories;
 using ECommerce_System.ViewModels.Customer;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace ECommerce_System.Areas.Customer.Controllers;
@@ -21,43 +22,74 @@ public class HomeController : Controller
 
     public async Task<IActionResult> Index()
     {
+        // ── Featured Products: push OrderBy + Take(10) to DB via IQueryable ──
         var featuredProducts = await _unitOfWork.Products
-            .FindAllAsync(p => p.IsActive, "Images,Category,Variants.Images", tracked: false);
+            .Query()
+            .AsNoTracking()
+            .Where(p => p.IsActive)
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(10)
+            .Select(p => new ProductCardVM
+            {
+                Id       = p.Id,
+                Name     = p.Name,
+                BasePrice = p.BasePrice,
+                MinVariantPrice = (p.Variants
+                    .Where(v => v.IsActive && v.Stock > 0)
+                    .OrderBy(v => v.Price)
+                    .Select(v => (decimal?)v.Price)
+                    .FirstOrDefault()) ?? p.BasePrice,
+                DefaultVariantId = p.Variants
+                    .Where(v => v.IsActive && v.Stock > 0)
+                    .OrderBy(v => v.Price)
+                    .Select(v => (int?)v.Id)
+                    .FirstOrDefault(),
+                AverageRating = p.AverageRating,
+                MainImageUrl  = p.Images
+                    .Where(i => i.IsMain)
+                    .Select(i => i.ImageUrl)
+                    .FirstOrDefault()
+                    ?? p.Images
+                        .OrderBy(i => i.DisplayOrder)
+                        .Select(i => i.ImageUrl)
+                        .FirstOrDefault(),
+                CategoryName = p.Category != null ? p.Category.Name : null
+            })
+            .ToListAsync();
 
-        var giftBundles = await _unitOfWork.GiftBundles
-            .FindAllAsync(gb => gb.IsActive, "Items.Product.Images,Items.Product.Variants.Images", tracked: false);
-
-        var categories = await _unitOfWork.Categories
-            .FindAllAsync(c => c.Products.Any(p => p.IsActive), "Products", tracked: false);
-
-        var featuredGiftBundle = giftBundles
+        // ── Featured Gift Bundle: load only the single needed bundle from DB ──
+        var featuredGiftBundle = await _unitOfWork.GiftBundles
+            .Query()
+            .AsNoTracking()
+            .Where(gb => gb.IsActive && gb.Items.Count >= 2)
             .OrderByDescending(gb => gb.IsFeatured)
             .ThenByDescending(gb => gb.UpdatedAt)
-            .FirstOrDefault(gb => gb.Items.Count >= 2);
+            .Include(gb => gb.Items)
+                .ThenInclude(i => i.Product)
+                    .ThenInclude(p => p.Images)
+            .Include(gb => gb.Items)
+                .ThenInclude(i => i.Product)
+                    .ThenInclude(p => p.Variants)
+            .FirstOrDefaultAsync();
+
+        // ── Categories: project Count at DB level — no full Product rows loaded ──
+        var categories = await _unitOfWork.Categories
+            .Query()
+            .AsNoTracking()
+            .Where(c => c.Products.Any(p => p.IsActive))
+            .OrderBy(c => c.Name)
+            .Select(c => new CategoryCardVM
+            {
+                Id           = c.Id,
+                Name         = c.Name,
+                Slug         = c.Slug,
+                ProductCount = c.Products.Count(p => p.IsActive)
+            })
+            .ToListAsync();
 
         var vm = new HomeIndexVM
         {
-            FeaturedProducts = featuredProducts
-                .OrderByDescending(p => p.CreatedAt)
-                .Take(10)
-                .Select(p => new ProductCardVM
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    BasePrice = p.BasePrice,
-                    MinVariantPrice = p.Variants.Where(v => v.IsActive && v.Stock > 0)
-                        .Select(v => v.Price)
-                        .OrderBy(price => price)
-                        .FirstOrDefault(),
-                    DefaultVariantId = p.Variants
-                        .Where(v => v.IsActive && v.Stock > 0)
-                        .OrderBy(v => v.Price)
-                        .Select(v => (int?)v.Id)
-                        .FirstOrDefault(),
-                    AverageRating = p.AverageRating,
-                    MainImageUrl = ResolveProductImage(p),
-                    CategoryName = p.Category?.Name
-                }).ToList(),
+            FeaturedProducts = featuredProducts,
             FeaturedGiftBundle = featuredGiftBundle == null
                 ? null
                 : new GiftBundleHomeVM
@@ -67,27 +99,19 @@ public class HomeController : Controller
                     Description = string.IsNullOrWhiteSpace(featuredGiftBundle.Description)
                         ? "Complete the look with a curated offer built from standout products."
                         : featuredGiftBundle.Description!,
-                    BundlePrice = featuredGiftBundle.BundlePrice,
+                    BundlePrice   = featuredGiftBundle.BundlePrice,
                     OriginalTotal = featuredGiftBundle.Items.Sum(item => ResolveBundleDisplayPrice(item.Product)),
                     Items = featuredGiftBundle.Items
                         .OrderBy(item => item.SortOrder)
                         .Select(item => new GiftBundleHomeItemVM
                         {
-                            ProductId = item.ProductId,
+                            ProductId   = item.ProductId,
                             ProductName = item.Product.Name,
                             MainImageUrl = ResolveProductImage(item.Product)
                         })
                         .ToList()
                 },
             Categories = categories
-                .OrderBy(c => c.Name)
-                .Select(c => new CategoryCardVM
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    Slug = c.Slug,
-                    ProductCount = c.Products.Count(p => p.IsActive)
-                }).ToList()
         };
 
         return View(vm);

@@ -5,6 +5,7 @@ using ECommerce_System.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce_System.Areas.Admin.Controllers;
 
@@ -336,15 +337,14 @@ public class GiftBundlesController : Controller
 
     private async Task ClearFeaturedFlagFromOtherBundlesAsync(int? excludedBundleId = null)
     {
-        var featuredBundles = await _unitOfWork.GiftBundles
-            .FindAllAsync(bundle => bundle.IsFeatured && (!excludedBundleId.HasValue || bundle.Id != excludedBundleId.Value));
-
-        foreach (var giftBundle in featuredBundles)
-        {
-            giftBundle.IsFeatured = false;
-            giftBundle.UpdatedAt = DateTime.UtcNow;
-            _unitOfWork.GiftBundles.Update(giftBundle);
-        }
+        // ── Single UPDATE SQL — no entity loading required ────────────────────
+        await _unitOfWork.GiftBundles
+            .Query()
+            .Where(bundle => bundle.IsFeatured &&
+                             (!excludedBundleId.HasValue || bundle.Id != excludedBundleId.Value))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(b => b.IsFeatured, false)
+                .SetProperty(b => b.UpdatedAt, DateTime.UtcNow));
     }
 
     private static decimal ResolveProductBundlePrice(Product product)

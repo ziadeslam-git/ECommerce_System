@@ -3,6 +3,7 @@ using ECommerce_System.Resources;
 using ECommerce_System.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 
 namespace ECommerce_System.Areas.Customer.Controllers;
@@ -43,9 +44,13 @@ public class ReviewsController : Controller
             return RedirectToAction("Login", "Account", new { area = "Identity" });
         }
 
-        var hasPurchasedDelivered = (await _unitOfWork.Orders
-            .FindAllAsync(o => o.UserId == userId && o.Status == SD.Status_Delivered, "OrderItems.ProductVariant", tracked: false))
-            .Any(o => o.OrderItems.Any(oi => oi.ProductVariant.ProductId == productId));
+        // ── Single DB-level EXISTS check — no orders loaded into memory ──────
+        var hasPurchasedDelivered = await _unitOfWork.Orders
+            .Query()
+            .AsNoTracking()
+            .AnyAsync(o => o.UserId == userId
+                        && o.Status == SD.Status_Delivered
+                        && o.OrderItems.Any(oi => oi.ProductVariant.ProductId == productId));
 
         if (!hasPurchasedDelivered)
         {

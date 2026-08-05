@@ -97,7 +97,7 @@ public class ExternalLoginController : Controller
                 result = await _userManager.AddLoginAsync(user, info);
                 if (result.Succeeded)
                 {
-                    // ✅ FIX: Assign Customer role to external login users
+                    //    FIX: Assign Customer role to external login users
                     await _userManager.AddToRoleAsync(user, SD.Role_Customer);
                     await _signInManager.SignInAsync(user, isPersistent: true, info.LoginProvider);
                     return LocalRedirect(returnUrl);

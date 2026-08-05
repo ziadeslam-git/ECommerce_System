@@ -42,5 +42,10 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
         // Matching query filter: mirrors ProductVariant's IsActive filter to satisfy EF Core 10622
         // Note: OrderItem queries that need inactive variants use .IgnoreQueryFilters()
         builder.HasQueryFilter(oi => oi.ProductVariant!.IsActive);
+
+        // ── Performance Indexes ──────────────────────────────────────────────
+        // Frequent: "load all items for an order" — used in order details, stock return
+        builder.HasIndex(oi => oi.OrderId)
+            .HasDatabaseName("IX_OrderItems_OrderId");
     }
 }

@@ -216,7 +216,7 @@ public class OrdersController : Controller
         }
 
         // 1. Resolve User (Find by phone, or create new guest user)
-        var user = _userManager.Users.FirstOrDefault(u => u.PhoneNumber == vm.CustomerPhone || u.Email == $"{vm.CustomerPhone}@guest.local");
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.PhoneNumber == vm.CustomerPhone || u.Email == $"{vm.CustomerPhone}@guest.local");
         if (user is null)
         {
             user = new ApplicationUser
@@ -619,7 +619,7 @@ public class OrdersController : Controller
         // Check 1-time use per customer
         if (!string.IsNullOrWhiteSpace(phone))
         {
-            var user = _userManager.Users.FirstOrDefault(u => u.PhoneNumber == phone || u.Email == $"{phone}@guest.local");
+            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.PhoneNumber == phone || u.Email == $"{phone}@guest.local");
             if (user != null)
             {
                 var alreadyUsed = await _unitOfWork.Orders.FindAsync(o => o.UserId == user.Id && o.CouponCode == code);
@@ -778,13 +778,17 @@ public class OrdersController : Controller
     // ──────────────────────────────────────────────────────────
     private async Task ReturnStockAsync(int orderId)
     {
+        // ── Single query loads items + variants together — no N+1 ─────────────
         var items = await _unitOfWork.OrderItems
-            .FindAllAsync(i => i.OrderId == orderId);
+            .Query()
+            .IgnoreQueryFilters()                 // include items linked to inactive variants
+            .Where(i => i.OrderId == orderId)
+            .Include(i => i.ProductVariant)
+            .ToListAsync();
 
         foreach (var item in items)
         {
-            var variant = await _unitOfWork.ProductVariants
-                .GetByIdAsync(item.ProductVariantId, ignoreQueryFilters: true);
+            var variant = item.ProductVariant;
             if (variant is null) continue;
 
             variant.Stock += item.Quantity;

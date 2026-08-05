@@ -27,12 +27,22 @@ public class PaymentsController : Controller
 
         var paymentsBaseQuery = _unitOfWork.Payments.Query().AsNoTracking();
 
-        ViewBag.TotalVolume = await paymentsBaseQuery
-            .Where(p => p.Status == SD.Payment_Paid)
-            .SumAsync(p => (decimal?)p.Amount) ?? 0m;
-        ViewBag.PaidCount = await paymentsBaseQuery.CountAsync(p => p.Status == SD.Payment_Paid);
-        ViewBag.PendingCount = await paymentsBaseQuery.CountAsync(p => p.Status == SD.Payment_Pending);
-        ViewBag.FailedCount = await paymentsBaseQuery.CountAsync(p => p.Status == SD.Payment_Failed || p.Status == SD.Payment_Refunded);
+        // ── Single GroupBy query replaces 4 separate COUNT/SUM round-trips ────
+        var stats = await paymentsBaseQuery
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                TotalVolume  = g.Where(p => p.Status == SD.Payment_Paid).Sum(p => (decimal?)p.Amount) ?? 0m,
+                PaidCount    = g.Count(p => p.Status == SD.Payment_Paid),
+                PendingCount = g.Count(p => p.Status == SD.Payment_Pending),
+                FailedCount  = g.Count(p => p.Status == SD.Payment_Failed || p.Status == SD.Payment_Refunded)
+            })
+            .FirstOrDefaultAsync();
+
+        ViewBag.TotalVolume  = stats?.TotalVolume  ?? 0m;
+        ViewBag.PaidCount    = stats?.PaidCount    ?? 0;
+        ViewBag.PendingCount = stats?.PendingCount ?? 0;
+        ViewBag.FailedCount  = stats?.FailedCount  ?? 0;
 
         var filteredQuery = _unitOfWork.Payments.Query()
             .AsNoTracking()

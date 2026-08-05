@@ -1,3 +1,4 @@
+using ECommerce_System.Data;
 using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
 using ECommerce_System.Utilities;
@@ -15,12 +16,20 @@ public class UsersController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly ApplicationDbContext _context;
     private const int PageSize = 10;
 
-    public UsersController(IUnitOfWork unitOfWork, UserManager<ApplicationUser> userManager)
+    public UsersController(
+        IUnitOfWork unitOfWork,
+        UserManager<ApplicationUser> userManager,
+        RoleManager<IdentityRole> roleManager,
+        ApplicationDbContext context)
     {
         _unitOfWork  = unitOfWork;
         _userManager = userManager;
+        _roleManager = roleManager;
+        _context     = context;
     }
 
     // GET: /Admin/Users — DB-level pagination: filters + Skip/Take pushed to SQL before materialization
@@ -37,11 +46,21 @@ public class UsersController : Controller
         else if (statusFilter == "Inactive")
             query = query.Where(u => !u.IsActive);
 
-        // 2. Count at DB level (no data transferred)
-        int totalCount = await query.CountAsync();
-        int activeCount = await query.CountAsync(u => u.IsActive);
-        int inactiveCount = totalCount - activeCount;
-        int joinedRecentlyCount = await query.CountAsync(u => u.CreatedAt >= DateTime.UtcNow.AddDays(-30));
+        // 2. Count at DB level — single GroupBy replaces 3 separate COUNT queries
+        var userStats = await query
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Total          = g.Count(),
+                Active         = g.Count(u => u.IsActive),
+                JoinedRecently = g.Count(u => u.CreatedAt >= DateTime.UtcNow.AddDays(-30))
+            })
+            .FirstOrDefaultAsync();
+
+        int totalCount          = userStats?.Total          ?? 0;
+        int activeCount         = userStats?.Active         ?? 0;
+        int inactiveCount       = totalCount - activeCount;
+        int joinedRecentlyCount = userStats?.JoinedRecently ?? 0;
         int totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
         if (page > totalPages)
             page = totalPages;
@@ -68,11 +87,24 @@ public class UsersController : Controller
             .GroupBy(r => r.UserId)
             .ToDictionary(g => g.Key, g => g.Count());
 
-        // 5. Build VMs only for this page's users (max PageSize = 15 iterations)
+        // 5. Batch-load roles for the entire page in ONE query via UserRoles table
+        var pageUserIdsList = pagedUsers.Select(u => u.Id).ToList();
+        var userRolesRaw = await _context.UserRoles
+            .AsNoTracking()
+            .Where(ur => pageUserIdsList.Contains(ur.UserId))
+            .Join(_roleManager.Roles.AsNoTracking(),
+                  ur => ur.RoleId, r => r.Id,
+                  (ur, r) => new { ur.UserId, RoleName = r.Name! })
+            .ToListAsync();
+        var rolesByUserId = userRolesRaw
+            .GroupBy(x => x.UserId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.RoleName).ToList());
+
+        // 6. Build VMs only for this page's users — no DB call inside the loop
         var vms = new List<UserAdminVM>();
         foreach (var user in pagedUsers)
         {
-            var roles      = await _userManager.GetRolesAsync(user);
+            var roles      = rolesByUserId.TryGetValue(user.Id, out var rl) ? (IList<string>)rl : Array.Empty<string>();
             var userOrders = ordersByUser.TryGetValue(user.Id, out var ord) ? ord : new();
 
             vms.Add(new UserAdminVM
@@ -110,9 +142,13 @@ public class UsersController : Controller
         if (user == null) return NotFound();
 
         var roles  = await _userManager.GetRolesAsync(user);
-        var orders = await _unitOfWork.Orders
-            .FindAllAsync(o => o.UserId == user.Id, tracked: false);
-        var orderList = orders.ToList();
+
+        // ── DB-level projection: only load columns needed for stats + top 5 orders ──
+        var orderStats = await _unitOfWork.Orders.Query()
+            .AsNoTracking()
+            .Where(o => o.UserId == user.Id)
+            .Select(o => new { o.TotalAmount, o.Status, o.PaymentStatus, o.CreatedAt, o.Id })
+            .ToListAsync();
 
         var reviews = await _unitOfWork.Reviews
             .FindAllAsync(r => r.UserId == user.Id, tracked: false);
@@ -125,11 +161,11 @@ public class UsersController : Controller
             IsActive      = user.IsActive,
             CreatedAt     = user.CreatedAt,
             Roles         = roles,
-            TotalOrders   = orderList.Count,
-            TotalSpent    = orderList.Sum(o => o.TotalAmount),
+            TotalOrders   = orderStats.Count,
+            TotalSpent    = orderStats.Sum(o => o.TotalAmount),
             TotalReviews  = reviews.Count(),
-            LastOrderDate = orderList.OrderByDescending(o => o.CreatedAt).FirstOrDefault()?.CreatedAt,
-            RecentOrders  = orderList
+            LastOrderDate = orderStats.OrderByDescending(o => o.CreatedAt).FirstOrDefault()?.CreatedAt,
+            RecentOrders  = orderStats
                 .OrderByDescending(o => o.CreatedAt)
                 .Take(5)
                 .Select(o => new OrderSummaryForUserVM

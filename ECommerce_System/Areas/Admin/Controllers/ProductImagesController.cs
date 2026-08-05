@@ -146,11 +146,12 @@ public class ProductImagesController : Controller
         _uow.ProductImages.Remove(image);
         await _uow.SaveAsync();
 
-        // If deleted image was main, promote the next one
+        // If deleted image was main, promote the next one by lowest DisplayOrder (deterministic)
         if (wasMain)
         {
-            var next = await _uow.ProductImages
-                .FindAsync(i => i.ProductId == productId);
+            var remaining = await _uow.ProductImages
+                .FindAllAsync(i => i.ProductId == productId);
+            var next = remaining.OrderBy(i => i.DisplayOrder).FirstOrDefault();
             if (next is not null)
             {
                 next.IsMain = true;

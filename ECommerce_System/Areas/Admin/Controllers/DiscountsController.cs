@@ -4,6 +4,7 @@ using ECommerce_System.Utilities;
 using ECommerce_System.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce_System.Areas.Admin.Controllers;
 
@@ -20,24 +21,22 @@ public class DiscountsController : Controller
     // GET: /Admin/Discounts
     public async Task<IActionResult> Index(int page = 1, string? searchQuery = null, string? typeFilter = null)
     {
-        // TODO: Replace with GetPagedAsync when implemented in IRepository<T>
-        // to push Skip/Take/filter to database level and avoid loading all discounts.
-        var allDiscounts = await _unitOfWork.Discounts.GetAllAsync(tracked: false);
+        page = Math.Max(page, 1);
 
-        // Apply filters + ordering + Skip/Take in a single LINQ chain on IQueryable —
-        // VM projection happens AFTER Skip/Take so only PageSize objects are created.
-        var query = allDiscounts.AsQueryable();
+        // ── All filters + Skip/Take pushed to SQL (no full table load) ─────────
+        var query = _unitOfWork.Discounts.Query().AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(searchQuery))
-            query = query.Where(d => d.CouponCode.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(d => d.CouponCode.Contains(searchQuery));
 
         if (!string.IsNullOrWhiteSpace(typeFilter))
             query = query.Where(d => d.Type == typeFilter);
 
-        int totalCount = query.Count();
-        int totalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
+        int totalCount = await query.CountAsync();
+        int totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+        if (page > totalPages) page = totalPages;
 
-        var paged = query
+        var paged = await query
             .OrderByDescending(d => d.Id)
             .Skip((page - 1) * PageSize)
             .Take(PageSize)
@@ -54,7 +53,7 @@ public class DiscountsController : Controller
                 EndDate            = d.ExpiresAt,
                 IsActive           = d.IsActive
             })
-            .ToList();
+            .ToListAsync();
 
         ViewBag.CurrentPage = page;
         ViewBag.TotalPages  = totalPages;

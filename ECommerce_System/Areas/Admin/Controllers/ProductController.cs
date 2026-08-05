@@ -25,28 +25,34 @@ public class ProductController : Controller
         page = Math.Max(page, 1);
         ViewData["Title"] = "Products";
 
-        var query = _uow.Products
-            .Query()
+        // ── Single GroupBy replaces 4 separate COUNT/SUM round-trips ─────────
+        var stats = await _uow.Products.Query()
             .IgnoreQueryFilters()
-            .AsNoTracking();
+            .AsNoTracking()
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Total      = g.Count(),
+                Active     = g.Count(p => p.IsActive),
+                WithImages = g.Count(p => p.Images.Any())
+            })
+            .FirstOrDefaultAsync();
 
-        var totalCount = await query.CountAsync();
-        var activeCount = await query.CountAsync(p => p.IsActive);
-        var totalStock = await _uow.ProductVariants.Query()
+        var totalCount  = stats?.Total      ?? 0;
+        var activeCount = stats?.Active     ?? 0;
+        var withImages  = stats?.WithImages ?? 0;
+        var totalStock  = await _uow.ProductVariants.Query()
             .IgnoreQueryFilters()
             .AsNoTracking()
             .SumAsync(v => (int?)v.Stock) ?? 0;
-        var withImages = await _uow.ProductImages.Query()
-            .AsNoTracking()
-            .Select(i => i.ProductId)
-            .Distinct()
-            .CountAsync();
 
         var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
         if (page > totalPages)
             page = totalPages;
 
-        var products = await query
+        var products = await _uow.Products.Query()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
             .AsSplitQuery()
             .Include(p => p.Category)
             .Include(p => p.Variants)
@@ -195,22 +201,18 @@ public class ProductController : Controller
 
         if (wasActive && !product.IsActive)
         {
-            var variants = await _uow.ProductVariants.FindAllAsync(v => v.ProductId == product.Id);
-            foreach (var variant in variants)
-            {
-                variant.IsActive = false;
-            }
+            // ── ExecuteUpdateAsync: single SQL UPDATE — no entity loading ──────
+            await _uow.ProductVariants.Query()
+                .IgnoreQueryFilters()
+                .Where(v => v.ProductId == product.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(v => v.IsActive, false));
         }
         else if (!wasActive && product.IsActive)
         {
-            var variants = await _uow.ProductVariants.FindAllAsync(v => v.ProductId == product.Id);
-            foreach (var variant in variants)
-            {
-                if (variant.Stock > 0)
-                {
-                    variant.IsActive = true;
-                }
-            }
+            await _uow.ProductVariants.Query()
+                .IgnoreQueryFilters()
+                .Where(v => v.ProductId == product.Id && v.Stock > 0)
+                .ExecuteUpdateAsync(s => s.SetProperty(v => v.IsActive, true));
         }
 
         try
@@ -287,24 +289,21 @@ public class ProductController : Controller
         product.IsActive = !product.IsActive;
         product.UpdatedAt = DateTime.UtcNow;
 
-        var variants = await _uow.ProductVariants.FindAllAsync(v => v.ProductId == product.Id, ignoreQueryFilters: true);
-        
+
         if (!product.IsActive)
         {
-            foreach (var variant in variants) variant.IsActive = false;
+            await _uow.ProductVariants.Query()
+                .IgnoreQueryFilters()
+                .Where(v => v.ProductId == product.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(v => v.IsActive, false));
             TempData["success"] = $"Product \"{product.Name}\" deactivated. All variants deactivated.";
         }
         else
         {
-            int activatedCount = 0;
-            foreach (var variant in variants)
-            {
-                if (variant.Stock > 0)
-                {
-                    variant.IsActive = true;
-                    activatedCount++;
-                }
-            }
+            var activatedCount = await _uow.ProductVariants.Query()
+                .IgnoreQueryFilters()
+                .Where(v => v.ProductId == product.Id && v.Stock > 0)
+                .ExecuteUpdateAsync(s => s.SetProperty(v => v.IsActive, true));
             TempData["success"] = $"Product \"{product.Name}\" activated. {activatedCount} variant(s) activated.";
         }
 

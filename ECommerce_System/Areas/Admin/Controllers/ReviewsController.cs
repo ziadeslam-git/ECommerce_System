@@ -25,11 +25,23 @@ public class ReviewsController : Controller
     {
         page = Math.Max(page, 1);
 
-        var allReviewsQuery = _unitOfWork.Reviews.Query().AsNoTracking();
-        ViewBag.AllCount = await allReviewsQuery.CountAsync();
-        ViewBag.PendingCount = await allReviewsQuery.CountAsync(r => !r.IsApproved && !r.IsRejected);
-        ViewBag.ApprovedCount = await allReviewsQuery.CountAsync(r => r.IsApproved);
-        ViewBag.RejectedCount = await allReviewsQuery.CountAsync(r => r.IsRejected);
+        // ── Single query for all counts instead of 4 separate round-trips ──────
+        var counts = await _unitOfWork.Reviews.Query()
+            .AsNoTracking()
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                All      = g.Count(),
+                Pending  = g.Count(r => !r.IsApproved && !r.IsRejected),
+                Approved = g.Count(r => r.IsApproved),
+                Rejected = g.Count(r => r.IsRejected)
+            })
+            .FirstOrDefaultAsync();
+
+        ViewBag.AllCount      = counts?.All      ?? 0;
+        ViewBag.PendingCount  = counts?.Pending  ?? 0;
+        ViewBag.ApprovedCount = counts?.Approved ?? 0;
+        ViewBag.RejectedCount = counts?.Rejected ?? 0;
 
         var filteredQuery = _unitOfWork.Reviews.Query()
             .AsNoTracking()
@@ -87,7 +99,7 @@ public class ReviewsController : Controller
     public async Task<IActionResult> Details(int id)
     {
         var review = await _unitOfWork.Reviews
-            .FindAsync(r => r.Id == id, "User,Product");
+            .FindAsync(r => r.Id == id, "User,Product", tracked: false);
 
         if (review == null) return NotFound();
 
@@ -171,19 +183,18 @@ public class ReviewsController : Controller
     // ─── Private Helper ───────────────────────────────────────────────────────
     private async Task RecalculateAverageRatingAsync(int productId)
     {
-        var approvedReviews = await _unitOfWork.Reviews
-            .FindAllAsync(r => r.ProductId == productId && r.IsApproved, tracked: false);
+        // ── DB-level AVG — no rows transferred to app server ──────────────────
+        var avg = await _unitOfWork.Reviews.Query()
+            .AsNoTracking()
+            .Where(r => r.ProductId == productId && r.IsApproved)
+            .AverageAsync(r => (double?)r.Rating) ?? 0;
 
-        var product = await _unitOfWork.Products.GetByIdAsync(productId);
-        if (product == null) return;
-
-        var list = approvedReviews.ToList();
-        product.AverageRating = list.Count != 0
-            ? list.Average(r => r.Rating)
-            : 0;
-
-        _unitOfWork.Products.Update(product);
-        await _unitOfWork.SaveAsync();
+        // ── Single ExecuteUpdateAsync — no product entity load needed ──────────
+        await _unitOfWork.Products.Query()
+            .Where(p => p.Id == productId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.AverageRating, Math.Round(avg, 1))
+                .SetProperty(p => p.UpdatedAt, DateTime.UtcNow));
     }
 
     [HttpGet]

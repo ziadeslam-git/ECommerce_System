@@ -52,5 +52,12 @@ public class AddressConfiguration : IEntityTypeConfiguration<Address>
             .WithOne(o => o.Address)
             .HasForeignKey(o => o.AddressId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // ── Performance Indexes ──────────────────────────────────────────────
+        // Frequent: "load all addresses for user" + "find default address for user"
+        builder.HasIndex(a => a.UserId)
+            .HasDatabaseName("IX_Addresses_UserId");
+        builder.HasIndex(a => new { a.UserId, a.IsDefault })
+            .HasDatabaseName("IX_Addresses_UserId_IsDefault");
     }
 }

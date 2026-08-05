@@ -34,5 +34,10 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
             .HasForeignKey(p => p.CategoryId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // ── Performance Indexes ──────────────────────────────────────────────
+        // Frequent: subcategory lookups (category tree / breadcrumb navigation)
+        builder.HasIndex(c => c.ParentCategoryId)
+            .HasDatabaseName("IX_Categories_ParentCategoryId");
     }
 }

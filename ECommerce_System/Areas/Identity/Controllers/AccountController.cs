@@ -22,9 +22,9 @@ public class AccountController : Controller
     private readonly IConfiguration _configuration;
     private readonly IPhoneNumberValidator _phoneNumberValidator;
 
-    // ✅ FIX 1: Removed IRepository<ApplicationUserOTP> — لا وجود لـ ApplicationUserOTP في هذا المشروع
-    // ✅ FIX 2: Removed wrong using (Microsoft.VisualStudio.Web.CodeGenerators...)
-    // ✅ FIX 3: Constructor نظيف بدون OTP dependency
+    //  FIX 1: Removed IRepository<ApplicationUserOTP> — لا وجود لـ ApplicationUserOTP في هذا المشروع
+    //  FIX 2: Removed wrong using (Microsoft.VisualStudio.Web.CodeGenerators...)
+    //  FIX 3: Constructor نظيف بدون OTP dependency
     public AccountController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
@@ -67,8 +67,8 @@ public class AccountController : Controller
 
         if (!ModelState.IsValid) return View(vm);
 
-        // ✅ FIX 4: استخدمنا FullName بدل Name (ApplicationUser في هذا المشروع ليه FullName)
-        // ✅ FIX 5: حذفنا user.Address — الـ Addresses موجودة في جدول منفصل
+        //  FIX 4: استخدمنا FullName بدل Name (ApplicationUser في هذا المشروع ليه FullName)
+        //  FIX 5: حذفنا user.Address — الـ Addresses موجودة في جدول منفصل
         var user = new ApplicationUser
         {
             FullName       = vm.FullName,
@@ -88,7 +88,7 @@ public class AccountController : Controller
             return View(vm);
         }
 
-        // ✅ FIX 6: استخدمنا SD.Role_Customer بدل SD.CUSTOMER_ROLE
+        //  FIX 6: استخدمنا SD.Role_Customer بدل SD.CUSTOMER_ROLE
         await _userManager.AddToRoleAsync(user, SD.Role_Customer);
 
         // Send email confirmation link
@@ -118,7 +118,7 @@ public class AccountController : Controller
                             </td></tr>
                             <!-- Icon -->
                             <tr><td style="padding:32px 40px 0; text-align:center;">
-                                <div style="width:72px; height:72px; background:#ede9fe; border-radius:50%; line-height:72px; font-size:32px; text-align:center; display:inline-block;">✅</div>
+                                <div style="width:72px; height:72px; background:#ede9fe; border-radius:50%; line-height:72px; font-size:32px; text-align:center; display:inline-block;">  </div>
                             </td></tr>
                             <!-- Body -->
                             <tr><td style="padding:24px 40px 32px; text-align:center;">
@@ -234,12 +234,12 @@ public class AccountController : Controller
 
         var user = await _userManager.FindByEmailAsync(vm.Email);
 
-        // ✅ Always show same message for security (don't leak whether email exists)
-        // ✅ FIX: Removed IsEmailConfirmedAsync gate — unconfirmed users were permanently
+        //  Always show same message for security (don't leak whether email exists)
+        //  FIX: Removed IsEmailConfirmedAsync gate — unconfirmed users were permanently
         //    locked out of password reset, creating a deadlock.
         if (user is not null)
         {
-            // ✅ FIX 7: استخدمنا GeneratePasswordResetTokenAsync (Identity standard)
+            //  FIX 7: استخدمنا GeneratePasswordResetTokenAsync (Identity standard)
             // بدل OTP system القديمة اللي كانت بتحتاج ApplicationUserOTP من DB
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
             var publicBaseUrl = _configuration["App:PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
@@ -374,7 +374,7 @@ public class AccountController : Controller
                                     <p style="margin:8px 0 0; color:rgba(255,255,255,0.8); font-size:14px;">Welcome to the family!</p>
                                 </td></tr>
                                 <tr><td style="padding:32px 40px 0; text-align:center;">
-                                    <div style="width:72px; height:72px; background:#ede9fe; border-radius:50%; line-height:72px; font-size:32px; text-align:center; display:inline-block;">✅</div>
+                                    <div style="width:72px; height:72px; background:#ede9fe; border-radius:50%; line-height:72px; font-size:32px; text-align:center; display:inline-block;">  </div>
                                 </td></tr>
                                 <tr><td style="padding:24px 40px 32px; text-align:center;">
                                     <h2 style="margin:0 0 12px; color:#1e1b4b; font-size:22px; font-weight:700;">Confirm Your Email</h2>

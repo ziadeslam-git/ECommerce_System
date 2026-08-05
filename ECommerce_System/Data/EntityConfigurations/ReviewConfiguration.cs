@@ -37,5 +37,10 @@ public class ReviewConfiguration : IEntityTypeConfiguration<Review>
 
         // Matching query filter: hide reviews whose parent product is inactive (mirrors Product filter)
         builder.HasQueryFilter(r => r.Product!.IsActive);
+
+        // ── Performance Indexes ──────────────────────────────────────────────
+        // Frequent: "get approved reviews for product" (AverageRating, product page)
+        builder.HasIndex(r => new { r.ProductId, r.IsApproved })
+            .HasDatabaseName("IX_Reviews_ProductId_IsApproved");
     }
 }

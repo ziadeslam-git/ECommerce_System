@@ -83,6 +83,7 @@ public class CategoryController : Controller
         ViewBag.TotalCount = totalCount;
         ViewBag.PageSize = PageSize;
         return View(viewModels);
+        
     }
 
     // ─── DETAILS ───────────────────────────────────────────────────────────────

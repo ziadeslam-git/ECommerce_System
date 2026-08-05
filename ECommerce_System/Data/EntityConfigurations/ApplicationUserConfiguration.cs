@@ -25,5 +25,10 @@ public class ApplicationUserConfiguration : IEntityTypeConfiguration<Application
         builder.Property(u => u.CreatedAt)
             .IsRequired()
             .HasDefaultValueSql("GETUTCDATE()");
+
+        // ── Performance Indexes ──────────────────────────────────────────────
+        // Frequent: filter active/inactive users in admin panel
+        builder.HasIndex(u => u.IsActive)
+            .HasDatabaseName("IX_AspNetUsers_IsActive");
     }
 }

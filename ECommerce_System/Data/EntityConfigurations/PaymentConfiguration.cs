@@ -31,5 +31,12 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 
         // One payment per order (unique FK)
         builder.HasIndex(p => p.OrderId).IsUnique();
+
+        // ── Performance Indexes ──────────────────────────────────────────────
+        // Frequent: dashboard SUM/COUNT by status; monthly revenue GroupBy
+        builder.HasIndex(p => p.Status)
+            .HasDatabaseName("IX_Payments_Status");
+        builder.HasIndex(p => new { p.Status, p.CreatedAt })
+            .HasDatabaseName("IX_Payments_Status_CreatedAt");
     }
 }

@@ -158,7 +158,7 @@ if (!string.IsNullOrWhiteSpace(googleClientId) &&
         options.ClientId = googleClientId;
         options.ClientSecret = googleClientSecret;
     });
-    Console.WriteLine("[STARTUP] Google OAuth: configured ✅");
+    Console.WriteLine("[STARTUP] Google OAuth: configured   ");
 }
 else
 {
@@ -175,7 +175,7 @@ if (!string.IsNullOrWhiteSpace(facebookAppId) &&
         options.Scope.Clear();
         options.Scope.Add("public_profile");
     });
-    Console.WriteLine("[STARTUP] Facebook OAuth: configured ✅");
+    Console.WriteLine("[STARTUP] Facebook OAuth: configured   ");
 }
 else
 {

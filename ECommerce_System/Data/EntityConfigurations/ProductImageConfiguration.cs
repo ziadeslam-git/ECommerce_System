@@ -28,5 +28,10 @@ public class ProductImageConfiguration : IEntityTypeConfiguration<ProductImage>
 
         // Matching query filter: hide images whose parent product is inactive (mirrors Product filter)
         builder.HasQueryFilter(i => i.Product!.IsActive);
+
+        // ── Performance Indexes ──────────────────────────────────────────────
+        // Frequent: "find main image for product" — used in every product listing card
+        builder.HasIndex(i => new { i.ProductId, i.IsMain })
+            .HasDatabaseName("IX_ProductImages_ProductId_IsMain");
     }
 }

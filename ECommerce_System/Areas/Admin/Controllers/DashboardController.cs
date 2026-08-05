@@ -1,3 +1,4 @@
+using ECommerce_System.Data;
 using ECommerce_System.Models;
 using ECommerce_System.Repositories.IRepositories;
 using ECommerce_System.Utilities;
@@ -14,78 +15,94 @@ public class DashboardController : Controller
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ApplicationDbContext _context;
 
-    public DashboardController(IUnitOfWork unitOfWork, UserManager<ApplicationUser> userManager)
+    public DashboardController(
+        IUnitOfWork unitOfWork,
+        UserManager<ApplicationUser> userManager,
+        ApplicationDbContext context)
     {
         _unitOfWork  = unitOfWork;
         _userManager = userManager;
+        _context     = context;
     }
 
     public async Task<IActionResult> Index()
     {
-        var totalProducts = await _unitOfWork.Products
+        // ── Sequential awaits required — DbContext is not thread-safe ────────
+        var totalProducts  = await _unitOfWork.Products.Query().AsNoTracking().CountAsync(p => p.IsActive);
+        var totalOrders    = await _unitOfWork.Orders.Query().AsNoTracking().CountAsync();
+        var pendingOrders  = await _unitOfWork.Orders.Query().AsNoTracking().CountAsync(o => o.Status == SD.Status_Pending);
+        var revenue        = await _unitOfWork.Payments.Query().AsNoTracking()
+                               .Where(p => p.Status == SD.Payment_Paid)
+                               .SumAsync(p => (decimal?)p.Amount) ?? 0m;
+
+        // ── Customer count: JOIN on UserRoles table — no full-user-list load ──
+        var totalCustomers = await _context.UserRoles
+            .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
+            .AsNoTracking()
+            .CountAsync(x => x.Name == SD.Role_Customer);
+
+        ViewBag.TotalProducts  = totalProducts;
+        ViewBag.TotalOrders    = totalOrders;
+        ViewBag.TotalRevenue   = revenue;
+        ViewBag.TotalCustomers = totalCustomers;
+        ViewBag.PendingOrders  = pendingOrders;
+
+        // ── Recent orders: OrderBy + Take pushed to SQL ─────────────────────────
+        ViewBag.RecentOrders = await _unitOfWork.Orders
             .Query()
             .AsNoTracking()
-            .CountAsync(p => p.IsActive);
+            .Include(o => o.User)
+            .Include(o => o.Address)
+            .OrderByDescending(o => o.Id)
+            .Take(5)
+            .ToListAsync();
 
-        // All orders & recent orders
-        var allOrdersList = (await _unitOfWork.Orders.GetAllAsync(tracked: false)).ToList();
-        var recentOrders = await _unitOfWork.Orders
-            .FindAllAsync(o => true, "User,Address", tracked: false);
-        
-        // Accurate Revenue from Payments Table
-        var allPaymentsList = (await _unitOfWork.Payments.GetAllAsync(tracked: false)).ToList();
-
-        // Total revenue (paid payments only)
-        var revenue = allPaymentsList
-            .Where(p => p.Status == SD.Payment_Paid)
-            .Sum(p => p.Amount);
-
-        // Customer count
-        var customers = await _userManager.GetUsersInRoleAsync(SD.Role_Customer);
-
-        ViewBag.TotalProducts = totalProducts;
-        ViewBag.TotalOrders   = allOrdersList.Count;
-        ViewBag.TotalRevenue  = revenue;
-        ViewBag.TotalCustomers = customers.Count;
-        ViewBag.PendingOrders = allOrdersList.Count(o => o.Status == SD.Status_Pending);
-        
-        // Pass Recent orders 
-        ViewBag.RecentOrders = recentOrders.OrderByDescending(o => o.Id).Take(5).ToList();
-
-        // --- DYNAMIC DASHBOARD ADDITIONS ---
-
-        // 1. Monthly Revenue (Paid payments in the current year)
+        // ── Monthly Revenue: single GroupBy query instead of loading all payments ──
         var currentYear = DateTime.UtcNow.Year;
+        var monthlyRaw = await _unitOfWork.Payments.Query().AsNoTracking()
+            .Where(p => p.Status == SD.Payment_Paid && p.CreatedAt.Year == currentYear)
+            .GroupBy(p => p.CreatedAt.Month)
+            .Select(g => new { Month = g.Key, Total = g.Sum(x => x.Amount) })
+            .ToListAsync();
+
         var monthlyRevenue = new decimal[12];
-        foreach (var p in allPaymentsList.Where(p => p.Status == SD.Payment_Paid && p.CreatedAt.Year == currentYear))
-        {
-            monthlyRevenue[p.CreatedAt.Month - 1] += p.Amount;
-        }
-        ViewBag.MonthlyRevenue = monthlyRevenue; // Pass float array to view
+        foreach (var m in monthlyRaw)
+            monthlyRevenue[m.Month - 1] = m.Total;
+        ViewBag.MonthlyRevenue = monthlyRevenue;
 
-        // 2. Top Products (Most sold non-cancelled items)
-        var validOrderIds = allOrdersList
-            .Where(o => o.Status != SD.Status_Cancelled)
-            .Select(o => o.Id)
-            .ToHashSet();
-
-        var allOrderItems = await _unitOfWork.OrderItems
-            .GetAllAsync(includeProperties: "ProductVariant,ProductVariant.Product,ProductVariant.Product.Category,ProductVariant.Product.Images", tracked: false);
-
-        var topProducts = allOrderItems
-            .Where(oi => validOrderIds.Contains(oi.OrderId))
-            .GroupBy(oi => new { oi.ProductName, CategoryName = oi.ProductVariant?.Product?.Category?.Name ?? "General" })
+        // ── Top Products: full aggregation at DB level — no full table load ──────
+        var topProducts = await _unitOfWork.OrderItems
+            .Query()
+            .AsNoTracking()
+            .Where(oi => oi.Order.Status != SD.Status_Cancelled)
+            .GroupBy(oi => new
+            {
+                oi.ProductName,
+                CategoryName = oi.ProductVariant.Product.Category != null
+                    ? oi.ProductVariant.Product.Category.Name
+                    : "General",
+                // Grab the main image inside the GroupBy key so SQL can project it
+                ImageUrl = oi.ProductVariant.Product.Images
+                               .Where(i => i.IsMain)
+                               .Select(i => i.ImageUrl)
+                               .FirstOrDefault()
+                           ?? oi.ProductVariant.Product.Images
+                               .OrderBy(i => i.DisplayOrder)
+                               .Select(i => i.ImageUrl)
+                               .FirstOrDefault()
+            })
             .Select(g => new ECommerce_System.ViewModels.Admin.TopProductVM
             {
-                ProductName = g.Key.ProductName,
+                ProductName  = g.Key.ProductName,
                 CategoryName = g.Key.CategoryName,
-                TotalSold = g.Sum(x => x.Quantity),
-                ImageUrl = g.FirstOrDefault()?.ProductVariant?.Product?.Images?.FirstOrDefault(i => i.IsMain)?.ImageUrl ?? ""
+                TotalSold    = g.Sum(x => x.Quantity),
+                ImageUrl     = g.Key.ImageUrl ?? string.Empty
             })
             .OrderByDescending(x => x.TotalSold)
             .Take(5)
-            .ToList();
+            .ToListAsync();
 
         ViewBag.TopProducts = topProducts;
 

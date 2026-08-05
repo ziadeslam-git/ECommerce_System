@@ -202,7 +202,7 @@ public class ShipmentsController : Controller
                 order.TotalAmount,
                 previousOrderStatus,
                 order.Status,
-                order.PaymentStatus,
+                string.Empty,        // oldPaymentStatus: not tracked in shipment flow — no payment section shown
                 order.PaymentStatus,
                 BuildCustomerOrderDetailsUrl(order.Id));
 
